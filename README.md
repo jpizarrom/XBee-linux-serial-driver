@@ -1,4 +1,4 @@
-Digi XBee 802.15.4 device driver
+Digi XBee 802.15.4 device driver(under development)
 ========================
 
 make
