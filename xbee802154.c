@@ -1,3 +1,4 @@
+#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/completion.h>
@@ -6,7 +7,18 @@
 #include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/seq_buf.h>
+#include <linux/nl80211.h>
+#include <net/netlink.h>
+#include <linux/nl802154.h>
+#include <linux/rtnetlink.h>
+#include <net/genetlink.h>
+#include <linux/if_arp.h>
+#include <linux/jiffies.h>
 #include <net/mac802154.h>
+#include <net/cfg802154.h>
+#include <net/nl802154.h>
+#include <net/regulatory.h>
 #include <net/ieee802154_netdev.h>
 
 #ifdef MODTEST_ENABLE
@@ -96,6 +108,28 @@ struct xbee_frame {
 	u8 flags;
 	u8 rssi;
 	unsigned char *data;
+};
+
+struct mac802154_llsec {
+};
+
+struct xbee_sub_if_data {
+        struct list_head list; /* the ieee802154_priv->slaves list */
+
+        struct wpan_dev wpan_dev;
+
+        struct xb_device* local;
+        struct net_device *dev;
+
+        //unsigned long state;
+        //char name[IFNAMSIZ];
+
+        /* protects sec from concurrent access by netlink. access by
+        * encrypt/decrypt/header_create safe without additional protection.
+        */
+        //struct mutex sec_mtx;
+
+        struct mac802154_llsec sec;
 };
 
 struct xb_frame_header {
@@ -260,6 +294,441 @@ static const size_t XBEE_FRAME_AT_COMMAND_SIZE = 2;
 
 static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
 static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
+
+#define ieee802154_sub_if_data xbee_sub_if_data
+
+/**
+ * DOC: ************** Functions copied from other files. ***************** 
+ */
+
+/**
+ * mac802154_set_header_security()
+ * @sdata: -
+ * @hdr: -
+ * @cb: -
+ */
+static int
+mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
+					 struct ieee802154_hdr *hdr,
+					 const struct ieee802154_mac_cb *cb)
+{
+	return 0;
+}
+
+/**
+ * mac802154_llsec_decrypt()
+ * @sec: -
+ * @skb: -
+ */
+static int
+mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
+{
+	return 0;
+}
+
+/**
+ * mac802154_wpan_update_llsec()
+ * @dev: -
+ */
+static int
+mac802154_wpan_update_llsec(struct net_device *dev)
+{
+	return 0;
+}
+
+/**
+ * mac802154_llsec_destroy()
+ * @sec: -
+ */
+static void mac802154_llsec_destroy(struct mac802154_llsec *sec)
+{
+	return;
+}
+
+/**
+ * ieee802154_print_addr()
+ * @name: -
+ * @addr: -
+ */
+static void
+ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
+{
+	if (!addr) {
+		pr_debug("%s address is null\n", name);
+		return;
+	}
+
+
+	if (addr->mode == IEEE802154_ADDR_NONE)
+		pr_debug("%s not present\n", name);
+
+	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
+	if (addr->mode == IEEE802154_ADDR_SHORT) {
+		pr_debug("%s is short: %04x\n", name,
+				le16_to_cpu(addr->short_addr));
+	} else {
+		u64 hw = swab64((__force u64)addr->extended_addr);
+
+		pr_debug("%s is hardware: %8phC\n", name, &hw);
+	}
+}
+
+/**
+ * IEEE802154_DEV_TO_SUB_IF() - Copy from Linux/net/mac802154/ieee802154_i.h
+ * @dev: -
+ */
+static inline struct ieee802154_sub_if_data *
+IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
+/**
+ * ieee802154_if_setup() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
+ */
+static void ieee802154_if_setup(struct net_device *dev)
+{
+	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
+	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
+
+	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
+	 * will not send frames without any payload, but ack frames
+	 * has no payload, so substract one that we can send a 3 bytes
+	 * frame. The xmit callback assumes at least a hard header where two
+	 * bytes fc and sequence field are set.
+	 */
+	dev->hard_header_len	= IEEE802154_MIN_HEADER_LEN - 1;
+	/* The auth_tag header is for security and places in private payload
+	 * room of mac frame which stucks between payload and FCS field.
+	 */
+	dev->needed_tailroom	= IEEE802154_MAX_AUTH_TAG_LEN +
+				  IEEE802154_FCS_LEN;
+	/* The mtu size is the payload without mac header in this case.
+	 * We have a dynamic length header with a minimum header length
+	 * which is hard_header_len. In this case we let mtu to the size
+	 * of maximum payload which is IEEE802154_MTU - IEEE802154_FCS_LEN -
+	 * hard_header_len. The FCS which is set by hardware or ndo_start_xmit
+	 * and the minimum mac header which can be evaluated inside driver
+	 * layer. The rest of mac header will be part of payload if greater
+	 * than hard_header_len.
+	 */
+	dev->mtu		= IEEE802154_MTU - IEEE802154_FCS_LEN -
+				  dev->hard_header_len;
+	dev->tx_queue_len	= 300;
+	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+}
+
+/**
+ * ieee802154_header_create() - Copy from Linux/net/mac802154/iface.c
+ * @skb: -
+ * @dev: -
+ * @daddr: -
+ * @saddr: -
+ * @len: -
+ */
+static int ieee802154_header_create(struct sk_buff *skb,
+				    struct net_device *dev,
+				    const struct ieee802154_addr *daddr,
+				    const struct ieee802154_addr *saddr,
+				    unsigned len)
+{
+	struct ieee802154_hdr hdr;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
+	int hlen;
+
+	if (!daddr)
+		return -EINVAL;
+
+	memset(&hdr.fc, 0, sizeof(hdr.fc));
+	hdr.fc.type = cb->type;
+	hdr.fc.security_enabled = cb->secen;
+	hdr.fc.ack_request = cb->ackreq;
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
+
+	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
+		return -EINVAL;
+
+	if (!saddr) {
+		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
+		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
+		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+			hdr.source.mode = IEEE802154_ADDR_LONG;
+			hdr.source.extended_addr = wpan_dev->extended_addr;
+		} else {
+			hdr.source.mode = IEEE802154_ADDR_SHORT;
+			hdr.source.short_addr = wpan_dev->short_addr;
+		}
+
+		hdr.source.pan_id = wpan_dev->pan_id;
+	} else {
+		hdr.source = *(const struct ieee802154_addr *)saddr;
+	}
+
+	hdr.dest = *(const struct ieee802154_addr *)daddr;
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
+	if (hlen < 0)
+		return -EINVAL;
+
+	skb_reset_mac_header(skb);
+	skb->mac_len = hlen;
+
+	if (len > ieee802154_max_payload(&hdr))
+		return -EMSGSIZE;
+
+	return hlen;
+}
+
+/**
+ * mac802154_wpan_ioctl() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
+ * @ifr: -
+ * @cmd: -
+ */
+static int
+mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sockaddr_ieee802154 *sa =
+		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
+	int err = -ENOIOCTLCMD;
+
+	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
+		return err;
+
+	rtnl_lock();
+
+	switch (cmd) {
+	case SIOCGIFADDR:
+	{
+		u16 pan_id, short_addr;
+
+		pan_id = le16_to_cpu(wpan_dev->pan_id);
+		short_addr = le16_to_cpu(wpan_dev->short_addr);
+		if (pan_id == IEEE802154_PANID_BROADCAST ||
+		    short_addr == IEEE802154_ADDR_BROADCAST) {
+			err = -EADDRNOTAVAIL;
+			break;
+		}
+
+		sa->family = AF_IEEE802154;
+		sa->addr.addr_type = IEEE802154_ADDR_SHORT;
+		sa->addr.pan_id = pan_id;
+		sa->addr.short_addr = short_addr;
+
+		err = 0;
+		break;
+	}
+	case SIOCSIFADDR:
+		if (netif_running(dev)) {
+			rtnl_unlock();
+			return -EBUSY;
+		}
+
+		dev_warn(&dev->dev,
+			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
+		if (sa->family != AF_IEEE802154 ||
+		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
+		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||
+		    sa->addr.short_addr == IEEE802154_ADDR_BROADCAST ||
+		    sa->addr.short_addr == IEEE802154_ADDR_UNDEF) {
+			err = -EINVAL;
+			break;
+		}
+
+		wpan_dev->pan_id = cpu_to_le16(sa->addr.pan_id);
+		wpan_dev->short_addr = cpu_to_le16(sa->addr.short_addr);
+
+		err = mac802154_wpan_update_llsec(dev);
+		break;
+	}
+
+	rtnl_unlock();
+	return err;
+}
+
+/**
+ * mac802154_wpan_free() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
+ */
+static void mac802154_wpan_free(struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mac802154_llsec_destroy(&sdata->sec);
+
+	free_netdev(dev);
+}
+
+
+/**
+ * ieee802154_deliver_skb() - Copy from Linux/net/mac802154/rx.c
+ * @skb: -
+ */
+static int ieee802154_deliver_skb(struct sk_buff *skb)
+{
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->protocol = htons(ETH_P_IEEE802154);
+
+	return netif_receive_skb(skb);
+}
+
+/**
+ * ieee802154_subif_frame() - Copy from Linux/net/mac802154/rx.c
+ * @sdata: -
+ * @skb: -
+ * @hdr: -
+ */
+static int
+ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
+		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
+{
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	__le16 span, sshort;
+	int rc;
+
+	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
+
+	span = wpan_dev->pan_id;
+	sshort = wpan_dev->short_addr;
+
+	switch (mac_cb(skb)->dest.mode) {
+	case IEEE802154_ADDR_NONE:
+		if (mac_cb(skb)->dest.mode != IEEE802154_ADDR_NONE)
+			/* FIXME: check if we are PAN coordinator */
+			skb->pkt_type = PACKET_OTHERHOST;
+		else
+			/* ACK comes with both addresses empty */
+			skb->pkt_type = PACKET_HOST;
+		break;
+	case IEEE802154_ADDR_LONG:
+		if (mac_cb(skb)->dest.pan_id != span &&
+		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
+			skb->pkt_type = PACKET_OTHERHOST;
+		else if (mac_cb(skb)->dest.extended_addr == wpan_dev->extended_addr)
+			skb->pkt_type = PACKET_HOST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
+		break;
+	case IEEE802154_ADDR_SHORT:
+		if (mac_cb(skb)->dest.pan_id != span &&
+		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
+			skb->pkt_type = PACKET_OTHERHOST;
+		else if (mac_cb(skb)->dest.short_addr == sshort)
+			skb->pkt_type = PACKET_HOST;
+		else if (mac_cb(skb)->dest.short_addr ==
+			  cpu_to_le16(IEEE802154_ADDR_BROADCAST))
+			skb->pkt_type = PACKET_BROADCAST;
+		else
+			skb->pkt_type = PACKET_OTHERHOST;
+		break;
+	default:
+		pr_debug("invalid dest mode\n");
+		goto fail;
+	}
+
+	skb->dev = sdata->dev;
+
+	/* TODO this should be moved after netif_receive_skb call, otherwise
+	 * wireshark will show a mac header with security fields and the
+	 * payload is already decrypted.
+	 */
+	rc = mac802154_llsec_decrypt(&sdata->sec, skb);
+	if (rc) {
+		pr_debug("decryption failed: %i\n", rc);
+		goto fail;
+	}
+
+	sdata->dev->stats.rx_packets++;
+	sdata->dev->stats.rx_bytes += skb->len;
+
+	switch (mac_cb(skb)->type) {
+	case IEEE802154_FC_TYPE_BEACON:
+	case IEEE802154_FC_TYPE_ACK:
+	case IEEE802154_FC_TYPE_MAC_CMD:
+		goto fail;
+
+	case IEEE802154_FC_TYPE_DATA:
+		return ieee802154_deliver_skb(skb);
+	default:
+		pr_warn_ratelimited("ieee802154: bad frame received "
+				    "(type = %d)\n", mac_cb(skb)->type);
+		goto fail;
+	}
+
+fail:
+	kfree_skb(skb);
+	return NET_RX_DROP;
+}
+
+/**
+ * ieee802154_parse_frame_start() - Copy from Linux/net/mac802154/rx.c
+ * @skb: -
+ * @hdr: -
+ */
+static int
+ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
+{
+	int hlen;
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+
+	skb_reset_mac_header(skb);
+
+	hlen = ieee802154_hdr_pull(skb, hdr);
+	if (hlen < 0)
+		return -EINVAL;
+
+	skb->mac_len = hlen;
+
+	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr->fc),
+		 hdr->seq);
+
+	cb->type = hdr->fc.type;
+	cb->ackreq = hdr->fc.ack_request;
+	cb->secen = hdr->fc.security_enabled;
+
+	ieee802154_print_addr("destination", &hdr->dest);
+	ieee802154_print_addr("source", &hdr->source);
+
+	cb->source = hdr->source;
+	cb->dest = hdr->dest;
+
+	if (hdr->fc.security_enabled) {
+		u64 key;
+
+		pr_debug("seclevel %i\n", hdr->sec.level);
+
+		switch (hdr->sec.key_id_mode) {
+		case IEEE802154_SCF_KEY_IMPLICIT:
+			pr_debug("implicit key\n");
+			break;
+
+		case IEEE802154_SCF_KEY_INDEX:
+			pr_debug("key %02x\n", hdr->sec.key_id);
+			break;
+
+		case IEEE802154_SCF_KEY_SHORT_INDEX:
+			pr_debug("key %04x:%04x %02x\n",
+				 le32_to_cpu(hdr->sec.short_src) >> 16,
+				 le32_to_cpu(hdr->sec.short_src) & 0xffff,
+				 hdr->sec.key_id);
+			break;
+
+		case IEEE802154_SCF_KEY_HW_INDEX:
+			key = swab64((__force u64)hdr->sec.extended_src);
+			pr_debug("key source %8phC %02x\n", &key,
+				 hdr->sec.key_id);
+			break;
+		}
+	}
+
+	return 0;
+}
+#undef ieee802154_sub_if_data
 
 /**
  * DOC: ************** Utility functions. ***************** 
