@@ -21,6 +21,10 @@ endif
 
 EXTRA_CFLAGS += -Wformat=2 -Wall
 
+ifneq ($(MODTEST_ENABLE),)
+EXTRA_CFLAGS += -DMODTEST_ENABLE=$(MODTEST_ENABLE)
+endif
+
 all: modules
 
 modules:
