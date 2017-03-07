@@ -46,6 +46,8 @@ struct xb_device {
 //	struct list_head frame_pend;
 	/* Command (rx) processing */
 	int			state;
+        struct sk_buff* recv_buf;
+
 };
 
 struct xbee_frame {
@@ -68,6 +70,634 @@ struct xbee_frame {
 	u8 rssi;
 	unsigned char *data;
 };
+
+struct xb_frame_header {
+        uint8_t start_delimiter; // 0x7e
+        uint16_t length;
+        uint8_t type;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_header_id {
+        uint8_t start_delimiter; // 0x7e
+        uint16_t length;
+        uint8_t type;
+        uint8_t id;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_atcmd {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint16_t command;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_atcmdr {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint16_t command;
+        uint8_t status;
+        uint8_t response[];
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_tx64 {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint64_t destaddr;
+        uint8_t options;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_tx16 {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint16_t destaddr;
+        uint8_t options;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_rx64 {
+        struct xb_frame_header hd;
+        uint64_t srcaddr;
+        uint8_t rssi;
+        uint8_t options;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_rx16 {
+        struct xb_frame_header hd;
+        uint16_t srcaddr;
+        uint8_t rssi;
+        uint8_t options;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_txstat {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint8_t options;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_mstat {
+        struct xb_frame_header hd;
+        uint8_t status;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_rcmd {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint64_t destaddr64;
+        uint16_t destaddr16;
+        uint16_t command;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_rcmdr {
+        struct xb_frame_header hd;
+        uint8_t id;
+        uint64_t destaddr64;
+        uint16_t destaddr16;
+        uint16_t command;
+        uint8_t status;
+} __attribute__((aligned(1), packed));
+
+/* API frame types */
+enum {
+        XBEE_FRM_TX64        = 0x00,
+        XBEE_FRM_TX16        = 0x01,
+        XBEE_FRM_ATCMD        = 0x08,
+        XBEE_FRM_ATCMDQ        = 0x09,
+        XBEE_FRM_RCMD        = 0x17,
+        XBEE_FRM_RX64        = 0x80,
+        XBEE_FRM_RX16        = 0x81,
+        XBEE_FRM_RX64IO        = 0x82,
+        XBEE_FRM_RX16IO        = 0x83,
+        XBEE_FRM_ATCMDR        = 0x88,
+        XBEE_FRM_TXSTAT        = 0x89,
+        XBEE_FRM_MSTAT        = 0x8A,
+        XBEE_FRM_RCMDR        = 0x97,
+};
+
+#define AT_DECL(x, y) ( x << 8 | y )
+
+enum {
+        XBEE_AT_AP = AT_DECL('A','P'),
+        XBEE_AT_AS = AT_DECL('A','S'),
+        XBEE_AT_CA = AT_DECL('C','A'),
+        XBEE_AT_CE = AT_DECL('C','E'),
+        XBEE_AT_CH = AT_DECL('C','H'),
+        XBEE_AT_ED = AT_DECL('E','D'),
+        XBEE_AT_FR = AT_DECL('F','R'),
+        XBEE_AT_ID = AT_DECL('I','D'),
+        XBEE_AT_MM = AT_DECL('M','M'),
+        XBEE_AT_MY = AT_DECL('M','Y'),
+        XBEE_AT_PL = AT_DECL('P','L'),
+        XBEE_AT_RE = AT_DECL('R','E'),
+        XBEE_AT_RN = AT_DECL('R','N'),
+        XBEE_AT_RR = AT_DECL('R','R'),
+        XBEE_AT_SC = AT_DECL('S','C'),
+        XBEE_AT_SD = AT_DECL('S','D'),
+        XBEE_AT_SH = AT_DECL('S','H'),
+        XBEE_AT_SL = AT_DECL('S','L'),
+        XBEE_AT_VR = AT_DECL('V','R'),
+};
+
+enum {
+        XBEE_DELIMITER = 0x7E,
+        XBEE_ESCAPED_DELIMITER = 0x5E ,
+        XBEE_ESCAPE = 0x7D ,
+        XBEE_ESCMASK = 0x20 ,
+        XBEE_XON = 0x11 ,
+        XBEE_XOFF = 0x13,
+};
+
+enum {
+        XBEE_MM_DIGI_WITH_ACK   = 0,
+        XBEE_MM_802154_NO_ACK   = 1,
+        XBEE_MM_802154_WITH_ACK = 2,
+        XBEE_MM_DIGI_NO_ACK   = 3
+};
+
+enum {
+        XBEE_ATCMDR_OK = 0,
+        XBEE_ATCMDR_ERROR = 1,
+        XBEE_ATCMDR_INVALID_COMMAND = 2,
+        XBEE_ATCMDR_INVALID_PARAMETER = 3,
+};
+
+enum {
+        XBEE_API_V1 = 1,
+        XBEE_API_V2 = 2,
+};
+
+
+static const size_t XBEE_FRAME_DELIMITER_SIZE = 1;
+static const size_t XBEE_FRAME_LENGTH_SIZE = 2;
+static const size_t XBEE_FRAME_CHECKSUM_SIZE = 1;
+static const size_t XBEE_FRAME_TYPE_SIZE = 1;
+static const size_t XBEE_FRAME_ID_SIZE = 1;
+static const size_t XBEE_FRAME_AT_COMMAND_SIZE = 2;
+
+static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
+static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
+
+/**
+ * DOC: ************** Buffer utility functions. ***************** 
+ */
+
+/**
+ * buffer_calc_checksum()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
+ */
+static unsigned char
+buffer_calc_checksum(const unsigned char* buf, const size_t len)
+{
+        size_t i=0;
+        unsigned char checksum = 0;
+        for(i=0; i<len; i++) {
+                checksum += buf[i];
+        }
+        return 0xFF - checksum;
+}
+
+/**
+ * buffer_find_delimiter_escaped()
+ *
+ * @buf: data which formatted by APIv2.
+ * @len: buffer length.
+ */
+static int
+buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
+{
+        size_t i=0;
+        bool esc = false;
+        for(i=0; i<len; i++) {
+                if(buf[i] == XBEE_ESCAPE) {
+                        esc = true; continue;
+                }
+                else if(buf[i] == XBEE_ESCAPED_DELIMITER && esc) {
+                        return i-1;
+                }
+                else if(buf[i] == XBEE_DELIMITER && !esc) {
+                        return i;
+                }
+                esc = false;
+        }
+        return -1;
+}
+
+/**
+ * buffer_unescape()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
+ */
+static size_t
+buffer_unescape(unsigned char* buf, const size_t len)
+{
+        size_t i=0;
+        int escape_count = 0;
+        bool esc = false;
+
+        for(i=0; i<len; i++) {
+                if(buf[i] == XBEE_ESCAPE) {
+                        esc = true;
+                        escape_count++;
+                        continue;
+                }
+                if(esc) buf[i-escape_count] = (buf[i] ^ XBEE_ESCMASK);
+                else    buf[i-escape_count] =  buf[i];
+                esc = false;
+        }
+        if(esc) {
+                buf[i-escape_count] = XBEE_ESCAPE;
+                escape_count--;
+        }
+
+        return len-escape_count;
+}
+
+/**
+ * buffer_escaped_len()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
+ */
+static size_t
+buffer_escaped_len(const unsigned char* buf, const size_t len)
+{
+        size_t i=0;
+        int escape_count = 0;
+
+        for(i=1; i<len; i++) {
+                if( buf[i] == XBEE_DELIMITER ||
+                    buf[i] == XBEE_ESCAPE ||
+                    buf[i] == XBEE_XON ||
+                    buf[i] == XBEE_XOFF)
+                {
+                        escape_count++;
+                }
+        }
+
+        return len+escape_count;
+}
+
+/**
+ * buffer_escape()
+ * @buf: Data which formatted by APIv1.
+ * @data_len: Buffer length. TODO
+ * @buf_len: Buffer length. TODO
+ *
+ * Buffer must enough large to contain escaped data size.
+ */
+static int
+buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
+{
+        size_t i=0;
+        size_t tail_ptr=buf_len;
+
+        for(i=data_len-1; i>0; i--) {
+                if((buf[i] == XBEE_DELIMITER ||
+                    buf[i] == XBEE_ESCAPE ||
+                    buf[i] == XBEE_XON ||
+                    buf[i] == XBEE_XOFF) )
+                {
+                        buf[--tail_ptr] = (buf[i] ^ XBEE_ESCMASK);
+                        buf[--tail_ptr] = XBEE_ESCAPE;
+                }
+                else {
+                        buf[--tail_ptr] = buf[i];
+                }
+                
+                if(tail_ptr < i) {
+                        return -1;
+                }
+        }
+
+        return buf_len - tail_ptr;
+}
+
+/**
+ * DOC: ************** XBee Frame utility functions. ***************** 
+ */
+
+/**
+ * frame_alloc() - allocate XBee frame as sk_buff.
+ * @paylen: payload length.
+ * @type: XBee frame type
+ * @alloc_csum: if true, allocate one more byte for checksum.
+ */
+static struct sk_buff*
+frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
+{
+        struct sk_buff* new_skb = NULL;
+        struct xb_frame_header* frm = NULL;
+        size_t csum_size = alloc_csum;
+        size_t frame_size = paylen + sizeof(struct xb_frame_header) + csum_size;
+
+        new_skb = dev_alloc_skb(frame_size);
+        if(!new_skb)
+                return NULL;
+
+        frm = (struct xb_frame_header*)skb_put(new_skb, frame_size);
+        if(!frm) {
+                kfree_skb(new_skb);
+                return NULL;
+        }
+
+        frm->start_delimiter  = XBEE_DELIMITER;
+        frm->length = htons(paylen + XBEE_FRAME_CHECKSUM_SIZE);
+        frm->type = type;
+        return new_skb;
+}
+
+/**
+ * frame_payload_length()
+ * @frame: XBee frame. (v1/v2)
+ */
+static uint16_t
+frame_payload_length(struct sk_buff* frame)
+{
+        struct xb_frame_header* frm = (struct xb_frame_header*)frame->data;
+        if(!frm)
+                return 0;
+
+        return htons(frm->length);
+}
+
+/**
+ * frame_payload_buffer()
+ * @frame: XBee frame. (v1/v2)
+ */
+static const unsigned char*
+frame_payload_buffer(struct sk_buff* frame)
+{
+        return frame->data + XBEE_FRAME_OFFSET_PAYLOAD;
+}
+
+/**
+ * frame_calc_checksum()
+ * @frame: XBee frame. (must be v1 API)
+ */
+static unsigned char
+frame_calc_checksum(struct sk_buff* frame)
+{
+        return buffer_calc_checksum(frame_payload_buffer(frame),
+                                frame_payload_length(frame) );
+}
+
+/**
+ * frame_put_checksum()
+ * @frame: XBee frame. (must be v1 API)
+ */
+static void
+frame_put_checksum(struct sk_buff* frame)
+{
+        uint8_t csum = frame_calc_checksum(frame);
+        uint8_t* putbuf = skb_put(frame, XBEE_FRAME_CHECKSUM_SIZE);
+        *putbuf = csum;
+}
+
+/**
+ * frame_trim_checksum()
+ * @frame: XBee frame. (must be v1 API)
+ */
+static void
+frame_trim_checksum(struct sk_buff* frame)
+{
+        skb_trim(frame, frame->len - XBEE_FRAME_CHECKSUM_SIZE);
+}
+
+/**
+ * frame_escape()
+ * @frame: XBee frame. (must be v1 API)
+ */
+static int
+frame_escape(struct sk_buff* frame)
+{
+        size_t esclen = 0;
+        size_t datalen = 0;
+        uint8_t csum = 0;
+
+        if(frame->len < XBEE_FRAME_COMMON_HEADER_AND_TRAILER)
+                return -1;
+        
+        datalen = frame_payload_length(frame) + XBEE_FRAME_OFFSET_PAYLOAD;
+        esclen = buffer_escaped_len(frame->data, datalen);
+
+        if(esclen > datalen) {
+                csum = frame->data[datalen];
+                skb_put(frame, esclen - datalen);
+                buffer_escape(frame->data, datalen, esclen);
+                frame->data[esclen] = csum;
+        }
+
+        return 0;
+}
+
+/**
+ * frame_unescape()
+ * @frame: XBee frame. (must be v2 API frame)
+ */
+static void
+frame_unescape(struct sk_buff* frame)
+{
+        int unesc_len = 0;
+        unesc_len = buffer_unescape(frame->data, frame->len);
+        skb_trim(frame, unesc_len);
+}
+
+/**
+ * frame_verify()
+ * @recv_buf: sk_buff which stores received data from XBee.
+ */
+static int
+frame_verify(struct sk_buff* recv_buf)
+{
+        unsigned short length = 0;
+        uint8_t checksum = 0;
+        struct xb_frame_header* header = NULL;
+
+        if(recv_buf->len < XBEE_FRAME_DELIMITER_SIZE)
+                return -EAGAIN;
+
+        header = (struct xb_frame_header*)recv_buf->data;
+
+        if(recv_buf->data[0] != XBEE_DELIMITER)
+                return -EINVAL;
+        if(recv_buf->len < XBEE_FRAME_OFFSET_PAYLOAD)
+                return -EAGAIN;
+
+        length = htons(header->length);
+
+        if(recv_buf->len < length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER)
+                return -EAGAIN;
+
+        checksum = frame_calc_checksum(recv_buf);
+
+        if(checksum!=recv_buf->data[length+XBEE_FRAME_OFFSET_PAYLOAD])
+                return -EINVAL;
+
+        return length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER;
+}
+
+/**
+ * frame_put_received_data()
+ *
+ * @recv_buf: sk_buff to store received data.
+ * @buf: New received data.
+ * @len: Length of buf.
+ */
+static int
+frame_put_received_data(struct sk_buff* recv_buf,
+                const unsigned char* buf, const size_t len)
+{
+        int delimiter_pos = 0;
+        unsigned char* tail = NULL;
+
+        delimiter_pos = buffer_find_delimiter_escaped(buf, len);
+
+        if(recv_buf->len == 0) {
+                if(delimiter_pos == -1) {
+                        return 0;
+                }
+                tail = skb_put(recv_buf, len-delimiter_pos);
+                memcpy(tail, buf+delimiter_pos, len-delimiter_pos);
+                return len-delimiter_pos;
+        }
+        else {
+                tail = skb_put(recv_buf, len);
+                memcpy(tail, buf, len);
+                return len;
+        }
+}
+
+/**
+ * frame_atcmdr_result()
+ * @atcmd_resp_frame: AT command response frame.
+ */
+static int
+frame_atcmdr_result(struct sk_buff* atcmd_resp_frame)
+{
+        struct xb_frame_atcmdr* atcmdr =
+                (struct xb_frame_atcmdr*)atcmd_resp_frame->data;
+        return -atcmdr->status;
+}
+
+/**
+ * frameq_enqueue_received()
+ *
+ * @recv_queue: Received frame queue.
+ * @recv_buf: sk_buff which contains received data.
+ */
+static int
+frameq_enqueue_received(struct sk_buff_head *recv_queue,
+                        struct sk_buff* recv_buf, bool apiv2)
+{
+        int frame_count = 0;
+        int ret = 0;
+
+        if(apiv2)
+                frame_unescape(recv_buf);
+
+        while ( (ret = frame_verify(recv_buf)) > 0) {
+                int verified_len = ret;
+                int remains = recv_buf->len - verified_len;
+                unsigned char* append = NULL;
+                struct sk_buff* newframe = NULL;
+
+                newframe = dev_alloc_skb(IEEE802154_MTU);
+
+                append = skb_put(newframe, verified_len);
+                memcpy(append, recv_buf->data, verified_len);
+
+                print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE,
+                                newframe->data, newframe->len);
+                skb_queue_tail(recv_queue, newframe);
+
+                memmove(recv_buf->data, recv_buf->data+verified_len,  remains);
+                skb_trim(recv_buf, remains);
+
+                frame_count++;
+        }
+
+        if (ret == -EINVAL) {
+                skb_trim(recv_buf, 0);
+        }
+
+        return frame_count;
+}
+
+/**
+ * frameq_dequeue_by_id()
+ *
+ * @recv_queue: receive queue
+ * @frameid: Dequeue frame which has this id from receive queue.
+ */
+static struct sk_buff*
+frameq_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+{
+        struct sk_buff* skb = NULL;
+        struct xb_frame_header_id* hd = NULL;
+
+        skb_queue_walk(recv_queue, skb) {
+                hd = (struct xb_frame_header_id*)skb->data;
+                if(        hd->id == frameid &&
+                        hd->type != XBEE_FRM_RX64 &&
+                        hd->type != XBEE_FRM_RX16 &&
+                        hd->type != XBEE_FRM_RX64IO &&
+                        hd->type != XBEE_FRM_RX16IO &&
+                        hd->type != XBEE_FRM_MSTAT) {
+                        skb_unlink(skb, recv_queue);
+                        return skb;
+                }
+        }
+
+        return NULL;
+}
+
+/**
+ * frameq_enqueue_send()
+ * @send_queue: send queue
+ * @send_frame: send frame
+ */
+static void
+frameq_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_frame)
+{
+        skb_queue_tail(send_queue, send_frame);
+}
+
+/**
+ * frameq_enqueue_send_at()
+ *
+ * @send_queue: send queue
+ * @atcmd: AT command type.
+ * @id: frameid to assign send frame.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
+ */
+static void
+frameq_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd,
+                                uint8_t id, char* buf, unsigned short buflen)
+{
+        struct sk_buff* newskb = NULL;
+        struct xb_frame_atcmd* atfrm = NULL;
+
+        unsigned char checksum = 0;
+        int datalen = 0;
+
+        newskb = frame_alloc(buflen + XBEE_FRAME_OFFSET_PAYLOAD, XBEE_FRM_ATCMD, true);
+        atfrm = (struct xb_frame_atcmd*)newskb->data;
+
+        atfrm->id = id;
+        atfrm->command = htons(atcmd);
+
+        datalen = htons(atfrm->hd.length);
+
+        memmove(newskb->data + sizeof(struct xb_frame_atcmd), buf, buflen);
+
+        checksum = frame_calc_checksum(newskb);
+        newskb->data[datalen+XBEE_FRAME_OFFSET_PAYLOAD] = checksum;
+        //frame_put_checksum(newskb);
+
+        frameq_enqueue_send(send_queue, newskb);
+}
+
 
 static void
 cleanup(struct xb_device *zbdev)
@@ -410,6 +1040,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
+	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
 	err = ieee802154_register_hw(dev);
 	if (err) {
 //		XBEE_ERROR("%s: device register failed\n", __func__);
@@ -471,11 +1102,14 @@ static int
 xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
                             unsigned int cmd, unsigned long arg)
 {
+        struct xb_device *xb = tty->disc_data;
+        unsigned int tmp;
+
 
         switch (cmd) {
 #ifdef MODTEST_ENABLE
         case 0x9999:
-                return modtest_ioctl(file, cmd, arg, NULL);
+                return modtest_ioctl(file, cmd, arg, xb);
 #endif
         default:
                 return tty_mode_ioctl(tty, file, cmd, arg);
