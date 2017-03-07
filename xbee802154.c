@@ -7,6 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <net/mac802154.h>
+#include <net/ieee802154_netdev.h>
 
 #ifdef MODTEST_ENABLE
 #include "modtest.h"
@@ -233,6 +234,306 @@ static const size_t XBEE_FRAME_AT_COMMAND_SIZE = 2;
 
 static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
 static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
+
+/**
+ * DOC: ************** Utility functions. ***************** 
+ */
+
+/**
+ * extended_addr_hton()
+ * @net:  IEEE802.15.4 extended address represented by network byte order.
+ * @host: IEEE802.15.4 extended address represented by host byte order.
+ */
+static void
+extended_addr_hton(uint64_t* net, uint64_t* host)
+{
+#ifndef __BIG_ENDIAN
+        ieee802154_be64_to_le64(net, host);
+#else
+        memcpy(net, host, sizeof(uint64_t) );
+#endif
+}
+
+/**
+ * DOC: ************** Debug print utility functions. ***************** 
+ */
+
+
+/**
+ * pr_ieee802154_addr()
+ * @name: -
+ * @addr: print this address.
+ */
+static void
+pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
+{
+        if (!addr) {
+                pr_debug("%s address is null\n", name);
+                return;
+        }
+
+
+        if (addr->mode == IEEE802154_ADDR_NONE)
+                pr_debug("%s not present\n", name);
+
+        pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
+        if (addr->mode == IEEE802154_ADDR_SHORT) {
+                pr_debug("%s is short: %04x\n", name,
+                                le16_to_cpu(addr->short_addr));
+        } else {
+                u64 hw = swab64((__force u64)addr->extended_addr);
+
+                pr_debug("%s is hardware: %8phC\n", name, &hw);
+        }
+}
+
+/**
+ * pr_ieee802154_hdr()
+ * @hdr: print this header.
+ */
+static void
+pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
+{
+        struct ieee802154_hdr_fc fc = hdr->fc;
+
+        pr_debug("fc: intra_pan:%d ackreq:%x pending:%d secen:%x "
+                        "type:%x saddr_mode:%x version:%x daddr_mode:%x",
+                        fc.intra_pan, fc.ack_request, fc.frame_pending,
+                        fc.security_enabled, fc.type, fc.source_addr_mode,
+                        fc.version, fc.dest_addr_mode);
+
+        pr_debug("seq %d", hdr->seq);
+        pr_ieee802154_addr("src", &hdr->source);
+        pr_ieee802154_addr("dst", &hdr->dest);
+}
+
+/**
+ * pr_wpan_phy_supported()
+ * @phy: print this phy.
+ */
+static void
+pr_wpan_phy_supported(struct wpan_phy* phy)
+{
+        struct wpan_phy_supported *supported = &phy->supported;
+        u32 *channels = supported->channels;
+        pr_debug("wpan_phy=%p {\n", phy);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[0], channels[1], channels[2], channels[3]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[4], channels[5], channels[6], channels[0]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[8], channels[9], channels[10], channels[11]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[12], channels[13], channels[14], channels[15]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[16], channels[17], channels[18], channels[19]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[20], channels[21], channels[22], channels[23]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[24], channels[25], channels[26], channels[27]);
+        pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+                        channels[28], channels[29], channels[30], channels[31]);
+        pr_debug("            cca_modes = %u\n", supported->cca_modes);
+        pr_debug("             cca_opts = %u\n", supported->cca_opts);
+        pr_debug("              iftypes = %u\n", supported->iftypes);
+        pr_debug("                  lbt = %u\n", supported->lbt);
+        pr_debug("            min_minbe = %u\n", supported->min_minbe);
+        pr_debug("            max_minbe = %u\n", supported->max_minbe);
+        pr_debug("            min_maxbe = %u\n", supported->min_maxbe);
+        pr_debug("            max_maxbe = %u\n", supported->max_maxbe);
+        pr_debug("    min_csma_backoffs = %u\n", supported->min_csma_backoffs);
+        pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
+        pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
+        pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
+        pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
+        pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
+        pr_debug("}\n");
+
+//const s32 *tx_powers, *cca_ed_levels;
+}
+
+/**
+ * pr_wpan_phy()
+ * @phy: print this phy.
+ */
+static void
+pr_wpan_phy(struct wpan_phy* phy)
+{
+        pr_debug("wpan_phy=%p {\n", phy);
+        pr_debug("               privid = %p\n", phy->privid);
+        pr_debug("                flags = %d\n", phy->flags);
+        pr_debug("      current_channel = %d\n", phy->current_channel);
+        pr_debug("         current_page = %d\n", phy->current_page);
+        pr_debug("       transmit_power = %d\n", phy->transmit_power);
+        pr_debug("             cca.mode = %d\n", phy->cca.mode);
+        pr_debug("              cca.opt = %d\n", phy->cca.opt);
+        pr_debug("   perm_extended_addr = %016llx\n", phy->perm_extended_addr);
+        pr_debug("         cca_ed_level = %d\n", phy->cca_ed_level);
+        pr_debug("      symbol_duration = %u\n", phy->symbol_duration);
+        pr_debug("          lifs_period = %u\n", phy->lifs_period);
+        pr_debug("          sifs_period = %u\n", phy->sifs_period);
+        //pr_debug("                 _net = %p\n", phy->_net->net);
+        pr_debug("                 priv = %p\n", phy->priv);
+        pr_debug("}\n");
+//struct wpan_phy_supported supported;
+//struct device dev;
+}
+
+/**
+ * pr_wpan_dev()
+ * @dev: WPAN dev that is associated with this XBee.
+ */
+static void
+pr_wpan_dev(struct wpan_dev* dev)
+{
+        pr_debug("wpan_dev=%p {\n", dev);
+        pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
+        pr_debug("              iftype = %d\n", dev->iftype);
+        pr_debug("              netdev = %p\n", dev->netdev);
+        pr_debug("          lowpan_dev = %p\n", dev->lowpan_dev);
+        pr_debug("          identifier = %x\n", dev->identifier);
+        pr_debug("              pan_id = %04x\n", dev->pan_id);
+        pr_debug("          short_addr = %04x\n", dev->short_addr);
+        pr_debug("       extended_addr = %016llx\n", dev->extended_addr);
+        pr_debug("                 bsn = %u\n", dev->bsn.counter);
+        pr_debug("                 dsn = %u\n", dev->dsn.counter);
+        pr_debug("              min_be = %u\n", dev->min_be);
+        pr_debug("              max_be = %u\n", dev->max_be);
+        pr_debug("        csma_retries = %u\n", dev->csma_retries);
+        pr_debug("       frame_retries = %d\n", dev->frame_retries);
+        pr_debug("                 lbt = %u\n", dev->lbt);
+        pr_debug("    promiscuous_mode = %d\n", dev->promiscuous_mode);
+        pr_debug("              ackreq = %d\n", dev->ackreq);
+        pr_debug("}\n");
+}
+
+/**
+ * pr_frame_atcmdr()
+ * @skb: AT Command response frame to print.
+ */
+static void
+pr_frame_atcmdr(struct sk_buff *skb)
+{
+        // AT command response must handle call side.
+        struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
+        pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n",
+                        atresp->id, atresp->command&0xFF,
+                        (atresp->command & 0xFF00)>>8 , atresp->status);
+}
+
+/**
+ * pr_frame_rx64io()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rx64io(struct sk_buff *skb)
+{
+        struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
+        pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n",
+                        rx64->srcaddr, rx64->rssi, rx64->options);
+}
+
+/**
+ * pr_frame_rx16io()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rx16io(struct sk_buff *skb)
+{
+        struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
+        pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n",
+                        rx16->srcaddr, rx16->rssi, rx16->options);
+}
+
+/**
+ * pr_frame_atcmd()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_atcmd(struct sk_buff *skb)
+{
+        struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+        pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n",
+                        atcmd->id, atcmd->command&0xFF,
+                        (atcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_atcmdq()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_atcmdq(struct sk_buff *skb)
+{
+        struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+        pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n",
+                        atcmd->id, atcmd->command&0xFF,
+                        (atcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_rcmd()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rcmd(struct sk_buff *skb)
+{
+        struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
+        pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx "
+                        "addr16=%04x cmd=%c%c\n",
+                        ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16,
+                        ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_rcmdr()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rcmdr(struct sk_buff *skb)
+{
+        struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
+        pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx "
+                        "addr16=%04x cmd=%c%c status=%d\n",
+                        ratcmdr->id,
+                        ratcmdr->destaddr64, ratcmdr->destaddr16,
+                        ratcmdr->command&0xFF,
+                        (ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
+}
+
+/**
+ * pr_frame_tx64()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_tx64(struct sk_buff *skb)
+{
+        struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
+        pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n",
+                        tx64->id, tx64->destaddr, tx64->options);
+}
+
+/**
+ * pr_frame_tx16()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_tx16(struct sk_buff *skb)
+{
+        struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
+        pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n",
+                        tx16->id, tx16->destaddr, tx16->options);
+}
+
+/**
+ * pr_frame_default()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_default(struct sk_buff *skb)
+{
+        pr_debug("%s\n", __func__);
+}
 
 /**
  * DOC: ************** Buffer utility functions. ***************** 
