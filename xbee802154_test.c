@@ -4,6 +4,11 @@
 
 #define TEST_SETUP xbee_test_setup
 static int xbee_test_setup(void* arg, int testno) {
+	struct xb_device* xbdev = NULL;
+	xbdev = (struct xb_device*)arg;
+	skb_trim(xbdev->recv_buf, 0);
+	skb_queue_purge(&xbdev->recv_queue);
+	skb_queue_purge(&xbdev->send_queue);
 	return 0;
 }
 
@@ -11,6 +16,7 @@ static int xbee_test_setup(void* arg, int testno) {
 void modtest_fail_check(void* arg, struct modtest_result* result) {
 	TEST_FAIL();
 }
+
 #define TEST2 buffer_calc_checksum_zero
 void buffer_calc_checksum_zero(void* arg, struct modtest_result* result) {
 	const char buf[] = {};
@@ -390,6 +396,250 @@ void frame_verify_modem_status(void* arg, struct modtest_result* result) {
 
 	TEST_SUCCESS();
 }
+
+//TODO frame_put_received_data
+
+#define TEST26 frameq_enqueue_received_zerobyte
+void frameq_enqueue_received_zerobyte(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	//const char buf[] = {};
+	//const int count = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	//memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+	TEST_SUCCESS();
+}
+
+#define TEST27 frameq_enqueue_received_non_startmark
+void frameq_enqueue_received_non_startmark(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x11 };
+	const int count = 1;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+	TEST_SUCCESS();
+}
+
+#define TEST28 frameq_enqueue_received_startmark
+void frameq_enqueue_received_startmark(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7e };
+	const int count = 1;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, xbdev->recv_buf->len);
+	TEST_SUCCESS();
+}
+
+#define TEST29 frameq_enqueue_received_startmark_len
+void frameq_enqueue_received_startmark_len(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7e , 0x00, 0x3 };
+	const int count = 3;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(3, xbdev->recv_buf->len);
+	TEST_SUCCESS();
+}
+
+#define TEST30 frameq_enqueue_received_valid_example
+void frameq_enqueue_received_valid_example(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
+	const int count = 6;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST31 frameq_enqueue_received_valid_example_two
+void frameq_enqueue_received_valid_example_two(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB,  0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
+	const int count = 12;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(2, ret);
+	FAIL_IF_NOT_EQ(2, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST32 frameq_enqueue_received_valid_partial
+void frameq_enqueue_received_valid_partial(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB, 0x7E };
+	const int count = 7;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, xbdev->recv_buf->len);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST33 frameq_enqueue_received_valid_invalid
+void frameq_enqueue_received_valid_invalid(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB, 0x11 };
+	const int count = 7;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	TEST_SUCCESS();
+}
+
+
+
+#define TEST34 frameq_dequeue_list_found
+void frameq_dequeue_list_found(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04 ,0x08 ,0x01 ,0x49 ,0x44 ,0x69 };
+	const int count = 8;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+	FAIL_IF_NOT_EQ(1, ret);
+
+	dequeued = frameq_dequeue_by_id(&xbdev->recv_queue, 1);
+
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF(dequeued == NULL);
+
+	TEST_SUCCESS();
+}
+
+#define TEST35 frameq_dequeue_list_notfound
+void frameq_dequeue_list_notfound(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04 ,0x08 ,0x01 ,0x49 ,0x44 ,0x69 };
+	const int count = 8;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+	FAIL_IF_NOT_EQ(1, ret);
+
+	dequeued = frameq_dequeue_by_id(&xbdev->recv_queue, 2);
+
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF(dequeued != NULL);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST36 frameq_dequeue_list_no_id_frame
+void frameq_dequeue_list_no_id_frame(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00 ,0x05 ,0x81 ,0xFF ,0xFE ,0x00 ,0x01 ,0x80 };
+	const int count = 9;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+	FAIL_IF_NOT_EQ(1, ret);
+
+	dequeued = frameq_dequeue_by_id(&xbdev->recv_queue, 0xFF);
+
+	FAIL_IF(dequeued != NULL);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST37 frameq_dequeue_empty_queue
+void frameq_dequeue_empty_queue(void* arg, struct modtest_result* result) {
+	//int ret = 0;
+	//const char buf[] = { 0x7E, 0x00 ,0x05 ,0x81 ,0xFF ,0xFE ,0x00 ,0x01 ,0x80 };
+	//const int count = 9;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	//memcpy(tail, buf, count);
+	//ret = frameq_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, 1);
+	//FAIL_IF_NOT_EQ(1, ret);
+
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+
+	dequeued = frameq_dequeue_by_id(&xbdev->recv_queue, 0xFF);
+
+	FAIL_IF(dequeued != NULL);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+
+	TEST_SUCCESS();
+}
+
 
 
 

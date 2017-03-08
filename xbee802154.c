@@ -47,6 +47,8 @@ struct xb_device {
 //	struct list_head frame_pend;
 	/* Command (rx) processing */
 	int			state;
+        struct sk_buff_head recv_queue;
+        struct sk_buff_head send_queue;
         struct sk_buff* recv_buf;
 
 };
@@ -1342,6 +1344,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty_driver_flush_buffer(tty);
 
 	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
+        skb_queue_head_init(&xbdev->recv_queue);
+        skb_queue_head_init(&xbdev->send_queue);
 	err = ieee802154_register_hw(dev);
 	if (err) {
 //		XBEE_ERROR("%s: device register failed\n", __func__);
