@@ -30,6 +30,12 @@ enum {
 };
 
 /*********************************************************************/
+struct xb_device;
+
+struct xb_work {
+        struct work_struct work;
+        struct xb_device* xb;
+};
 
 struct xb_device {
 	struct tty_struct *tty;
@@ -47,9 +53,22 @@ struct xb_device {
 //	struct list_head frame_pend;
 	/* Command (rx) processing */
 	int			state;
+        struct completion cmd_resp_done;
+        struct completion send_done;
+
         struct sk_buff_head recv_queue;
         struct sk_buff_head send_queue;
         struct sk_buff* recv_buf;
+
+        struct workqueue_struct    *sendrecv_workq;
+
+        struct xb_work send_work;
+        struct xb_work recv_work;
+        struct xb_work init_work;
+
+        struct mutex queue_mutex;
+
+        struct sk_buff* last_atresp;
 
 };
 
@@ -1001,6 +1020,148 @@ frameq_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd,
         frameq_enqueue_send(send_queue, newskb);
 }
 
+/**
+ * xb_send_queue()
+ * @xb: XBee device context.
+ */
+static int
+xb_send_queue(struct xb_device* xb)
+{
+        struct tty_struct* tty = xb->tty;
+        int send_count = 0;
+
+        mutex_lock(&xb->queue_mutex);
+
+        while( !skb_queue_empty(&xb->send_queue) ) {
+                struct sk_buff* skb = skb_dequeue(&xb->send_queue);
+
+                frame_escape(skb);
+
+                print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE,
+                                skb->data, skb->len);
+
+                /*
+                if (newskb)
+                        xbee_rx_irqsafe(xb, newskb, 0xcc);
+                */
+
+                tty->ops->write(tty, skb->data, skb->len);
+                tty_driver_flush_buffer(tty);
+                kfree_skb(skb);
+
+                send_count++;
+        }
+
+        mutex_unlock(&xb->queue_mutex);
+
+        return send_count;
+}
+
+/**
+ * xb_send()
+ * @xb: XBee device context.
+ */
+static int
+xb_send(struct xb_device* xb)
+{
+        queue_work(xb->sendrecv_workq, (struct work_struct*)&xb->send_work.work);
+        //return xb_send_queue(xb);
+        return 0;
+}
+
+/**
+ * xb_recv()
+ *
+ * @xb: XBee device context.
+ * @expect_id: Wait to receive frame that have this ID.
+ * @timeout: timeout in milliseconds
+ */
+static struct sk_buff*
+xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
+{
+        int ret = 0;
+        struct sk_buff* skb = NULL;
+
+        mutex_lock(&xb->queue_mutex);
+        skb = frameq_dequeue_by_id(&xb->recv_queue, expect_id);
+        mutex_unlock(&xb->queue_mutex);
+
+        if(skb != NULL) return skb;
+
+        queue_work(xb->sendrecv_workq, (struct work_struct*)&xb->recv_work.work);
+        reinit_completion(&xb->cmd_resp_done);
+        ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(timeout) );
+
+        if(ret > 0) {
+                mutex_lock(&xb->queue_mutex);
+                skb = frameq_dequeue_by_id(&xb->recv_queue, expect_id);
+                mutex_unlock(&xb->queue_mutex);
+                return skb;
+        }
+        else if(ret == -ERESTARTSYS) {
+                pr_debug("%s: interrupted %d\n", __func__, ret);
+                return NULL;
+        }
+        else {
+                pr_debug("%s: timeout %d\n", __func__, ret);
+                return NULL;
+        }
+}
+
+/**
+ * xb_sendrecv()
+ *
+ * @xb: XBee device context.
+ * @expect_id: Wait to receive frame that have this ID.
+ */
+static struct sk_buff*
+xb_sendrecv(struct xb_device* xb, uint8_t expect_id)
+{
+        int i=0;
+        struct sk_buff* skb = NULL;
+
+        xb_send(xb);
+        for(i=0; i<5; i++) {
+                skb = xb_recv(xb, expect_id, 1000);
+                if(skb) return skb;
+        }
+        return NULL;
+}
+
+/**
+ * xb_frame_recv_dispatch()
+ *
+ * @xb: xbee device
+ * @frame: sk_buff. That contains received frame from XBee.
+ *
+ * Verify the XBee frame, then take appropriate action depending on the
+ * frame type.
+ */
+static void
+xb_frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
+{
+/*
+        struct xb_frame_header* hdr= (struct xb_frame_header*)frame->data;
+
+        switch (hdr->type) {
+        case XBEE_FRM_MSTAT:        xb_frame_recv_mstat(xb, frame);        break;
+        case XBEE_FRM_ATCMDR:        pr_frame_atcmdr(frame);        break;
+        case XBEE_FRM_RCMDR:        pr_frame_rcmdr(frame);        break;
+        case XBEE_FRM_RX64:        xb_frame_recv_rx64(xb, frame);        break;
+        case XBEE_FRM_RX16:        xb_frame_recv_rx16(xb, frame);        break;
+        case XBEE_FRM_RX64IO:   pr_frame_rx64io(frame);        break;
+        case XBEE_FRM_RX16IO:   pr_frame_rx16io(frame);        break;
+        case XBEE_FRM_ATCMD:        pr_frame_atcmd(frame);        break;
+        case XBEE_FRM_ATCMDQ:        pr_frame_atcmdq(frame);        break;
+        case XBEE_FRM_RCMD:        pr_frame_rcmd(frame);        break;
+        case XBEE_FRM_TX64:        pr_frame_tx64(frame);        break;
+        case XBEE_FRM_TX16:        pr_frame_tx16(frame);        break;
+        case XBEE_FRM_TXSTAT:        xb_frame_recv_txstat(xb, frame);        break;
+        default:                pr_frame_default(frame);        break;
+        }
+*/
+}
+
 
 static void
 cleanup(struct xb_device *zbdev)
@@ -1114,141 +1275,47 @@ static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
 
 	pr_debug("%s end\n", __func__);
 }
-
-static int xbee_frm_xbee_verify(struct sk_buff *skb){
-    int length;
-	uint8_t checksum = 0;
-    uint16_t i;
-    pr_debug("%s skb->len %d\n", __func__, skb->len);
-
-    if (skb->len > 2)
-    {
-        length = (*skb->data << 8) & 0xff00; // MSB
-        length |= *(skb->data+1) & 0xff; // LSB
-        pr_debug("%s length %d\n", __func__, length);
-        if (skb->len == length+3){
-            for(i=0;i<length;++i) {
-                checksum += *(skb->data+i+2);
-            }
-            checksum = 0xFF - checksum;
-            if (checksum==*(skb->data+length+3-1))
-                return 0;
-        }
-    }
-    return 1;
-}
-
-static int xbee_frm_xbee_id(struct sk_buff *skb){
-	pr_debug("%s\n", __func__);
-    return *(skb->data+2);
-}
-static int xbee_frame_peak_done(struct xb_device *xbdev){
-	pr_debug("%s\n", __func__);
-    return !xbee_frm_xbee_verify(xbdev->frame);
-}
-static void xbee_frame_recv_rx64(struct xb_device *xbdev,
-                    struct sk_buff *skb)
-{
-    struct sk_buff *lskb;
-	pr_debug("%s\n", __func__);
-    lskb = alloc_skb(skb->len, GFP_ATOMIC);
-    skb_put(lskb, skb->len);
-    skb_copy_to_linear_data(lskb, skb->data, skb->len);
-	ieee802154_rx_irqsafe(xbdev->dev, lskb, skb->len);
-//	ieee802154_rx(xbdev->dev, skb, rssi);
-}
 /**
- * xbee_recv_frame - ...
- *
- * @xbdev: ...
- * @frame: ...
- *
- * Verify the XBee frame, then take appropriate action depending on the
- * frame type.
+ * sendrecv_work_fn()
+ * @param: workqueue parameter.
  */
-static void xbee_frm_xbee_recv(struct xb_device *xbdev,
-			       struct sk_buff *skb)
+static void
+sendrecv_work_fn(struct work_struct *param)
 {
-	u8 id;
-    int err;
+        struct xb_work* xbw = (struct xb_work*)param;
+        struct xb_device* xb = xbw->xb;
+        struct sk_buff* skb = NULL;
+        struct sk_buff* prev_atresp = xb->last_atresp;
+        struct xb_frame_header* hdr;
 
-	pr_debug("%s\n", __func__);
+        if(&xb->send_work.work == param) {
+                int send_count = 0;
+                send_count = xb_send_queue(xb);
+                complete_all(&xb->send_done);
+        } else {
+                mutex_lock(&xb->queue_mutex);
+                skb = skb_peek(&xb->recv_queue);
+                while(skb) {
+                        hdr = (struct xb_frame_header*)skb->data;
+                        if(hdr->type != XBEE_FRM_ATCMDR) {
+                                struct sk_buff* consume = skb;
+                                skb = skb_peek_next(consume, &xb->recv_queue);
+                                skb_unlink(consume, &xb->recv_queue);
+                                xb_frame_recv_dispatch(xb, consume);
+                        } else {
+                                xb->last_atresp = skb;
+                                skb = skb_peek_next(skb, &xb->recv_queue);
+                        }
+                }
 
-	/* verify length and checksum */
-	err = xbee_frm_xbee_verify(skb);
-	if (err) {
-//		XBEE_WARN("dropping invalid frame 0x%x", err);
-		printk(KERN_WARNING "%s: dropping invalid frame 0x%x\n", __func__, err);
-		return;
-	}
+                if(prev_atresp != xb->last_atresp)
+                        complete_all(&xb->cmd_resp_done);
 
-	id = xbee_frm_xbee_id(skb);
-	switch (id) {
-    case ZIGBEE_EXPLICIT_RX_INDICATOR:
-		xbee_frame_recv_rx64(xbdev, skb);
-		break;
-/*	case XBEE_FRM_STAT:
-		xbee_frame_recv_stat(skb);
-		break;
-	case XBEE_FRM_CMDR:
-		xbee_frame_recv_cmdr(skb);
-		break;
-	case XBEE_FRM_RCMDR:
-		xbee_frame_recv_rcmdr(skb);
-		break;
-	case XBEE_FRM_TXSTAT:
-		xbee_frame_recv_txstat(skb);
-		break;
-	case XBEE_FRM_RX64:
-		xbee_frame_recv_rx64(xbdev, skb);
-		break;
-	case XBEE_FRM_RX16:
-		xbee_frame_recv_rx16(skb);
-		break;
-	case XBEE_FRM_RX64IO:
-	case XBEE_FRM_RX16IO:
-		XBEE_WARN("received unimplemented frame type 0x%x", id);
-		skb_free(skb);
-		break;
-	case XBEE_FRM_CMD:
-	case XBEE_FRM_CMDQ:
-	case XBEE_FRM_RCMD:
-	case XBEE_FRM_TX64:
-	case XBEE_FRM_TX16:
-		XBEE_WARN("received tx-only frame type 0x%x", id);
-		skb_free(skb);
-		break;*/
-	default:
-//		XBEE_WARN("received unknown frame type 0x%x", id);
-	    pr_debug("%s received unknown frame type 0x%x\n", __func__, id);
-//		kfree_skb(skb);
-		break;
-	}
+                mutex_unlock(&xb->queue_mutex);
+        }
 }
 
-static int xbee_frm_new(struct xb_device *xbdev,
-			struct sk_buff **skb)
-{
-	struct sk_buff *new_skb;
 
-	new_skb = alloc_skb(SKB_MAX_ALLOC, GFP_KERNEL);
-	if (new_skb == NULL) {
-//		XBEE_ERR("failed to allocate new skb");
-        printk(KERN_ERR "%s: failed to allocate new skb\n", __func__);
-		return 1;
-	} else {
-//        pr_debug("%s 1 skb %d\n", __func__, skb);
-//        pr_debug("%s 1 *skb %d\n", __func__, *skb);
-		*skb = xbdev->frame;
-//        pr_debug("%s 2 skb %d\n", __func__, skb);
-//        pr_debug("%s 2 *skb %d\n", __func__, *skb);
-		xbdev->frame = new_skb;
-////		*skb = old_skb;
-
-		xbdev->frame_len = 0;
-		return 0;
-	}
-}
 
 /*****************************************************************************
  * Line discipline interface for IEEE 802.15.4 serial device
@@ -1344,8 +1411,23 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty_driver_flush_buffer(tty);
 
 	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
-        skb_queue_head_init(&xbdev->recv_queue);
-        skb_queue_head_init(&xbdev->send_queue);
+	xbdev->last_atresp = NULL;
+
+	mutex_init(&xbdev->queue_mutex);
+	skb_queue_head_init(&xbdev->recv_queue);
+	skb_queue_head_init(&xbdev->send_queue);
+
+	init_completion(&xbdev->cmd_resp_done);
+	init_completion(&xbdev->send_done);
+
+	xbdev->sendrecv_workq = create_workqueue("sendrecv_workq");
+	xbdev->send_work.xb = xbdev;
+	xbdev->recv_work.xb = xbdev;
+	xbdev->init_work.xb = xbdev;
+
+	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, sendrecv_work_fn);
+	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, sendrecv_work_fn);
+
 	err = ieee802154_register_hw(dev);
 	if (err) {
 //		XBEE_ERROR("%s: device register failed\n", __func__);
@@ -1385,6 +1467,8 @@ static void xbee_ldisc_close(struct tty_struct *tty){
 	tty_kref_put(tty);
 	zbdev->tty = NULL;
 	mutex_destroy(&zbdev->mutex);
+	destroy_workqueue(zbdev->sendrecv_workq);
+
 
 	ieee802154_unregister_hw(zbdev->dev);
 
@@ -1443,116 +1527,43 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
  * xbee_ldisc_recv_buf - Receive serial bytes.
  *
  * @tty: TTY info for line.
- * @cp: ...
- * @fp: ...
+ * @buf: ...
+ * @cflags: ...
  * @count: ...
  *
  * Directly called from flush_to_ldisc() which is called from
  * tty_flip_buffer_push(), either in IRQ context if low latency tty or from
  * a normal worker thread otherwise.
  */
-static void xbee_ldisc_recv_buf(struct tty_struct *tty,
-				const unsigned char *cp,
-				char *fp, int count)
+static int
+xbee_ldisc_receive_buf2(struct tty_struct *tty,
+                                const unsigned char *buf,
+                                char *cflags, int count)
 {
-//	struct ieee802154_hw *dev;
-	struct xb_device *xbdev;
-	char c;
-	int ret;
-	struct sk_buff *skb;
-	pr_debug("%s\n", __func__);
+        struct xb_device *xb = tty->disc_data;
+        int ret = 0;
 
-	/* Debug info */
-//	printk(KERN_INFO "%s, received %d bytes\n", __func__,
-//			count);
-#ifdef DEBUG
-	print_hex_dump_bytes("ieee802154_tty_receive ", DUMP_PREFIX_NONE,
-			cp, count);
-#endif
-
-	/* Actual processing */
-	xbdev = tty->disc_data;
-	if (NULL == xbdev) {
-		printk(KERN_ERR "%s(): record for tty is not found\n",
-				__func__);
-		return;
-	}
-
-	/* copy (i wish i could just lock and link them in an array) buffers */
-	while (count--) {
-		c = *cp++;
-		/* escape this byte */
-/*
-		if (xbdev->frame_esc) {
-			c ^= 0x20;
-			xbdev->frame_esc = 0;
-		}
-*/
-    
-//    	pr_debug("char %x\n", c);
-
-		switch (c) {
-//		    case XBEE_CHAR_ESC: /* escape next byte */
-//			    xbdev->frame_esc = 1;
-//			    break;
-		    case XBEE_CHAR_NEWFRM: /* new frame */
-//			    XBEE_INFO("new frame");
-                pr_debug("new frame\n");
-			    /* switch to new frame buffer */
-//                pr_debug("1 xbdev->frame->len %d\n", xbdev->frame->len);
-//                pr_debug("1 xbdev->frame %d\n", xbdev->frame);
-//                pr_debug("skb %d\n", skb);
-//                pr_debug("&skb %d\n", &skb);
-			    ret = xbee_frm_new(xbdev, &skb);
-//                pr_debug("2 xbdev->frame->len %d\n", xbdev->frame->len);
-//                pr_debug("2 &xbdev->frame %d\n", xbdev->frame);
-//                pr_debug("skb %d\n", skb);
-//                pr_debug("&skb %d\n", &skb);
-//                pr_debug("skb->len %d\n", skb->len);
-//			    if (unlikely(ret))
-			    if (ret){
-//				    XBEE_ERR("derp");
-			    /* submit old frame buffer to stack */
-                }
-			    else {
-				    xbee_frm_xbee_recv(xbdev, skb);
-				    kfree_skb(skb);
-			    }
-			    /* reset overflow status */
-//			    overflow = 0;
-			    break;
-		    default:
-                pr_debug("append to frame buffer\n");
-			    /* check for frame buffer overflow */
-//			    if (overflow || xbdev->frame_len == XBEE_FRAME_MAXLEN) {
-//				    overflow = 1;
-//				    continue;
-//			    }
-			    /* append to frame buffer */
-                memcpy(skb_put(xbdev->frame, 1), &c, 1);
-			    /* increase current frame buffer len */
-			    xbdev->frame_len += 1;
-//                pr_debug("xbdev->frame_len %d\n", xbdev->frame_len);
-//                pr_debug("xbdev->frame->len %d\n", xbdev->frame->len);
-			    break;
+        if (!tty->disc_data) {
+                printk(KERN_ERR
+                        "%s(): record for tty is not found\n", __func__);
+                return 0;
         }
-    }
-//	if (overflow)
-//		XBEE_WARN("was buffer overflow");
 
-	/* peak at frame to check if completed */
+        ret = frame_put_received_data(xb->recv_buf, buf, count);
 
-	if (xbee_frame_peak_done(xbdev)) {
-		ret = xbee_frm_new(xbdev, &skb);
-		if (ret){
-//		if (unlikely(ret))
-//			XBEE_ERR("derp");
-        }
-		else {
-			xbee_frm_xbee_recv(xbdev, skb);
-			kfree_skb(skb);
-		}
-	}
+        if(ret == 0)
+                return count;
+
+        mutex_lock(&xb->queue_mutex);
+        ret = frameq_enqueue_received(&xb->recv_queue, xb->recv_buf,
+                        1 );
+        mutex_unlock(&xb->queue_mutex);
+
+        if(ret > 0)
+                ret = queue_work(xb->sendrecv_workq,
+                                (struct work_struct*)&xb->recv_work.work);
+
+        return count;
 }
 
 /*********************************************************************/
@@ -1561,15 +1572,14 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
  * xbee_ldisc - TTY line discipline ops.
  */
 static struct tty_ldisc_ops xbee_ldisc_ops = {
-	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
- 	.name		= "n_ieee802154_xbee",
-//	.flags		= 0,
-	.open		= xbee_ldisc_open,
-	.close		= xbee_ldisc_close,
-	.ioctl		= xbee_ldisc_ioctl,
- 	.hangup		= xbee_ldisc_hangup,
-	.receive_buf	= xbee_ldisc_recv_buf,
+        .owner               = THIS_MODULE,
+        .magic               = TTY_LDISC_MAGIC,
+         .name               = "n_ieee802154_xbee",
+        .open                = xbee_ldisc_open,
+        .close               = xbee_ldisc_close,
+        .ioctl               = xbee_ldisc_ioctl,
+         .hangup             = xbee_ldisc_hangup,
+        .receive_buf2        = xbee_ldisc_receive_buf2,
 };
 
 static int __init xbee_init(void)

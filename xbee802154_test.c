@@ -640,6 +640,79 @@ void frameq_dequeue_empty_queue(void* arg, struct modtest_result* result) {
 	TEST_SUCCESS();
 }
 
+#define TEST38 frameq_enqueue_send_and_recv_vr
+void frameq_enqueue_send_and_recv_vr(void* arg, struct modtest_result* result) {
+	//int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
+	const int count = 8;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+	struct sk_buff* skb;
+
+	unsigned char* tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frameq_enqueue_send(&xbdev->send_queue, send_buf);
+
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	xb_send(xbdev);
+	skb = xb_recv(xbdev, 1, 1000);
+
+	FAIL_IF_NULL(skb);
+
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->send_queue));
+
+	TEST_SUCCESS();
+}
+
+#define TEST39 frameq_enqueue_send_at_vr
+void frameq_enqueue_send_at_vr(void* arg, struct modtest_result* result) {
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* skb = NULL;
+	struct xb_frame_atcmd* atfrm = NULL;
+
+	frameq_enqueue_send_at(&xbdev->send_queue, XBEE_AT_VR, 123, "", 0);
+
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	skb = skb_peek(&xbdev->send_queue);
+
+	FAIL_IF_NULL(skb);
+
+	atfrm = (struct xb_frame_atcmd*)skb->data;
+
+	FAIL_IF_NOT_EQ(123, atfrm->id);
+	FAIL_IF_NOT_EQ(XBEE_AT_VR, htons(atfrm->command) );
+
+	FAIL_IF_NOT_EQ(4, htons(atfrm->hd.length) );
+	FAIL_IF_NOT_EQ(XBEE_FRM_ATCMD, atfrm->hd.type);
+
+	TEST_SUCCESS();
+}
+
+#define TEST40 xb_process_sendrecv_vr
+void xb_process_sendrecv_vr(void* arg, struct modtest_result* result) {
+	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
+	const int count = 8;
+	unsigned char* tail = NULL;
+
+	struct sk_buff* recv = NULL;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+
+	tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+
+	frameq_enqueue_send(&xbdev->send_queue, send_buf);
+	recv = xb_sendrecv(xbdev, 1);
+
+	FAIL_IF_NULL(recv);
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	TEST_SUCCESS();
+}
+
 
 
 
