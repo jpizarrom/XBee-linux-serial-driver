@@ -713,8 +713,306 @@ void xb_process_sendrecv_vr(void* arg, struct modtest_result* result) {
 	TEST_SUCCESS();
 }
 
+#define TEST41 xb_get_channel_test
+void xb_get_channel_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 page = 0;
+	u8 channel = 0;
+
+	ret = xb_get_channel(xbdev, &page, &channel);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_IF_NOT_EQ(0, page);
+	FAIL_IF_NOT_EQ(12, channel);
+
+	TEST_SUCCESS();
+}
 
 
+#define TEST42 xb_get_cca_ed_level_test
+void xb_get_cca_ed_level_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	s32 ed_level= 0;
+
+	ret = xb_get_cca_ed_level(xbdev, &ed_level);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(-4400, ed_level);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST43 xb_get_tx_power_test
+void xb_get_tx_power_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	s32 power = 0;
+
+	ret = xb_get_tx_power(xbdev, &power);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(0, power);
+
+	TEST_SUCCESS();
+}
+
+#define TEST44 xb_get_pan_id_test
+void xb_get_pan_id_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 panid = 0;
+
+	ret = xb_get_pan_id(xbdev, &panid);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(0x3332, panid);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST45 xb_get_short_addr_test
+void xb_get_short_addr_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 short_addr = 0;
+
+	ret = xb_get_short_addr(xbdev, &short_addr);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(0x0, short_addr);
+
+	TEST_SUCCESS();
+}
+
+#ifndef XBEE_SERIAL_NUMBER_HIGH
+#define XBEE_SERIAL_NUMBER_HIGH 0x0013A200
+#endif
+#ifndef XBEE_SERIAL_NUMBER_LOW
+#define XBEE_SERIAL_NUMBER_LOW  0x40A75ECC
+#endif
+static const uint64_t xbee_serialno = ((uint64_t)XBEE_SERIAL_NUMBER_HIGH<<32)|XBEE_SERIAL_NUMBER_LOW;
+#define TEST46 xb_get_extended_addr_test
+void xb_get_extended_addr_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le64 extended_adder = 0;
+
+	ret = xb_get_extended_addr(xbdev, &extended_adder);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(xbee_serialno, extended_adder);
+
+	TEST_SUCCESS();
+}
+
+
+
+#define TEST47 xb_set_channel_test
+void xb_set_channel_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 page = 0;
+	u8 channel = 0;
+
+	ret = xb_set_channel(xbdev, 0, 20);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_channel(xbdev, &page, &channel);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_IF_NOT_EQ(0, page);
+	FAIL_IF_NOT_EQ(20, channel);
+
+	TEST_SUCCESS();
+}
+
+
+
+#define TEST48 xb_set_cca_ed_level_test
+void xb_set_cca_ed_level_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	s32 ed_level = 0;
+
+	ret = xb_set_cca_ed_level(xbdev, -5000);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_cca_ed_level(xbdev, &ed_level);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_IF_NOT_EQ(-5000, ed_level);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST49 xb_set_tx_power_test
+void xb_set_tx_power_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	s32 power = 0;
+
+	ret = xb_set_tx_power(xbdev, -1000);
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_tx_power(xbdev, &power);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(-1000, power);
+
+	TEST_SUCCESS();
+}
+
+#define TEST50 xb_set_pan_id_test
+void xb_set_pan_id_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 panid = 0;
+
+	ret = xb_set_pan_id(xbdev, 0xDBCA);
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_pan_id(xbdev, &panid);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(0xDBCA, panid);
+
+	TEST_SUCCESS();
+}
+
+#define TEST51 xb_set_short_addr_test
+void xb_set_short_addr_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 short_addr = 0;
+
+	ret = xb_set_short_addr(xbdev, 0xAAAA);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_short_addr(xbdev, &short_addr);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_IF_NOT_EQ(0xAAAA, short_addr);
+
+	TEST_SUCCESS();
+}
+
+#define TEST52 xb_set_backoff_exponent_test
+void xb_set_backoff_exponent_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 min_be = 0;
+	u8 max_be = 0;
+
+	ret = xb_set_backoff_exponent(xbdev, 0, 20);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_channel(xbdev, &min_be, &max_be);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_IF_NOT_EQ(0, min_be);
+	FAIL_IF_NOT_EQ(20, max_be);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST53 xb_set_backoffs_exponent_test
+void xb_set_backoffs_exponent_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	ret = xb_set_max_csma_backoffs(xbdev, 2);
+
+	FAIL_IF_NOT_ERROR(ret);
+
+	TEST_SUCCESS();
+}
+
+#define TEST54 xb_set_ackreq_default_test
+void xb_set_ackreq_default_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	bool ackreq = 0;
+
+	ret = xb_set_ackreq_default(xbdev, true);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xb_get_ackreq_default(xbdev, &ackreq);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_IF_NOT_EQ(true, ackreq);
+
+	TEST_SUCCESS();
+}
+
+
+
+
+#if 0
+#define TEST55 xbee_ieee802154_set_csma_params_test
+void xbee_ieee802154_set_csma_params_test(void* arg, struct modtest_result* result) {
+	int ret = 0;
+	const char buf[] =  { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x52, 0x4E, 0x56 };
+	const int count = 8;
+	const char buf2[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x52, 0x52, 0x52 };
+	const int count2 = 8;
+	struct sk_buff* send_buf = NULL;
+	unsigned char* tail = NULL;
+	struct xb_device* xbdev = NULL;
+	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	xbdev = (struct xb_device*)arg;
+	xbee_cfg802154_set_backoff_exponent(xbdev->phy, &sdata->wpan_dev, 2, 5);
+
+	send_buf = alloc_skb(128, GFP_KERNEL);
+	tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frameq_enqueue_send(&xbdev->send_queue, send_buf);
+
+	send_buf = alloc_skb(128, GFP_KERNEL);
+	tail = skb_put(send_buf, count);
+	memcpy(tail, buf2, count2);
+	frameq_enqueue_send(&xbdev->send_queue, send_buf);
+
+	ret = xb_sendrecv(xbdev, xbdev->frameid);
+
+	FAIL_IF_ERROR(ret);
+
+	//FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+
+	//FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
+
+	// TODO inspect received data
+
+	TEST_SUCCESS();
+}
+#endif
 
 #include "gen_modtest.h"
 

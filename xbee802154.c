@@ -68,7 +68,10 @@ struct xb_device {
 
         struct mutex queue_mutex;
 
+        uint8_t frameid;
+        uint8_t api;
         struct sk_buff* last_atresp;
+        unsigned short firmware_version;
 
 };
 
@@ -1021,6 +1024,37 @@ frameq_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd,
 }
 
 /**
+ * xb_frameid()
+ * @xb: XBee device context.
+ */
+static uint8_t
+xb_frameid(struct xb_device* xb)
+{
+        xb->frameid++;
+        if(xb->frameid == 0) {
+                xb->frameid++;
+        }
+        return xb->frameid;
+}
+
+/**
+ * xb_enqueue_send_at()
+ *
+ * @xb: XBee device context.
+ * @atcmd: AT command type.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
+ */
+static uint8_t
+xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd,
+                                char* buf, unsigned short buflen)
+{
+        uint8_t frameid = xb_frameid(xb);
+        frameq_enqueue_send_at(&xb->send_queue, atcmd, frameid, buf, buflen);
+        return frameid;
+}
+
+/**
  * xb_send_queue()
  * @xb: XBee device context.
  */
@@ -1035,7 +1069,9 @@ xb_send_queue(struct xb_device* xb)
         while( !skb_queue_empty(&xb->send_queue) ) {
                 struct sk_buff* skb = skb_dequeue(&xb->send_queue);
 
-                frame_escape(skb);
+                if(xb->api == XBEE_API_V2) {
+                        frame_escape(skb);
+                }
 
                 print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE,
                                 skb->data, skb->len);
@@ -1129,6 +1165,23 @@ xb_sendrecv(struct xb_device* xb, uint8_t expect_id)
 }
 
 /**
+ * xb_sendrecv_atcmd()
+ *
+ * @xb: XBee device context.
+ * @atcmd: AT command type.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
+ */
+static struct sk_buff*
+xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd,
+                                char* buf, unsigned short buflen)
+{
+        uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
+        return xb_sendrecv(xb, recvid);
+}
+
+
+/**
  * xb_frame_recv_dispatch()
  *
  * @xb: xbee device
@@ -1161,6 +1214,557 @@ xb_frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
         }
 */
 }
+
+/**
+ * xb_set_get_param()
+ *
+ * @xb: XBee device context.
+ * @atcmd: AT command type to set/get param.
+ * @reqbuf: AT command parameter for request.
+ * @reqsize: Length of reqbuf.
+ * @respbuf: Pointer to the buffer that store command response.
+ * @respsize: Length of reqpbuf.
+ */
+static int
+xb_set_get_param(struct xb_device *xb, uint16_t atcmd,
+                                const uint8_t* reqbuf, size_t reqsize,
+                                uint8_t* respbuf, size_t respsize)
+{
+        int ret = -EINVAL;
+        struct sk_buff *skb = NULL;
+        struct xb_frame_atcmdr *resp = NULL;
+
+        pr_debug("enter %s", __func__);
+
+        skb = xb_sendrecv_atcmd(xb, atcmd, (uint8_t*)reqbuf, reqsize);
+        if(!skb) {
+                pr_debug("exit %s %d", __func__, -EINVAL);
+                return -EINVAL;
+        }
+
+        if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+                if(respbuf) {
+                        resp = (struct xb_frame_atcmdr*)skb->data;
+                        memcpy(respbuf, resp->response, respsize);
+                }
+
+                ret = 0;
+        }
+        kfree_skb(skb);
+
+        pr_debug("exit %s %d", __func__, ret);
+        return ret;
+}
+
+/**
+ * xb_get_param()
+ *
+ * @xb: XBee device context.
+ * @atcmd: AT command type to get param.
+ * @respbuf: Pointer to the buffer that store command response.
+ * @respsize: Length of reqpbuf.
+ */
+static int
+xb_get_param(struct xb_device *xb, uint16_t atcmd,
+                                uint8_t* respbuf, size_t respsize)
+{
+        return xb_set_get_param(xb, atcmd, NULL, 0, respbuf, respsize);
+}
+
+/**
+ * xb_set_param()
+ *
+ * @xb: XBee device context.
+ * @atcmd: AT command type to set param.
+ * @reqbuf: AT command parameter for request.
+ * @reqsize: Length of reqbuf.
+ */
+static int
+xb_set_param(struct xb_device *xb, uint16_t atcmd,
+                                const uint8_t* reqbuf, size_t reqsize)
+{
+        return xb_set_get_param(xb, atcmd, reqbuf, reqsize, "", 0);
+}
+
+
+/**
+ * xb_set_channel()
+ *
+ * @xb: XBee device context.
+ * @page: New channel page to use.
+ * @channel: New channel to use.
+ */
+static int
+xb_set_channel(struct xb_device *xb, u8 page, u8 channel)
+{
+        u8 ch = channel;
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_CH, &ch, sizeof(ch) );
+}
+
+
+/**
+ * xb_get_channel()
+ *
+ * @xb: XBee device context.
+ * @page: Pointer to the value that store channel page.
+ * @channel: Pointer to the value that store channel.
+ */
+static int
+xb_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
+{
+        int err = -EINVAL;
+        u8 ch = 0;
+
+        if(!page) return -EINVAL;
+        if(!channel) return -EINVAL;
+        err = xb_get_param(xb, XBEE_AT_CH, &ch, sizeof(ch) );
+
+        if(err) return err;
+
+        *page = 0;
+        *channel = ch;
+
+        return 0;
+}
+
+/**
+ * xb_set_cca_mode()
+ *
+ * @xb: XBee device context.
+ * @cca: Pointer to value that contains new cca seting.
+ */
+static int
+xb_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
+{
+        return -EOPNOTSUPP;
+#if 0
+        pr_debug("%s cca=%p\n", __func__, cca);
+
+        switch(cca->mode) {
+        case NL802154_CCA_ENERGY:
+        case NL802154_CCA_CARRIER:
+        case NL802154_CCA_ENERGY_CARRIER:
+        case NL802154_CCA_ALOHA:
+        case NL802154_CCA_UWB_SHR:
+        case NL802154_CCA_UWB_MULTIPLEXED:
+        default:
+        }
+
+        switch(cca->opts) {
+        case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+        case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+        default:
+        }
+        return 0;
+#endif
+}
+
+/**
+ * xb_set_cca_ed_level()
+ *
+ * @xb: XBee device context.
+ * @ed_level: New energy detect level.
+ */
+static int
+xb_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
+{
+        u8 ca = -ed_level/100;
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_CA, &ca, sizeof(ca) );
+}
+
+/**
+ * xb_get_cca_ed_level()
+ *
+ * @xb: XBee device context.
+ * @ed_level: Pointer to the value that store energy detect level.
+ */
+static int
+xb_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
+{
+        int err = -EINVAL;
+        u8 ca = 0;
+
+        if(!ed_level) return -EINVAL;
+
+        err = xb_get_param(xb, XBEE_AT_CA, &ca, sizeof(ca) );
+
+        if(err) return err;
+
+        *ed_level = ca * -100;
+
+        return 0;
+}
+
+/**
+ * xb_set_tx_power()
+ *
+ * @xb: XBee device context.
+ * @power: New transmit power value.
+ */
+static int
+xb_set_tx_power(struct xb_device *xb, s32 power)
+{
+        u8 pl = 4;
+
+        pr_debug("%s mbm=%d\n", __func__, power);
+
+        if(power <= -200) {
+                pl=3;
+        }
+        if(power <= -400) {
+                pl=2;
+        }
+        if(power <= -600) {
+                pl=1;
+        }
+        if(power <= -1000) {
+                pl=0;
+        }
+
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_PL, &pl, sizeof(pl) );
+}
+
+/**
+ * xb_get_tx_power()
+ * @xb: XBee device context.
+ * @power: Pointer to the value that store transmit power.
+ */
+static int
+xb_get_tx_power(struct xb_device *xb, s32 *power)
+{
+        int err = -EINVAL;
+        u8 pl = 0;
+
+        if(!power) return -EINVAL;
+
+        err = xb_get_param(xb, XBEE_AT_PL, &pl, sizeof(pl) );
+
+        if(err) return err;
+
+        if(pl == 0) {
+                *power = -1000;
+        } else if(pl == 1) {
+                *power = -600;
+        } else if(pl == 2) {
+                *power = -400;
+        } else if(pl == 3) {
+                *power = -200;
+        } else {
+                *power = 0;
+        }
+
+        return 0;
+}
+
+/**
+ * xb_set_pan_id()
+ *
+ * @xb: XBee device context.
+ * @pan_id: New PAN ID value.
+ */
+static int
+xb_set_pan_id(struct xb_device *xb, __le16 pan_id)
+{
+        __be16 id = htons(pan_id);
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_ID, (uint8_t*)&id, sizeof(id) );
+}
+
+
+/**
+ * xb_get_pan_id()
+ *
+ * @xb: XBee device context.
+ * @pan_id: Pointer to the value that store PAN ID.
+ */
+static int
+xb_get_pan_id(struct xb_device *xb, __le16 *pan_id)
+{
+        int err = -EINVAL;
+        __be16 beid = 0;
+
+        pr_debug("enter %s", __func__);
+
+        if(!pan_id) return -EINVAL;
+        err = xb_get_param(xb, XBEE_AT_ID, (uint8_t*)&beid, sizeof(beid) );
+
+        pr_debug("%s %d %x", __func__, err, beid);
+
+        if(err) return err;
+
+        *pan_id = htons(beid);
+
+        return 0;
+}
+
+/**
+ * xb_set_short_addr()
+ *
+ * @xb: XBee device context.
+ * @short_addr: New short address value.
+ */
+static int
+xb_set_short_addr(struct xb_device *xb, __le16 short_addr)
+{
+        __be16 my = htons(short_addr);
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_MY, (uint8_t*)&my, sizeof(my) );
+}
+
+/**
+ * xb_get_short_addr()
+ *
+ * @xb: XBee device context.
+ * @short_addr: Pointer to the value that store short_addr.
+ */
+static int
+xb_get_short_addr(struct xb_device *xb, __le16 *short_addr)
+{
+        int err = -EINVAL;
+        __be16 beaddr = 0;
+
+        if(!short_addr) return -EINVAL;
+
+        err = xb_get_param(xb, XBEE_AT_MY, (uint8_t*)&beaddr, sizeof(beaddr) );
+
+        if(err) return err;
+
+        *short_addr = htons(beaddr);
+
+        return 0;
+}
+
+/**
+ * xb_set_backoff_exponent()
+ *
+ * @xb: XBee device context.
+ * @min_be: New minimum backoff exponent value.
+ * @max_be: New maximum backoff exponent value.
+ */
+static int
+xb_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
+{
+        u8 rr = min_be;
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_RN, &rr, sizeof(rr) );
+}
+
+/**
+ * xb_get_backoff_exponent()
+ *
+ * @xb: XBee device context.
+ * @min_be: Pointer to the value that store minimum backoff exponent.
+ * @max_be: Pointer to the value that store maximum backoff exponent.
+ */
+static int
+xb_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
+{
+        int err = -EINVAL;
+        u8 rn = 0;
+
+        if(!min_be) return -EINVAL;
+        if(!max_be) return -EINVAL;
+        err = xb_get_param(xb, XBEE_AT_RN, &rn, sizeof(rn) );
+
+        if(err) return err;
+
+        *min_be = rn;
+
+        return 0;
+}
+
+/**
+ * xb_set_max_csma_backoffs()
+ *
+ * @xb: XBee device context.
+ * @max_csma_backoffs: New maximum csma backoffs value.
+ */
+static int
+xb_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
+{
+        return -EOPNOTSUPP;
+}
+#if 0
+/**
+ * xb_get_max_csma_backoffs()
+ * @xb: XBee device context.
+ * @max_csma_backoffs: Pointer to the value that store maximum csma backoffs.
+ */
+static int
+xb_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
+{
+        return -EOPNOTSUPP;
+}
+#endif
+
+/**
+ * xb_set_max_frame_retries()
+ *
+ * @xb: XBee device context.
+ * @max_frame_retries: New max frame retry count.
+ */
+static int
+xb_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
+{
+        return -EOPNOTSUPP;
+}
+
+/**
+ * xb_set_lbt_mode()
+ *
+ * @xb: XBee device context.
+ * @mode: New lbt mode value to set.
+ */
+static int
+xb_set_lbt_mode(struct xb_device *xb, bool mode)
+{
+        return -EOPNOTSUPP;
+}
+
+/**
+ * xb_set_ackreq_default()
+ *
+ * @xb: XBee device context.
+ * @ackreq: New ACK request default setting value.
+ */
+static int
+xb_set_ackreq_default(struct xb_device *xb, bool ackreq)
+{
+        u8 mm = ackreq ? XBEE_MM_802154_WITH_ACK : XBEE_MM_802154_NO_ACK;
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
+}
+
+/**
+ * xb_get_ackreq_default()
+ *
+ * @xb: XBee device context.
+ * @ackreq: Pointer to the value that store ACK request default setting.
+ */
+static int
+xb_get_ackreq_default(struct xb_device *xb, bool* ackreq)
+{
+        int err = -EINVAL;
+        u8 mm = 0;
+        if(!ackreq) return -EINVAL;
+
+        err = xb_get_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
+
+        if(err) return err;
+
+        *ackreq = (mm == XBEE_MM_802154_WITH_ACK);
+
+        return 0;
+}
+
+/**
+ * xb_get_extended_addr()
+ *
+ * @xb: XBee device context.
+ * @extended_addr: Pointer to the value that store 64bit address.
+ */
+static int
+xb_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
+{
+        int err = -EINVAL;
+        __be32 behi = 0;
+        __be32 belo = 0;
+        __be64 addr = 0;
+
+        err = xb_get_param(xb, XBEE_AT_SH, (uint8_t*)&behi, sizeof(behi) );
+        if(err)
+                return err;
+        err = xb_get_param(xb, XBEE_AT_SL, (uint8_t*)&belo, sizeof(belo) );
+        if(err)
+                return err;
+
+        addr = ((__be64)belo << 32) | behi;
+
+        extended_addr_hton(extended_addr, &addr);
+        
+        return 0;
+}
+
+/**
+ * xb_get_api_mode()
+ *
+ * @xb: XBee device context.
+ * @api_version: Pointer to the value that store API version.
+ */
+static int
+xb_get_api_mode(struct xb_device *xb, u8* api_version)
+{
+        int err = -EINVAL;
+        u8 ap = 0;
+        err = xb_get_param(xb, XBEE_AT_AP, &ap, sizeof(ap) );
+
+        if(err) return err;
+
+        if(api_version) *api_version = ap;
+
+        return 0;
+}
+
+/**
+ * xb_set_scan_channels()
+ *
+ * @xb: XBee device context.
+ * @channels: Scan channel bitmask.
+ */
+static int
+xb_set_scan_channels(struct xb_device* xb, u32 channels)
+{
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_SC,
+                        (uint8_t*)&channels, sizeof(channels) );
+}
+
+/**
+ * xb_set_scan_duration()
+ *
+ * @xb: XBee device context.
+ * @duration: scan duration in milliseconds.
+ */
+static int
+xb_set_scan_duration(struct xb_device* xb, u8 duration)
+{
+        pr_debug("%s\n", __func__);
+        return xb_set_param(xb, XBEE_AT_SD, &duration, sizeof(duration) );
+}
+
+/**
+ * xb_energy_detect()
+ *
+ * @xb: XBee device context.
+ * @scantime: ED scan duration.
+ * @edl: Buffer to store ed scan result.
+ * @edllen: Length of edl buffer.
+ */
+static int
+xb_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
+{
+        pr_debug("%s\n", __func__);
+        return xb_set_get_param(xb, XBEE_AT_ED,
+                        &scantime, sizeof(scantime), edl, edllen);
+}
+
+/**
+ * xb_active_scan()
+ * @scantime: active scan duration.
+ * @xb: XBee device context.
+ */
+static int
+xb_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
+{
+        pr_debug("%s\n", __func__);
+        return xb_set_get_param(xb, XBEE_AT_ED,
+                        &scantime, sizeof(scantime), buffer, bufsize);
+}
+
+
 
 
 static void
@@ -1413,6 +2017,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
 	xbdev->last_atresp = NULL;
 
+	xbdev->api = XBEE_API_V2;
+
 	mutex_init(&xbdev->queue_mutex);
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
@@ -1556,7 +2162,7 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
 
         mutex_lock(&xb->queue_mutex);
         ret = frameq_enqueue_received(&xb->recv_queue, xb->recv_buf,
-                        1 );
+                        (xb->api == 2) );
         mutex_unlock(&xb->queue_mutex);
 
         if(ret > 0)
