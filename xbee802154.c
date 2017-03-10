@@ -20,6 +20,8 @@
 
 #define ZIGBEE_EXPLICIT_RX_INDICATOR 0x91
 
+struct workqueue_struct *xbee_init_workq = NULL;
+
 enum {
 	STATE_WAIT_START1,
 	STATE_WAIT_START2,
@@ -1920,6 +1922,38 @@ sendrecv_work_fn(struct work_struct *param)
 }
 
 
+/**
+ * init_work_fn()
+ * @param: workqueue parameter.
+ */
+static void
+init_work_fn(struct work_struct *param)
+{
+        struct xb_work* xbw = (struct xb_work*)param;
+        struct xb_device* xbdev = xbw->xb;
+        struct ieee802154_hw* dev = xbdev->dev;
+        struct tty_struct *tty = xbdev->tty;
+        int err;
+
+        err = ieee802154_register_hw(dev);
+        if (err) {
+//                XBEE_ERROR("%s: device register failed\n", __func__);
+        printk(KERN_ERR "%s: device register failed\n", __func__);
+                goto err;
+        }
+
+        return;
+
+err:
+        tty->disc_data = NULL;
+        tty_kref_put(tty);
+        xbdev->tty = NULL;
+
+        ieee802154_unregister_hw(xbdev->dev);
+        ieee802154_free_hw(xbdev->dev);
+
+        return;
+}
 
 /*****************************************************************************
  * Line discipline interface for IEEE 802.15.4 serial device
@@ -1943,7 +1977,6 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
 /*
  * See Documentation/tty.txt for details.
  */
-
 /**
  * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
  *
@@ -2033,13 +2066,9 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, sendrecv_work_fn);
 	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, sendrecv_work_fn);
+	INIT_WORK( (struct work_struct*)&xbdev->init_work.work, init_work_fn);
 
-	err = ieee802154_register_hw(dev);
-	if (err) {
-//		XBEE_ERROR("%s: device register failed\n", __func__);
-        printk(KERN_ERR "%s: device register failed\n", __func__);
-		goto err;
-	}
+	queue_work(xbee_init_workq, (struct work_struct*)&xbdev->init_work.work);
 
 	return 0;
 
@@ -2188,26 +2217,41 @@ static struct tty_ldisc_ops xbee_ldisc_ops = {
         .receive_buf2        = xbee_ldisc_receive_buf2,
 };
 
+/**
+ * xbee_init() - Module initialize.
+ */
 static int __init xbee_init(void)
 {
-	pr_debug("%s\n", __func__);
-	printk(KERN_INFO "Initializing ZigBee TTY interface\n");
+        pr_debug("%s\n", __func__);
+        printk(KERN_INFO "Initializing ZigBee TTY interface\n");
 
-	if (tty_register_ldisc(N_IEEE802154_XBEE, &xbee_ldisc_ops) != 0) {
-		printk(KERN_ERR "%s: line discipline register failed\n",
-				__func__);
-		return -EINVAL;
-	}
+        xbee_init_workq = create_workqueue("xbee_init_workq");
+        if(!xbee_init_workq) {
+                return -EINVAL;
+        }
 
-	return 0;
+        if (tty_register_ldisc(N_IEEE802154_XBEE, &xbee_ldisc_ops) != 0) {
+                printk(KERN_ERR "%s: line discipline register failed\n",
+                                __func__);
+                return -EINVAL;
+        }
+
+        return 0;
 }
 
+/**
+ * xbee_exit() - Module deinitialize.
+ */
 static void __exit xbee_exit(void)
 {
-	pr_debug("%s\n", __func__);
-	if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0)
-		printk(KERN_CRIT
-			"failed to unregister ZigBee line discipline.\n");
+        pr_debug("%s\n", __func__);
+
+        if(xbee_init_workq)
+                destroy_workqueue(xbee_init_workq);
+
+        if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0)
+                printk(KERN_CRIT
+                        "failed to unregister ZigBee line discipline.\n");
 
 }
 
