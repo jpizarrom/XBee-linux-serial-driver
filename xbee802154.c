@@ -29,25 +29,9 @@
 
 #define XBEE802154_MAGIC 0x9BEE
 
-#define VERSION 1
-
-#define XBEE_CHAR_NEWFRM 0x7e
-
-#define ZIGBEE_EXPLICIT_RX_INDICATOR 0x91
-
 static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
 struct workqueue_struct *xbee_init_workq = NULL;
 
-enum {
-	STATE_WAIT_START1,
-	STATE_WAIT_START2,
-	STATE_WAIT_COMMAND,
-	STATE_WAIT_PARAM1,
-	STATE_WAIT_PARAM2,
-	STATE_WAIT_DATA
-};
-
-/*********************************************************************/
 struct xb_device;
 
 struct xb_work {
@@ -61,18 +45,6 @@ struct xb_device {
         struct net_device* dev;
         struct wpan_phy* phy;
 
-        /* locks the ldisc for the command */
-        struct mutex                mutex;
-
-        /* command completition */
-    wait_queue_head_t frame_waitq;
-
-    struct sk_buff *frame;
-    int frame_esc;
-    int frame_len;
-//        struct list_head frame_pend;
-        /* Command (rx) processing */
-        int                        state;
         struct completion cmd_resp_done;
         struct completion send_done;
         struct completion modem_status_receive;
@@ -94,28 +66,6 @@ struct xb_device {
         struct sk_buff* last_atresp;
         unsigned short firmware_version;
         uint16_t magic;
-
-};
-
-struct xbee_frame {
-	struct list_head list;
-	int ack;
-
-	u16 len;
-	u8 id;
-	unsigned char *raw_data;
-	u8 csum;
-
-	/* parsed elements */
-	u8 fid;
-	u8 status;
-	unsigned char cmd[2];
-	u8 addr[IEEE802154_ADDR_LEN];
-//	u8 saddr[IEEE802154_SHORT_ALEN];
-    __le16 saddr;
-	u8 flags;
-	u8 rssi;
-	unsigned char *data;
 };
 
 struct mac802154_llsec {
@@ -2530,123 +2480,6 @@ xb_free(struct xb_device* xb)
         }
 }
 
-
-
-
-
-static void
-cleanup(struct xb_device *zbdev)
-{
-	pr_debug("%s\n", __func__);
-    zbdev->state = STATE_WAIT_START1;
-    zbdev->frame = alloc_skb(SKB_MAX_ALLOC, GFP_KERNEL);
-/*    zbdev->id = 0;
-    zbdev->param1 = 0;
-    zbdev->param2 = 0;
-    zbdev->index = 0;
-    zbdev->pending_id = 0;
-    zbdev->pending_size = 0;
-
-    if (zbdev->pending_data)
-    {
-        kfree(zbdev->pending_data);
-        zbdev->pending_data = NULL;
-    }
-*/
-}
-
-/*
- * Callbacks from mac802154 to the driver. Must handle xmit(). 
- *
- * See net/mac802154/ieee802154_hw.c, include/net/mac802154.h,
- * and net/mac802154/mac802154.h from linux-wsn.
- */
-
-/**
- * xbee_ieee802154_set_channel - Set radio for listening on specific channel.
- *
- * @dev: ...
- * @page: ...
- * @channel: ...
- */
-static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
-				       u8 page, u8 channel){
-	pr_debug("%s\n", __func__);
-    return 0;
-}
-
-/**
- * xbee_ieee802154_ed - Handler that 802.15.4 module calls for Energy Detection.
- *
- * @dev: ...
- * @level: ...
- */
-static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level){
-	pr_debug("%s\n", __func__);
-    return 0;
-}
-
-/**
- * xbee_ieee802154_xmit - Handler that 802.15.4 module calls for each transmitted frame.
- *
- * @dev: ...
- * @skb: ...
- */
-static int xbee_ieee802154_xmit(struct ieee802154_hw *dev,
-				struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-    return 0;
-}
-
-static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
-					  struct ieee802154_hw_addr_filt *filt,
-					    unsigned long changed)
-{
-	pr_debug("%s\n", __func__);
-    return 0;
-}
-
-/**
- * xbee_ieee802154_start - For device initialisation before the first interface is attached.
- *
- * @dev: ...
- */
-static int xbee_ieee802154_start(struct ieee802154_hw *dev)
-{
-	struct xb_device *zbdev;
-	int ret = 0;
-
-	pr_debug("%s\n", __func__);
-
-	zbdev = dev->priv;
-	if (NULL == zbdev) {
-		printk(KERN_ERR "%s: wrong phy\n", __func__);
-		return -EINVAL;
-	}
-
-	pr_debug("%s end (retval: %d)\n", __func__, ret);
-	return ret;
-}
-
-/**
- * xbee_ieee802154_stop - For device cleanup after last interface is removed.
- *
- * @dev: ...
- */
-static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
-	struct xb_device *zbdev;
-	pr_debug("%s\n", __func__);
-
-	zbdev = dev->priv;
-	if (NULL == zbdev) {
-		printk(KERN_ERR "%s: wrong phy\n", __func__);
-		return;
-	}
-
-	pr_debug("%s end\n", __func__);
-}
-
 /**
  * xb_set_supported() - Set xbee support parameter.
  * @xb: XBee device context.
@@ -3336,28 +3169,10 @@ err:
         xb_free(xb);
 }
 
+
 /*****************************************************************************
  * Line discipline interface for IEEE 802.15.4 serial device
  *****************************************************************************/
-
-/**
- * xbee_ieee802154_ops - ieee802154 MCPS ops.
- *
- * This is part of linux-wsn. It is similar to netdev_ops.
- */
-static struct ieee802154_ops xbee_ieee802154_ops = {
-	.owner		= THIS_MODULE,
-	.xmit_sync	= xbee_ieee802154_xmit,
-	.ed		= xbee_ieee802154_ed,
-	.set_channel	= xbee_ieee802154_set_channel,
-	.set_hw_addr_filt = xbee_ieee802154_filter,
-	.start		= xbee_ieee802154_start,
-	.stop		= xbee_ieee802154_stop,
-};
-
-/*
- * See Documentation/tty.txt for details.
- */
 /**
  * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
  *
@@ -3601,6 +3416,5 @@ module_exit(xbee_exit);
 
 MODULE_DESCRIPTION("Digi XBee IEEE 802.15.4 serial driver");
 MODULE_ALIAS_LDISC(N_IEEE802154_XBEE);
-//MODULE_LICENSE("Dual GPL/CC0");
 MODULE_LICENSE("GPL");
 
