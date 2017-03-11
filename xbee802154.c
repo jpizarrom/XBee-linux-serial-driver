@@ -2622,7 +2622,21 @@ xbee_header_create(struct sk_buff *skb,
                                    const void *saddr,
                                    unsigned len)
 {
-        return 0;
+        struct ieee802154_addr daddr802154;
+        struct ieee802154_addr saddr802154;
+
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        daddr802154.mode = IEEE802154_ADDR_LONG;
+        daddr802154.pan_id = IEEE802154_PANID_BROADCAST;
+        extended_addr_hton(&daddr802154.extended_addr, (uint64_t*)daddr);
+
+        saddr802154.mode = IEEE802154_ADDR_LONG;
+        saddr802154.pan_id = wpan_dev->pan_id;
+        saddr802154.extended_addr = wpan_dev->extended_addr;
+
+        return ieee802154_header_create(skb, dev, &daddr802154, &saddr802154, len);
 }
 
 /**
@@ -2634,6 +2648,21 @@ xbee_header_create(struct sk_buff *skb,
 static int
 xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
+        struct ieee802154_hdr hdr;
+
+        if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
+                pr_debug("malformed packet\n");
+                return 0;
+        }
+
+        if (hdr.source.mode == IEEE802154_ADDR_LONG) {
+                extended_addr_hton((uint64_t*)haddr, &hdr.source.extended_addr);
+                return IEEE802154_EXTENDED_ADDR_LEN;
+        } else if (hdr.source.mode == IEEE802154_ADDR_SHORT) {
+                *((uint16_t*)haddr) = htons(hdr.source.short_addr);
+                return IEEE802154_SHORT_ADDR_LEN;
+        }
+
         return 0;
 }
 
@@ -2646,6 +2675,11 @@ xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 static bool
 xbee_header_validate(const char *ll_header, unsigned int len)
 {
+        WARN_ON(true);
+        pr_debug("%s\n", __func__);
+
+        print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, ll_header, len);
+
         return true;
 }
 
@@ -3246,11 +3280,13 @@ xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
 }
 
 static const struct wpan_dev_header_ops xbee_wpan_dev_header_ops = {
-        //TODO
+        .create                        = ieee802154_header_create,
 };
 
 static const struct header_ops xbee_header_ops = {
-        //TODO
+        .create                        = xbee_header_create,
+        .parse                        = xbee_header_parse,
+        .validate                = xbee_header_validate,
 };
 
 static const struct net_device_ops xbee_net_device_ops = {
