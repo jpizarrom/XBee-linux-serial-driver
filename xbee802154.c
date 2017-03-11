@@ -2872,6 +2872,12 @@ xbee_mlme_get_mac_params(struct net_device *dev,
 static int
 xbee_ndo_open(struct net_device *dev)
 {
+        pr_debug("%s\n", __func__);
+        ASSERT_RTNL();
+
+        rcu_read_lock();
+        netif_start_queue(dev);
+        rcu_read_unlock();
         return 0;
 }
 
@@ -2882,6 +2888,10 @@ xbee_ndo_open(struct net_device *dev)
 static int
 xbee_ndo_stop(struct net_device *dev)
 {
+        pr_debug("%s\n", __func__);
+        rcu_read_lock();
+        netif_stop_queue(dev);
+        rcu_read_unlock();
         return 0;
 }
 
@@ -2894,8 +2904,85 @@ xbee_ndo_stop(struct net_device *dev)
 static netdev_tx_t
 xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+        struct xb_device *xb = sdata->local;
+        struct ieee802154_hdr hdr = {};
+        struct xb_frame_tx16* tx16 = NULL;
+        struct xb_frame_tx64* tx64 = NULL;
+        int hlen = 0;
+        //int esclen = 0;
+
+        hlen = ieee802154_hdr_pull(skb, &hdr);
+
+        pr_ieee802154_hdr(&hdr);
+        //print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
+
+        if( hdr.dest.pan_id != wpan_dev->pan_id
+         && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
+                pr_debug("%s different pan_id %x:%x\n",
+                                __func__, hdr.dest.pan_id, wpan_dev->pan_id);
+                goto err_xmit;
+        }
+
+        if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
+                tx16 = (struct xb_frame_tx16*)
+                        skb_push(skb, sizeof(struct xb_frame_tx16) );
+                tx16->hd.start_delimiter = XBEE_DELIMITER;
+                tx16->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
+                tx16->hd.type = XBEE_FRM_TX16;
+                tx16->id = xb_frameid(xb);
+                tx16->destaddr = htons(hdr.dest.short_addr);
+                tx16->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
+        }
+        else {
+                tx64 = (struct xb_frame_tx64*)
+                        skb_push(skb, sizeof(struct xb_frame_tx64) );
+                tx64->hd.start_delimiter = XBEE_DELIMITER;
+                tx64->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
+                tx64->hd.type = XBEE_FRM_TX64;
+                tx64->id = xb_frameid(xb);
+                ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
+                tx64->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
+        }
+
+        frame_put_checksum(skb);
+
+        print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+
+        /* loopback test code */
+        /*
+        {
+        struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
+         if (newskb)
+                 xbee_rx_irqsafe(xb, newskb, 0xcc);
+        }
+        */
+
+        frameq_enqueue_send(&xb->send_queue, skb);
+        xb_send(xb);
+
+        pr_debug("%s\n", __func__);
+        return NETDEV_TX_OK;
+
+err_xmit:
+        kfree_skb(skb);
         return NETDEV_TX_OK;
 }
+
+#if 0
+/**
+ * xbee_ndo_set_mac_address()
+ * @dev: net_device that is associated with this XBee.
+ * @p: -
+ */
+static int
+xbee_ndo_set_mac_address(struct net_device *dev, void *p)
+{
+        pr_debug("%s\n", __func__);
+        return 0;
+}
+#endif
 
 /**
  * xbee_cfg802154_suspend()
@@ -3167,7 +3254,10 @@ static const struct header_ops xbee_header_ops = {
 };
 
 static const struct net_device_ops xbee_net_device_ops = {
-        //TODO
+        .ndo_open                = xbee_ndo_open,
+        .ndo_stop                = xbee_ndo_stop,
+        .ndo_start_xmit                = xbee_ndo_start_xmit,
+        .ndo_do_ioctl                = mac802154_wpan_ioctl,
 };
 
 static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
