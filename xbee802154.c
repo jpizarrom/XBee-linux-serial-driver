@@ -2663,6 +2663,9 @@ static int
 xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr,
                                 u8 channel, u8 page, u8 cap)
 {
+        pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        channel, page, cap);
         return 0;
 }
 
@@ -2680,6 +2683,9 @@ static int
 xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr,
                                 __le16 short_addr, u8 status)
 {
+        pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        short_addr, status);
         return 0;
 }
 
@@ -2696,6 +2702,8 @@ static int
 xbee_mlme_disassoc_req(struct net_device *dev,
                 struct ieee802154_addr *addr, u8 reason)
 {
+        pr_debug("%s(addr=%1u:%016llx, reason=%x\n",
+                        __func__, addr->mode,addr->extended_addr, reason);
         return 0;
 }
 
@@ -2719,6 +2727,14 @@ xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr,
                 u8 channel, u8 page, u8 bcn_ord, u8 sf_ord,
                 u8 pan_coord, u8 blx, u8 coord_realign)
 {
+        pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, "
+                        "bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, "
+                        "coord_realign=%u\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        channel, page, bcn_ord, sf_ord, pan_coord,
+                        blx, coord_realign);
+
+        //xbee_coordinator_enable(true);
         return 0;
 }
 
@@ -2735,7 +2751,46 @@ static int
 xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels,
                                                 u8 page, u8 duration)
 {
-        return 0;
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct xb_device* xb = sdata->local;
+        int ret = 0;
+        pr_debug("%s(type=%u, channels%x, page=%u, duration=%u\n",
+                        __func__, type, channels, page, duration);
+
+        ret = xb_set_scan_channels(xb, channels);
+        ret = xb_set_scan_duration(xb, duration); // TODO duration
+
+        if(type == IEEE802154_MAC_SCAN_ED) {
+                u8 edl[32];
+                // TODO duration
+                ret = xb_energy_detect(xb, duration, edl, sizeof(edl) );
+
+                // net/ieee802154/netlink.c are not export any functions.
+                // so, we can't send any response.
+                ret = -EOPNOTSUPP;
+        }
+        else if(type == IEEE802154_MAC_SCAN_ACTIVE) {
+                u8 buffer[128];
+                // TODO duration
+                ret = xb_active_scan(xb, duration, buffer, sizeof(buffer) );
+
+                // net/ieee802154/netlink.c are not export any functions.
+                // so, we can't send any response.
+                ret = -EOPNOTSUPP;
+        }
+        else { //passive, orphan
+                ret = -EOPNOTSUPP;
+        }
+
+        {
+                static bool msg_print = false;
+                if(!msg_print) {
+                        printk("xbee: XBee module does not support response for scan_req.\n");
+                        msg_print = true;
+                }
+        }
+
+        return ret;
 }
 
 /**
@@ -2748,6 +2803,38 @@ static int
 xbee_mlme_set_mac_params(struct net_device *dev,
                         const struct ieee802154_mac_params *params)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        pr_debug("%s\n", __func__);
+
+        if(wpan_dev->wpan_phy->transmit_power != params->transmit_power) {
+                xb_set_tx_power(sdata->local, params->transmit_power);
+        }
+        if( (wpan_dev->min_be != params->min_be)
+         || (wpan_dev->max_be != params->max_be) ) {
+                xb_set_backoff_exponent(sdata->local,
+                                params->min_be, params->max_be);
+        }
+        if(wpan_dev->csma_retries != params->csma_retries) {
+                xb_set_max_csma_backoffs(sdata->local,
+                                params->csma_retries);
+        }
+        if(wpan_dev->frame_retries != params->frame_retries) {
+                xb_set_max_frame_retries(sdata->local,
+                                params->frame_retries);
+        }
+        if(wpan_dev->lbt != params->lbt) {
+                xb_set_lbt_mode(sdata->local, params->lbt);
+        }
+        if( wpan_dev->wpan_phy->cca.mode != params->cca.mode
+         && wpan_dev->wpan_phy->cca.opt  != params->cca.opt) {
+                xb_set_cca_mode(sdata->local, &params->cca);
+        }
+        if(wpan_dev->wpan_phy->cca_ed_level != params->cca_ed_level) {
+                xb_set_cca_ed_level(sdata->local, params->cca_ed_level);
+        }
+
         return 0;
 }
 
@@ -2761,6 +2848,20 @@ static void
 xbee_mlme_get_mac_params(struct net_device *dev,
                         struct ieee802154_mac_params *params)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        pr_debug("%s\n", __func__);
+
+        params->transmit_power = wpan_dev->wpan_phy->transmit_power;
+        params->min_be = wpan_dev->min_be;
+        params->max_be = wpan_dev->max_be;
+        params->csma_retries = wpan_dev->csma_retries;
+        params->frame_retries = wpan_dev->frame_retries;
+        params->lbt = wpan_dev->lbt;
+        params->cca = wpan_dev->wpan_phy->cca;
+        params->cca_ed_level = wpan_dev->wpan_phy->cca_ed_level;
+
         return;
 }
 
@@ -3070,7 +3171,13 @@ static const struct net_device_ops xbee_net_device_ops = {
 };
 
 static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
-        //TODO
+        .assoc_req                = xbee_mlme_assoc_req,
+        .assoc_resp                = xbee_mlme_assoc_resp,
+        .disassoc_req                = xbee_mlme_disassoc_req,
+        .start_req                = xbee_mlme_start_req,
+        .scan_req                = xbee_mlme_scan_req,
+        .set_mac_params                = xbee_mlme_set_mac_params,
+        .get_mac_params                = xbee_mlme_get_mac_params,
 };
 
 static const struct cfg802154_ops xbee_cfg802154_ops = {
