@@ -2803,6 +2803,12 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int
 xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        rcu_read_lock();
+        netif_stop_queue(xb->dev);
+        rcu_read_unlock();
+        synchronize_net();
         return 0;
 }
 
@@ -2813,6 +2819,13 @@ xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 static int
 xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+
+        rcu_read_lock();
+        netif_wake_queue(xb->dev);
+        rcu_read_unlock();
+
         return 0;
 }
 
@@ -2891,7 +2904,8 @@ xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
 static int
 xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_channel(xb, page, channel);
 }
 
 /**
@@ -2904,7 +2918,9 @@ static int
 xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
                                 const struct wpan_phy_cca *cca)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        return xb_set_cca_mode(xb, cca);
 }
 
 /**
@@ -2916,7 +2932,9 @@ xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
 static int
 xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        return xb_set_cca_ed_level(xb, ed_level);
 }
 
 /**
@@ -2928,7 +2946,8 @@ xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 static int
 xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_tx_power(xb, power);
 }
 
 /**
@@ -2942,7 +2961,8 @@ static int
 xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, __le16 pan_id)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_pan_id(xb, pan_id);
 }
 
 /**
@@ -2956,7 +2976,8 @@ static int
 xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, __le16 short_addr)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_short_addr(xb, short_addr);
 }
 
 /**
@@ -2971,7 +2992,8 @@ static int
 xbee_cfg802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
                         struct wpan_dev *wpan_dev, u8 min_be, u8 max_be)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_backoff_exponent(xb, min_be, max_be);
 }
 
 /**
@@ -2985,7 +3007,8 @@ static int
 xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
                         struct wpan_dev *wpan_dev, u8 max_csma_backoffs)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_max_csma_backoffs(xb, max_csma_backoffs);
 }
 
 /**
@@ -3000,7 +3023,8 @@ xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
                                          struct wpan_dev *wpan_dev,
                                          s8 max_frame_retries)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_max_frame_retries(xb, max_frame_retries);
 }
 
 /**
@@ -3014,7 +3038,8 @@ static int
 xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, bool mode)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_lbt_mode(xb, mode);
 }
 
 /**
@@ -3028,7 +3053,8 @@ static int
 xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
                                       struct wpan_dev *wpan_dev, bool ackreq)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_ackreq_default(xb, ackreq);
 }
 
 static const struct wpan_dev_header_ops xbee_wpan_dev_header_ops = {
@@ -3048,7 +3074,19 @@ static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
 };
 
 static const struct cfg802154_ops xbee_cfg802154_ops = {
-        //TODO
+        .suspend                = xbee_cfg802154_suspend,
+        .resume                        = xbee_cfg802154_resume,
+        .set_channel                = xbee_cfg802154_set_channel,
+        .set_cca_mode                = xbee_cfg802154_set_cca_mode,
+        .set_cca_ed_level        = xbee_cfg802154_set_cca_ed_level,
+        .set_tx_power                = xbee_cfg802154_set_tx_power,
+        .set_pan_id                = xbee_cfg802154_set_pan_id,
+        .set_short_addr                = xbee_cfg802154_set_short_addr,
+        .set_backoff_exponent        = xbee_cfg802154_set_backoff_exponent,
+        .set_max_csma_backoffs        = xbee_cfg802154_set_max_csma_backoffs,
+        .set_max_frame_retries        = xbee_cfg802154_set_max_frame_retries,
+        .set_lbt_mode                = xbee_cfg802154_set_lbt_mode,
+        .set_ackreq_default        = xbee_cfg802154_set_ackreq_default,
 };
 
 
