@@ -2622,7 +2622,21 @@ xbee_header_create(struct sk_buff *skb,
                                    const void *saddr,
                                    unsigned len)
 {
-        return 0;
+        struct ieee802154_addr daddr802154;
+        struct ieee802154_addr saddr802154;
+
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        daddr802154.mode = IEEE802154_ADDR_LONG;
+        daddr802154.pan_id = IEEE802154_PANID_BROADCAST;
+        extended_addr_hton(&daddr802154.extended_addr, (uint64_t*)daddr);
+
+        saddr802154.mode = IEEE802154_ADDR_LONG;
+        saddr802154.pan_id = wpan_dev->pan_id;
+        saddr802154.extended_addr = wpan_dev->extended_addr;
+
+        return ieee802154_header_create(skb, dev, &daddr802154, &saddr802154, len);
 }
 
 /**
@@ -2634,6 +2648,21 @@ xbee_header_create(struct sk_buff *skb,
 static int
 xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
+        struct ieee802154_hdr hdr;
+
+        if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
+                pr_debug("malformed packet\n");
+                return 0;
+        }
+
+        if (hdr.source.mode == IEEE802154_ADDR_LONG) {
+                extended_addr_hton((uint64_t*)haddr, &hdr.source.extended_addr);
+                return IEEE802154_EXTENDED_ADDR_LEN;
+        } else if (hdr.source.mode == IEEE802154_ADDR_SHORT) {
+                *((uint16_t*)haddr) = htons(hdr.source.short_addr);
+                return IEEE802154_SHORT_ADDR_LEN;
+        }
+
         return 0;
 }
 
@@ -2646,6 +2675,11 @@ xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 static bool
 xbee_header_validate(const char *ll_header, unsigned int len)
 {
+        WARN_ON(true);
+        pr_debug("%s\n", __func__);
+
+        print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, ll_header, len);
+
         return true;
 }
 
@@ -2663,6 +2697,9 @@ static int
 xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr,
                                 u8 channel, u8 page, u8 cap)
 {
+        pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        channel, page, cap);
         return 0;
 }
 
@@ -2680,6 +2717,9 @@ static int
 xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr,
                                 __le16 short_addr, u8 status)
 {
+        pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        short_addr, status);
         return 0;
 }
 
@@ -2696,6 +2736,8 @@ static int
 xbee_mlme_disassoc_req(struct net_device *dev,
                 struct ieee802154_addr *addr, u8 reason)
 {
+        pr_debug("%s(addr=%1u:%016llx, reason=%x\n",
+                        __func__, addr->mode,addr->extended_addr, reason);
         return 0;
 }
 
@@ -2719,6 +2761,14 @@ xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr,
                 u8 channel, u8 page, u8 bcn_ord, u8 sf_ord,
                 u8 pan_coord, u8 blx, u8 coord_realign)
 {
+        pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, "
+                        "bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, "
+                        "coord_realign=%u\n",
+                        __func__, addr->mode,addr->extended_addr,
+                        channel, page, bcn_ord, sf_ord, pan_coord,
+                        blx, coord_realign);
+
+        //xbee_coordinator_enable(true);
         return 0;
 }
 
@@ -2735,7 +2785,46 @@ static int
 xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels,
                                                 u8 page, u8 duration)
 {
-        return 0;
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct xb_device* xb = sdata->local;
+        int ret = 0;
+        pr_debug("%s(type=%u, channels%x, page=%u, duration=%u\n",
+                        __func__, type, channels, page, duration);
+
+        ret = xb_set_scan_channels(xb, channels);
+        ret = xb_set_scan_duration(xb, duration); // TODO duration
+
+        if(type == IEEE802154_MAC_SCAN_ED) {
+                u8 edl[32];
+                // TODO duration
+                ret = xb_energy_detect(xb, duration, edl, sizeof(edl) );
+
+                // net/ieee802154/netlink.c are not export any functions.
+                // so, we can't send any response.
+                ret = -EOPNOTSUPP;
+        }
+        else if(type == IEEE802154_MAC_SCAN_ACTIVE) {
+                u8 buffer[128];
+                // TODO duration
+                ret = xb_active_scan(xb, duration, buffer, sizeof(buffer) );
+
+                // net/ieee802154/netlink.c are not export any functions.
+                // so, we can't send any response.
+                ret = -EOPNOTSUPP;
+        }
+        else { //passive, orphan
+                ret = -EOPNOTSUPP;
+        }
+
+        {
+                static bool msg_print = false;
+                if(!msg_print) {
+                        printk("xbee: XBee module does not support response for scan_req.\n");
+                        msg_print = true;
+                }
+        }
+
+        return ret;
 }
 
 /**
@@ -2748,6 +2837,38 @@ static int
 xbee_mlme_set_mac_params(struct net_device *dev,
                         const struct ieee802154_mac_params *params)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        pr_debug("%s\n", __func__);
+
+        if(wpan_dev->wpan_phy->transmit_power != params->transmit_power) {
+                xb_set_tx_power(sdata->local, params->transmit_power);
+        }
+        if( (wpan_dev->min_be != params->min_be)
+         || (wpan_dev->max_be != params->max_be) ) {
+                xb_set_backoff_exponent(sdata->local,
+                                params->min_be, params->max_be);
+        }
+        if(wpan_dev->csma_retries != params->csma_retries) {
+                xb_set_max_csma_backoffs(sdata->local,
+                                params->csma_retries);
+        }
+        if(wpan_dev->frame_retries != params->frame_retries) {
+                xb_set_max_frame_retries(sdata->local,
+                                params->frame_retries);
+        }
+        if(wpan_dev->lbt != params->lbt) {
+                xb_set_lbt_mode(sdata->local, params->lbt);
+        }
+        if( wpan_dev->wpan_phy->cca.mode != params->cca.mode
+         && wpan_dev->wpan_phy->cca.opt  != params->cca.opt) {
+                xb_set_cca_mode(sdata->local, &params->cca);
+        }
+        if(wpan_dev->wpan_phy->cca_ed_level != params->cca_ed_level) {
+                xb_set_cca_ed_level(sdata->local, params->cca_ed_level);
+        }
+
         return 0;
 }
 
@@ -2761,6 +2882,20 @@ static void
 xbee_mlme_get_mac_params(struct net_device *dev,
                         struct ieee802154_mac_params *params)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+        pr_debug("%s\n", __func__);
+
+        params->transmit_power = wpan_dev->wpan_phy->transmit_power;
+        params->min_be = wpan_dev->min_be;
+        params->max_be = wpan_dev->max_be;
+        params->csma_retries = wpan_dev->csma_retries;
+        params->frame_retries = wpan_dev->frame_retries;
+        params->lbt = wpan_dev->lbt;
+        params->cca = wpan_dev->wpan_phy->cca;
+        params->cca_ed_level = wpan_dev->wpan_phy->cca_ed_level;
+
         return;
 }
 
@@ -2771,6 +2906,12 @@ xbee_mlme_get_mac_params(struct net_device *dev,
 static int
 xbee_ndo_open(struct net_device *dev)
 {
+        pr_debug("%s\n", __func__);
+        ASSERT_RTNL();
+
+        rcu_read_lock();
+        netif_start_queue(dev);
+        rcu_read_unlock();
         return 0;
 }
 
@@ -2781,6 +2922,10 @@ xbee_ndo_open(struct net_device *dev)
 static int
 xbee_ndo_stop(struct net_device *dev)
 {
+        pr_debug("%s\n", __func__);
+        rcu_read_lock();
+        netif_stop_queue(dev);
+        rcu_read_unlock();
         return 0;
 }
 
@@ -2793,8 +2938,85 @@ xbee_ndo_stop(struct net_device *dev)
 static netdev_tx_t
 xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+        struct xbee_sub_if_data *sdata = netdev_priv(dev);
+        struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+        struct xb_device *xb = sdata->local;
+        struct ieee802154_hdr hdr = {};
+        struct xb_frame_tx16* tx16 = NULL;
+        struct xb_frame_tx64* tx64 = NULL;
+        int hlen = 0;
+        //int esclen = 0;
+
+        hlen = ieee802154_hdr_pull(skb, &hdr);
+
+        pr_ieee802154_hdr(&hdr);
+        //print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
+
+        if( hdr.dest.pan_id != wpan_dev->pan_id
+         && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
+                pr_debug("%s different pan_id %x:%x\n",
+                                __func__, hdr.dest.pan_id, wpan_dev->pan_id);
+                goto err_xmit;
+        }
+
+        if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
+                tx16 = (struct xb_frame_tx16*)
+                        skb_push(skb, sizeof(struct xb_frame_tx16) );
+                tx16->hd.start_delimiter = XBEE_DELIMITER;
+                tx16->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
+                tx16->hd.type = XBEE_FRM_TX16;
+                tx16->id = xb_frameid(xb);
+                tx16->destaddr = htons(hdr.dest.short_addr);
+                tx16->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
+        }
+        else {
+                tx64 = (struct xb_frame_tx64*)
+                        skb_push(skb, sizeof(struct xb_frame_tx64) );
+                tx64->hd.start_delimiter = XBEE_DELIMITER;
+                tx64->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
+                tx64->hd.type = XBEE_FRM_TX64;
+                tx64->id = xb_frameid(xb);
+                ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
+                tx64->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
+        }
+
+        frame_put_checksum(skb);
+
+        print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+
+        /* loopback test code */
+        /*
+        {
+        struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
+         if (newskb)
+                 xbee_rx_irqsafe(xb, newskb, 0xcc);
+        }
+        */
+
+        frameq_enqueue_send(&xb->send_queue, skb);
+        xb_send(xb);
+
+        pr_debug("%s\n", __func__);
+        return NETDEV_TX_OK;
+
+err_xmit:
+        kfree_skb(skb);
         return NETDEV_TX_OK;
 }
+
+#if 0
+/**
+ * xbee_ndo_set_mac_address()
+ * @dev: net_device that is associated with this XBee.
+ * @p: -
+ */
+static int
+xbee_ndo_set_mac_address(struct net_device *dev, void *p)
+{
+        pr_debug("%s\n", __func__);
+        return 0;
+}
+#endif
 
 /**
  * xbee_cfg802154_suspend()
@@ -2803,6 +3025,12 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int
 xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        rcu_read_lock();
+        netif_stop_queue(xb->dev);
+        rcu_read_unlock();
+        synchronize_net();
         return 0;
 }
 
@@ -2813,6 +3041,13 @@ xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 static int
 xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+
+        rcu_read_lock();
+        netif_wake_queue(xb->dev);
+        rcu_read_unlock();
+
         return 0;
 }
 
@@ -2891,7 +3126,8 @@ xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
 static int
 xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_channel(xb, page, channel);
 }
 
 /**
@@ -2904,7 +3140,9 @@ static int
 xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
                                 const struct wpan_phy_cca *cca)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        return xb_set_cca_mode(xb, cca);
 }
 
 /**
@@ -2916,7 +3154,9 @@ xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
 static int
 xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        pr_debug("%s\n", __func__);
+        return xb_set_cca_ed_level(xb, ed_level);
 }
 
 /**
@@ -2928,7 +3168,8 @@ xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 static int
 xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_tx_power(xb, power);
 }
 
 /**
@@ -2942,7 +3183,8 @@ static int
 xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, __le16 pan_id)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_pan_id(xb, pan_id);
 }
 
 /**
@@ -2956,7 +3198,8 @@ static int
 xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, __le16 short_addr)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_short_addr(xb, short_addr);
 }
 
 /**
@@ -2971,7 +3214,8 @@ static int
 xbee_cfg802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
                         struct wpan_dev *wpan_dev, u8 min_be, u8 max_be)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_backoff_exponent(xb, min_be, max_be);
 }
 
 /**
@@ -2985,7 +3229,8 @@ static int
 xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
                         struct wpan_dev *wpan_dev, u8 max_csma_backoffs)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_max_csma_backoffs(xb, max_csma_backoffs);
 }
 
 /**
@@ -3000,7 +3245,8 @@ xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
                                          struct wpan_dev *wpan_dev,
                                          s8 max_frame_retries)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_max_frame_retries(xb, max_frame_retries);
 }
 
 /**
@@ -3014,7 +3260,8 @@ static int
 xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, bool mode)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_lbt_mode(xb, mode);
 }
 
 /**
@@ -3028,27 +3275,51 @@ static int
 xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
                                       struct wpan_dev *wpan_dev, bool ackreq)
 {
-        return 0;
+        struct xb_device *xb = wpan_phy_priv(wpan_phy);
+        return xb_set_ackreq_default(xb, ackreq);
 }
 
 static const struct wpan_dev_header_ops xbee_wpan_dev_header_ops = {
-        //TODO
+        .create                        = ieee802154_header_create,
 };
 
 static const struct header_ops xbee_header_ops = {
-        //TODO
+        .create                        = xbee_header_create,
+        .parse                        = xbee_header_parse,
+        .validate                = xbee_header_validate,
 };
 
 static const struct net_device_ops xbee_net_device_ops = {
-        //TODO
+        .ndo_open                = xbee_ndo_open,
+        .ndo_stop                = xbee_ndo_stop,
+        .ndo_start_xmit                = xbee_ndo_start_xmit,
+        .ndo_do_ioctl                = mac802154_wpan_ioctl,
 };
 
 static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
-        //TODO
+        .assoc_req                = xbee_mlme_assoc_req,
+        .assoc_resp                = xbee_mlme_assoc_resp,
+        .disassoc_req                = xbee_mlme_disassoc_req,
+        .start_req                = xbee_mlme_start_req,
+        .scan_req                = xbee_mlme_scan_req,
+        .set_mac_params                = xbee_mlme_set_mac_params,
+        .get_mac_params                = xbee_mlme_get_mac_params,
 };
 
 static const struct cfg802154_ops xbee_cfg802154_ops = {
-        //TODO
+        .suspend                = xbee_cfg802154_suspend,
+        .resume                        = xbee_cfg802154_resume,
+        .set_channel                = xbee_cfg802154_set_channel,
+        .set_cca_mode                = xbee_cfg802154_set_cca_mode,
+        .set_cca_ed_level        = xbee_cfg802154_set_cca_ed_level,
+        .set_tx_power                = xbee_cfg802154_set_tx_power,
+        .set_pan_id                = xbee_cfg802154_set_pan_id,
+        .set_short_addr                = xbee_cfg802154_set_short_addr,
+        .set_backoff_exponent        = xbee_cfg802154_set_backoff_exponent,
+        .set_max_csma_backoffs        = xbee_cfg802154_set_max_csma_backoffs,
+        .set_max_frame_retries        = xbee_cfg802154_set_max_frame_retries,
+        .set_lbt_mode                = xbee_cfg802154_set_lbt_mode,
+        .set_ackreq_default        = xbee_cfg802154_set_ackreq_default,
 };
 
 
