@@ -8,6 +8,10 @@
 #include <linux/mutex.h>
 #include <net/mac802154.h>
 
+#ifdef MODTEST_ENABLE
+#include "modtest.h"
+#endif
+
 #define N_IEEE802154_XBEE 25
 #define VERSION 1
 
@@ -467,14 +471,20 @@ static int
 xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
                             unsigned int cmd, unsigned long arg)
 {
-        struct xb_device *xb = tty->disc_data;
-        unsigned int tmp;
 
         switch (cmd) {
+#ifdef MODTEST_ENABLE
+        case 0x9999:
+                return modtest_ioctl(file, cmd, arg, NULL);
+#endif
         default:
                 return tty_mode_ioctl(tty, file, cmd, arg);
         }
 }
+
+#ifdef MODTEST_ENABLE
+#include "xbee802154_test.c"
+#endif
 
 /**
  * xbee_ldisc_hangup - Hang up line discipline.
