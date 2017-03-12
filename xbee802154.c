@@ -7,7 +7,6 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
 
 #define N_IEEE802154_XBEE 25
 #define VERSION 1
@@ -29,7 +28,7 @@ enum {
 
 struct xb_device {
 	struct tty_struct *tty;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 
 	/* locks the ldisc for the command */
 	struct mutex		mutex;
@@ -90,7 +89,7 @@ cleanup(struct xb_device *zbdev)
 /*
  * Callbacks from mac802154 to the driver. Must handle xmit(). 
  *
- * See net/mac802154/ieee802154_dev.c, include/net/mac802154.h,
+ * See net/mac802154/ieee802154_hw.c, include/net/mac802154.h,
  * and net/mac802154/mac802154.h from linux-wsn.
  */
 
@@ -101,8 +100,8 @@ cleanup(struct xb_device *zbdev)
  * @page: ...
  * @channel: ...
  */
-static int xbee_ieee802154_set_channel(struct ieee802154_dev *dev,
-				       int page, int channel){
+static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
+				       u8 page, u8 channel){
 	pr_debug("%s\n", __func__);
     return 0;
 }
@@ -113,19 +112,7 @@ static int xbee_ieee802154_set_channel(struct ieee802154_dev *dev,
  * @dev: ...
  * @level: ...
  */
-static int xbee_ieee802154_ed(struct ieee802154_dev *dev, u8 *level){
-	pr_debug("%s\n", __func__);
-    return 0;
-}
-
-/**
- * xbee_ieee802154_addr - ...
- *
- * @dev: ...
- * @addr: ...
- */
-static int xbee_ieee802154_addr(struct ieee802154_dev *dev,
-				u8 addr[IEEE802154_ADDR_LEN]){
+static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level){
 	pr_debug("%s\n", __func__);
     return 0;
 }
@@ -136,14 +123,14 @@ static int xbee_ieee802154_addr(struct ieee802154_dev *dev,
  * @dev: ...
  * @skb: ...
  */
-static int xbee_ieee802154_xmit(struct ieee802154_dev *dev,
+static int xbee_ieee802154_xmit(struct ieee802154_hw *dev,
 				struct sk_buff *skb)
 {
 	pr_debug("%s\n", __func__);
     return 0;
 }
 
-static int xbee_ieee802154_filter(struct ieee802154_dev *dev,
+static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
 					  struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed)
 {
@@ -156,7 +143,7 @@ static int xbee_ieee802154_filter(struct ieee802154_dev *dev,
  *
  * @dev: ...
  */
-static int xbee_ieee802154_start(struct ieee802154_dev *dev)
+static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
 	struct xb_device *zbdev;
 	int ret = 0;
@@ -178,7 +165,7 @@ static int xbee_ieee802154_start(struct ieee802154_dev *dev)
  *
  * @dev: ...
  */
-static void xbee_ieee802154_stop(struct ieee802154_dev *dev){
+static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
 	struct xb_device *zbdev;
 	pr_debug("%s\n", __func__);
 
@@ -337,13 +324,12 @@ static int xbee_frm_new(struct xb_device *xbdev,
  */
 static struct ieee802154_ops xbee_ieee802154_ops = {
 	.owner		= THIS_MODULE,
-	.xmit		= xbee_ieee802154_xmit,
+	.xmit_sync	= xbee_ieee802154_xmit,
 	.ed		= xbee_ieee802154_ed,
 	.set_channel	= xbee_ieee802154_set_channel,
 	.set_hw_addr_filt = xbee_ieee802154_filter,
 	.start		= xbee_ieee802154_start,
 	.stop		= xbee_ieee802154_stop,
-	.ieee_addr	= xbee_ieee802154_addr,
 };
 
 /*
@@ -363,7 +349,7 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
 
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 	struct xb_device *xbdev = tty->disc_data;
 	int err;
 
@@ -387,7 +373,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	tty_driver_flush_buffer(tty);
 
-	dev = ieee802154_alloc_device(sizeof(*xbdev), &xbee_ieee802154_ops);
+	dev = ieee802154_alloc_hw(sizeof(*xbdev), &xbee_ieee802154_ops);
 	if (!dev)
 		return -ENOMEM;
 
@@ -400,7 +386,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	dev->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
-	dev->phy->channels_supported[0] = 0x7fff800;
+	dev->phy->supported.channels[0] = 0x7fff800;
 
 	dev->flags = IEEE802154_HW_OMIT_CKSUM;
 
@@ -420,7 +406,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
-	err = ieee802154_register_device(dev);
+	err = ieee802154_register_hw(dev);
 	if (err) {
 //		XBEE_ERROR("%s: device register failed\n", __func__);
         printk(KERN_ERR "%s: device register failed\n", __func__);
@@ -434,8 +420,8 @@ err:
 	tty_kref_put(tty);
 	xbdev->tty = NULL;
 
-	ieee802154_unregister_device(xbdev->dev);
-	ieee802154_free_device(xbdev->dev);
+	ieee802154_unregister_hw(xbdev->dev);
+	ieee802154_free_hw(xbdev->dev);
 
 	return err;
 }
@@ -460,12 +446,12 @@ static void xbee_ldisc_close(struct tty_struct *tty){
 	zbdev->tty = NULL;
 	mutex_destroy(&zbdev->mutex);
 
-	ieee802154_unregister_device(zbdev->dev);
+	ieee802154_unregister_hw(zbdev->dev);
 
 	tty_ldisc_flush(tty);
 	tty_driver_flush_buffer(tty);
 
-	ieee802154_free_device(zbdev->dev);
+	ieee802154_free_hw(zbdev->dev);
 
 }
 
@@ -477,10 +463,17 @@ static void xbee_ldisc_close(struct tty_struct *tty){
  * @cmd: ...
  * @arg: ...
  */
-static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
-			    unsigned int cmd, unsigned long arg){
-	pr_debug("%s\n", __func__);
-    return 0;
+static int
+xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
+                            unsigned int cmd, unsigned long arg)
+{
+        struct xb_device *xb = tty->disc_data;
+        unsigned int tmp;
+
+        switch (cmd) {
+        default:
+                return tty_mode_ioctl(tty, file, cmd, arg);
+        }
 }
 
 /**
@@ -513,7 +506,7 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 				const unsigned char *cp,
 				char *fp, int count)
 {
-//	struct ieee802154_dev *dev;
+//	struct ieee802154_hw *dev;
 	struct xb_device *xbdev;
 	char c;
 	int ret;
