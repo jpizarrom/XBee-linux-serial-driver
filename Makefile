@@ -1,17 +1,39 @@
-#obj-m += hello-1.o
-#obj-m := nothing.o
-#obj-m := serial.o fakehard.o 
-#obj-m := xbee.o
-obj-m := xbee2.o
-#obj-m := fakehard.o
+TARGET ?= xbee802154
+TARGET_KO := $(TARGET).ko
+obj-m := $(TARGET).o
 
-CFLAGS_serial.o := -DDEBUG
-CFLAGS_xbee2.o := -DDEBUG
+ifeq (,$(KERNELRELEASE))
+KVERS_UNAME ?= $(shell uname -r)
+else
+KVERS_UNAME ?= $(KERNELRELEASE)
+endif
 
-all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+XBEE802154DIR := kernel/drivers/net/ieee802154
+KBUILD ?= $(shell readlink -f /lib/modules/$(KVERS_UNAME)/build)
+
+ifeq (,$(KBUILD))
+$(error Kernel build tree not found - please set KBUILD to configured kernel)
+endif
+
+ifneq (,$(DEBUG))
+EXTRA_CFLAGS += -DDEBUG
+endif
+
+EXTRA_CFLAGS += -Wformat=2 -Wall
+
+ifneq ($(MODTEST_ENABLE),)
+EXTRA_CFLAGS += -DMODTEST_ENABLE=$(MODTEST_ENABLE)
+endif
+
+all: modules
+
+modules:
+	$(MAKE) -C $(KBUILD) M=$(PWD) modules
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	$(MAKE) -C $(KBUILD) M=$(PWD) clean
+
+install:
+	$(MAKE) -C $(KBUILD) M=$(PWD) INSTALL_MOD_DIR=$(XBEE802154DIR) install
 
 
