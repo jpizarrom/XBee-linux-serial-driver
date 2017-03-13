@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+BUILD_DATE := $(shell dpkg-parsechangelog --show-field Date)
+export DEB_BUILD_MAINT_OPTIONS := hardening=+al
+
+version := $(shell dpkg-parsechangelog | sed -n 's/^Version: *\([^-]\+\)-.\+/\1/p')
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+override_dh_install:
+	dh_install
+	set -e; if [ -e debian/xbee802154-source/usr/src/modules ]; then \
+		cd debian/xbee802154-source/usr/src/; \
+		tar cjf xbee802154.tar.bz2  --mtime="$(BUILD_DATE)" --mode=go=rX,u+rw,a-s modules; \
+		rm -r modules; \
+    fi
+
+override_dh_dkms:
+	dh_dkms -V
+%:
+	dh $@ --with=dkms
