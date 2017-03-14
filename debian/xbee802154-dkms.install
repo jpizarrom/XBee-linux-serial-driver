@@ -1,0 +1,4 @@
+#!/bin/sh
+VERSION=$(dpkg-parsechangelog | sed -n 's/^Version: *\([^-]\+\)-.\+/\1/p')
+echo Makefile usr/src/xbee802154-${VERSION}
+echo *.[chS]  usr/src/xbee802154-${VERSION}

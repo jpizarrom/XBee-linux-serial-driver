@@ -1,0 +1,23 @@
+Source: xbee802154
+Section: kernel
+Priority: optional
+Maintainer: soburi <soburi@gmail.com>
+Build-Depends: debhelper (>= 9), bzip2, dkms
+Standards-Version: 3.9.8
+Homepage: https://github.com/soburi/XBee-linux-serial-driver
+Vcs-Git: https://github.com/soburi/XBee-linux-serial-driver
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/xbee802154.git
+
+Package: xbee802154-source
+Architecture: all
+Section: kernel
+Depends: ${misc:Depends}, module-assistant, debhelper (>= 5), bzip2
+Suggests: kernel-package
+Description: XBee IEEE802.15.4 driver source package.
+ DKMS source package IEEE802.15.4 driver.
+
+Package: xbee802154-dkms
+Architecture: any
+Depends: ${misc:Depends}, linux-source
+Description: XBee IEEE802.15.4 driver DKMS package.
+ DKMS source package IEEE802.15.4 driver.
