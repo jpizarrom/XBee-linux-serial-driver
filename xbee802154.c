@@ -798,8 +798,8 @@ pr_wpan_phy_supported(struct wpan_phy* phy)
         pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
         pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
         pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
-        pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
-        pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
+        pr_debug("       tx_powers_size = %zu\n", supported->tx_powers_size);
+        pr_debug("   cca_ed_levels_size = %zu\n", supported->cca_ed_levels_size);
         pr_debug("}\n");
 
 //const s32 *tx_powers, *cca_ed_levels;
