@@ -1014,6 +1014,14 @@ void xbee_ieee802154_set_csma_params_test(void* arg, struct modtest_result* resu
 }
 #endif
 
+#define TEST56 ieee802154_addr_size
+void ieee802154_addr_size(void* arg, struct modtest_result* result) {
+	struct ieee802154_hdr hdr;
+	FAIL_IF_NOT_EQ(8, sizeof(hdr.source.extended_addr) );
+	FAIL_IF_NOT_EQ(2, sizeof(hdr.source.short_addr) );
+}
+
+
 #include "gen_modtest.h"
 
 DECL_TESTS_ARRAY();

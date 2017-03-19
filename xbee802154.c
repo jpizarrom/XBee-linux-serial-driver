@@ -2657,10 +2657,10 @@ xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 
         if (hdr.source.mode == IEEE802154_ADDR_LONG) {
                 extended_addr_hton((uint64_t*)haddr, &hdr.source.extended_addr);
-                return IEEE802154_EXTENDED_ADDR_LEN;
+                return sizeof(hdr.source.extended_addr);
         } else if (hdr.source.mode == IEEE802154_ADDR_SHORT) {
                 *((uint16_t*)haddr) = htons(hdr.source.short_addr);
-                return IEEE802154_SHORT_ADDR_LEN;
+                return sizeof(hdr.source.short_addr);
         }
 
         return 0;
