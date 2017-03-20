@@ -798,8 +798,8 @@ pr_wpan_phy_supported(struct wpan_phy* phy)
         pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
         pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
         pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
-        pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
-        pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
+        pr_debug("       tx_powers_size = %zu\n", supported->tx_powers_size);
+        pr_debug("   cca_ed_levels_size = %zu\n", supported->cca_ed_levels_size);
         pr_debug("}\n");
 
 //const s32 *tx_powers, *cca_ed_levels;
@@ -2657,10 +2657,10 @@ xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 
         if (hdr.source.mode == IEEE802154_ADDR_LONG) {
                 extended_addr_hton((uint64_t*)haddr, &hdr.source.extended_addr);
-                return IEEE802154_EXTENDED_ADDR_LEN;
+                return sizeof(hdr.source.extended_addr);
         } else if (hdr.source.mode == IEEE802154_ADDR_SHORT) {
                 *((uint16_t*)haddr) = htons(hdr.source.short_addr);
-                return IEEE802154_SHORT_ADDR_LEN;
+                return sizeof(hdr.source.short_addr);
         }
 
         return 0;
