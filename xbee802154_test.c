@@ -17,6 +17,11 @@ void modtest_fail_check(void* arg, struct modtest_result* result) {
 	TEST_FAIL();
 }
 
+#define TEST1 modtest_success_check
+void modtest_success_check(void* arg, struct modtest_result* result) {
+	TEST_SUCCESS();
+}
+
 #define TEST2 buffer_calc_checksum_zero
 void buffer_calc_checksum_zero(void* arg, struct modtest_result* result) {
 	const char buf[] = {};

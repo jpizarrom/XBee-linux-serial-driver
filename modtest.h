@@ -71,9 +71,16 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 static void modtest_test(uint32_t testno, void* data, struct modtest_result* result)
 {
 	int i=0;
+	fp_modtest test = modtest_tests[testno];
+
+	if(!test) {
+		snprintf(result->msg, 127, "Not exists.");
+		return;
+	}
+
 	modtest_setup(data, testno);
 	pr_debug("test#%u: Start\n", testno);
-	modtest_tests[testno](data, result);
+	test(data, result);
 	pr_debug("test#%u: Finish\n", testno);
 	result->testno = testno;
 	modtest_teardown(data, testno);
