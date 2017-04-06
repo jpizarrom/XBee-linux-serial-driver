@@ -1667,7 +1667,7 @@ xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
         hdr.fc.type = IEEE802154_FC_TYPE_DATA;
         hdr.seq = 0; //XBee doesn't tell seqno.
         hdr.source.mode = IEEE802154_ADDR_LONG;
-        extended_addr_hton(&hdr.dest.extended_addr, &rx->srcaddr);
+        extended_addr_hton(&hdr.source.extended_addr, &rx->srcaddr);
         hdr.source.pan_id = (rx->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
         hdr.dest.mode = (rx->options & 0x1) ? IEEE802154_ADDR_SHORT : IEEE802154_ADDR_LONG;
         hdr.dest.short_addr = IEEE802154_ADDR_BROADCAST;
