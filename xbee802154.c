@@ -3426,18 +3426,18 @@ init_work_fn(struct work_struct *param)
         err = xb_register_device(xb);
         if (err) {
         printk(KERN_ERR "%s: device register failed\n", __func__);
-                goto err;
+                goto err_unreg;
         }
 
         return;
 
+err_unreg:
+        xb_unregister_device(xb);
+        xb_free(xb);
 err:
         tty->disc_data = NULL;
         tty_kref_put(tty);
         xb->tty = NULL;
-
-        xb_unregister_device(xb);
-        xb_free(xb);
 }
 
 
