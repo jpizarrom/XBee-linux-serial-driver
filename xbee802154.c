@@ -2954,9 +2954,8 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
         if( hdr.dest.pan_id != wpan_dev->pan_id
          && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
-                pr_debug("%s different pan_id %x:%x\n",
+                pr_debug("%s different pan_id Dest:%x Src:%x\n",
                                 __func__, hdr.dest.pan_id, wpan_dev->pan_id);
-                goto err_xmit;
         }
 
         if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
@@ -2998,10 +2997,11 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
         pr_debug("%s\n", __func__);
         return NETDEV_TX_OK;
-
+/*
 err_xmit:
         kfree_skb(skb);
         return NETDEV_TX_OK;
+*/
 }
 
 #if 0
