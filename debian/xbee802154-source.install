@@ -1,6 +1,0 @@
-Makefile     usr/src/modules/xbee802154
-*.[chS]      usr/src/modules/xbee802154
-debian/control      usr/src/modules/xbee802154/debian
-debian/compat       usr/src/modules/xbee802154/debian
-debian/copyright    usr/src/modules/xbee802154/debian
-debian/changelog    usr/src/modules/xbee802154/debian
