@@ -1,6 +1,7 @@
-MODNAME ?= xbee802154
+MODNAME ?= openthread-rcp
 TARGET := $(MODNAME).ko
 obj-m := $(MODNAME).o
+openthread-rcp-objs := rcp_common.o ttyrcp.o spinel.o
 
 ifeq (,$(KERNELRELEASE))
 KVERS_UNAME ?= $(shell uname -r)
@@ -55,7 +56,7 @@ ifneq (,$(DEBUG))
 EXTRA_CFLAGS += -DDEBUG
 endif
 
-EXTRA_CFLAGS += -Wformat=2 -Wall
+EXTRA_CFLAGS += -Wformat=2 -Wall -Wunused-result
 
 ifneq ($(MODTEST_ENABLE),)
 EXTRA_CFLAGS += -DMODTEST_ENABLE=$(MODTEST_ENABLE)
