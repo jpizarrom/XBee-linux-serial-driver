@@ -54,6 +54,46 @@
 #define SPINEL_GET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(GET_, prop, (rcp), __VA_ARGS__)
 #define SPINEL_SET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(SET_, prop, (rcp), __VA_ARGS__)
 
+#define SPINEL_FUNC_PROP_GET(prop, fmt)                                                            \
+	static inline int __CONCAT(SPINEL_GET_, prop)(struct spinel_command * cmd, ...)            \
+	{                                                                                          \
+		int rc;                                                                            \
+		va_list args;                                                                      \
+		va_start(args, cmd);                                                               \
+		rc = spinel_prop_get_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
+		va_end(args);                                                                      \
+		return rc;                                                                         \
+	}
+
+#define SPINEL_FUNC_PROP_SET(prop, fmt)                                                            \
+	static inline int __CONCAT(SPINEL_SET_, prop)(struct spinel_command * cmd, ...)            \
+	{                                                                                          \
+		int rc;                                                                            \
+		va_list args;                                                                      \
+		va_start(args, cmd);                                                               \
+		rc = spinel_prop_set_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
+		va_end(args);                                                                      \
+		return rc;                                                                         \
+	}
+
+#define SPINEL_FUNC_RESET(fmt)                                                                     \
+	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
+	{                                                                                          \
+		va_list args;                                                                      \
+		int err;                                                                           \
+                                                                                                   \
+		mutex_lock(cmd->send_mutex);                                                       \
+		va_start(args, cmd);                                                               \
+		err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);                   \
+		va_end(args);                                                                      \
+		if (err >= 0) {                                                                    \
+			err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_RESET, 0, 0);       \
+		}                                                                                  \
+		mutex_unlock(cmd->send_mutex);                                                     \
+		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
+		return err;                                                                        \
+	}
+
 #define SETUP_SPINEL_COMMAND(cmd, rcp) rcp->spinel_command_setup(&cmd, rcp)
 
 enum {
@@ -167,46 +207,6 @@ int spinel_prop_set(struct spinel_command *cmd, spinel_prop_key_t key, const cha
 
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
 			     size_t datasize);
-
-#define SPINEL_FUNC_PROP_GET(prop, fmt)                                                            \
-	static inline int __CONCAT(SPINEL_GET_, prop)(struct spinel_command * cmd, ...)            \
-	{                                                                                          \
-		int rc;                                                                            \
-		va_list args;                                                                      \
-		va_start(args, cmd);                                                               \
-		rc = spinel_prop_get_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
-		va_end(args);                                                                      \
-		return rc;                                                                         \
-	}
-
-#define SPINEL_FUNC_PROP_SET(prop, fmt)                                                            \
-	static inline int __CONCAT(SPINEL_SET_, prop)(struct spinel_command * cmd, ...)            \
-	{                                                                                          \
-		int rc;                                                                            \
-		va_list args;                                                                      \
-		va_start(args, cmd);                                                               \
-		rc = spinel_prop_set_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
-		va_end(args);                                                                      \
-		return rc;                                                                         \
-	}
-
-#define SPINEL_FUNC_RESET(fmt)                                                                     \
-	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
-	{                                                                                          \
-		va_list args;                                                                      \
-		int err;                                                                           \
-                                                                                                   \
-		mutex_lock(cmd->send_mutex);                                                       \
-		va_start(args, cmd);                                                               \
-		err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);                   \
-		va_end(args);                                                                      \
-		if (err >= 0) {                                                                    \
-			err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_RESET, 0, 0);       \
-		}                                                                                  \
-		mutex_unlock(cmd->send_mutex);                                                     \
-		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
-		return err;                                                                        \
-	}
 
 SPINEL_FUNC_RESET((SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 

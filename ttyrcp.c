@@ -1,11 +1,6 @@
 #include "rcp_common.h"
-#include "spinel.h"
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/skbuff.h>
 #include <linux/tty.h>
-#include <linux/types.h>
 #include <net/mac802154.h>
 
 #ifdef MODTEST_ENABLE
