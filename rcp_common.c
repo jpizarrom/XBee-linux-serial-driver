@@ -24,7 +24,7 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 	}
 	strcat(fmt, ")");
 
-	SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));
+	rcp->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));
 	rc = spinel_prop_set(&cmd, SPINEL_PROP_MAC_SCAN_MASK, fmt, mask, len);
 	if (rc < 0) {
 		pr_err("%s: Failed SPINEL_ (): %d\n", __func__, rc);
@@ -190,7 +190,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	int rc;
 
 	pr_debug("%s(%p, %d)\n", __func__, rcp, reset);
-	SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));
+	rcp->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));
 	rc = SPINEL_RESET(&cmd, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 			  (uint8_t)reset);
 	if (rc < 0) {

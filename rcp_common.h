@@ -23,7 +23,7 @@
                                                                                                    \
 		work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                     \
 		work_len = rcp->spinel_max_frame_size;                                             \
-		SETUP_SPINEL_COMMAND(cmd, rcp);                                                    \
+		rcp->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
 		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, work_buffer, &work_len);              \
 		if (rc < 0) {                                                                      \
 			pr_err("%s: spinel_get_caps() failed: %d\n", __func__, rc);                \
@@ -43,7 +43,7 @@
 	{                                                                                          \
 		struct spinel_command cmd;                                                         \
 		int rc;                                                                            \
-		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
+		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
 		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
 		return rc;                                                                         \
 	}
@@ -52,7 +52,7 @@
 	{                                                                                          \
 		struct spinel_command cmd;                                                         \
 		int rc;                                                                            \
-		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
+		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
 		rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
 		return rc;                                                                         \
 	}
@@ -74,10 +74,6 @@
 		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
 		return err;                                                                        \
 	}
-
-
-
-#define SETUP_SPINEL_COMMAND(cmd, rcp) rcp->spinel_command_setup(&cmd, rcp)
 
 enum {
 	OT_RADIO_CAPS_NONE = 0,		    ///< Radio supports no capability.
