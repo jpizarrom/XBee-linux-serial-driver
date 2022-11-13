@@ -24,7 +24,7 @@
 		work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                     \
 		work_len = rcp->spinel_max_frame_size;                                             \
 		SETUP_SPINEL_COMMAND(cmd, rcp);                                                    \
-		rc = CONCATENATE(SPINEL_GET_, prop)(&cmd, work_buffer, &work_len);                 \
+		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, work_buffer, &work_len);              \
 		if (rc < 0) {                                                                      \
 			pr_err("%s: spinel_get_caps() failed: %d\n", __func__, rc);                \
 			goto end;                                                                  \
@@ -234,13 +234,13 @@ int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t le
 
 SPINEL_FUNC_RESET((SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 
-SPINEL_FUNC_PROP_GET(CAPS, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FORMAT_STRING(CAPS, (SPINEL_DATATYPE_DATA_S));
 SPINEL_FORMAT_STRING(HWADDR, (SPINEL_DATATYPE_EUI64_S));
 SPINEL_FORMAT_STRING(NCP_VERSION, (SPINEL_DATATYPE_UTF8_S));
 SPINEL_FORMAT_STRING(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
 SPINEL_FORMAT_STRING(PHY_CHAN_PREFERRED, (SPINEL_DATATYPE_DATA_S));
-SPINEL_FUNC_PROP_GET(PHY_CHAN_SUPPORTED, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FORMAT_STRING(PHY_CHAN_SUPPORTED, (SPINEL_DATATYPE_DATA_S));
 SPINEL_FORMAT_STRING(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
 SPINEL_FORMAT_STRING(PHY_RSSI, (SPINEL_DATATYPE_INT8_S));
