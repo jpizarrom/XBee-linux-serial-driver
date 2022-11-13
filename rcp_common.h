@@ -15,7 +15,6 @@
 #endif
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
-	{                                                                                          \
 		struct spinel_command cmd;                                                         \
 		uint8_t *work_buffer;                                                              \
 		size_t work_len;                                                                   \
@@ -37,25 +36,20 @@
 	end:                                                                                       \
 		kfree(work_buffer);                                                                \
 		return rc;                                                                         \
-	}
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	{                                                                                          \
 		struct spinel_command cmd;                                                         \
 		int rc;                                                                            \
 		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
 		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
 		return rc;                                                                         \
-	}
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	{                                                                                          \
 		struct spinel_command cmd;                                                         \
 		int rc;                                                                            \
 		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
 		rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
 		return rc;                                                                         \
-	}
 
 #define SPINEL_FUNC_RESET(fmt)                                                                     \
 	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
