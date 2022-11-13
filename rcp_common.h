@@ -15,41 +15,41 @@
 #endif
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
-		struct spinel_command cmd;                                                         \
-		uint8_t *work_buffer;                                                              \
-		size_t work_len;                                                                   \
-		int rc;                                                                            \
+	struct spinel_command cmd;                                                                 \
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
+	int rc;                                                                                    \
                                                                                                    \
-		work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                     \
-		work_len = rcp->spinel_max_frame_size;                                             \
-		rcp->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
-		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, work_buffer, &work_len);              \
-		if (rc < 0) {                                                                      \
-			pr_err("%s: spinel_get_caps() failed: %d\n", __func__, rc);                \
-			goto end;                                                                  \
-		}                                                                                  \
-		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);          \
-		if (rc < 0) {                                                                      \
-			pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);             \
-			goto end;                                                                  \
-		}                                                                                  \
-	end:                                                                                       \
-		kfree(work_buffer);                                                                \
-		return rc;                                                                         \
+	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = rcp->spinel_max_frame_size;                                                     \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     work_buffer, &work_len);                                              \
+	if (rc >= 0) {                                                                              \
+		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);                  \
+	} \
+	kfree(work_buffer);                                                                        \
+	if (rc < 0) {                                                                              \
+		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
+		goto end;                                                                          \
+	}                                                                                          \
+	return rc;
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-		struct spinel_command cmd;                                                         \
-		int rc;                                                                            \
-		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
-		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
-		return rc;                                                                         \
+	struct spinel_command cmd;                                                                 \
+	int rc;                                                                                    \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     __VA_ARGS__);                                                         \
+	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-		struct spinel_command cmd;                                                         \
-		int rc;                                                                            \
-		((struct otrcp*)rcp)->spinel_command_setup(&cmd, ((struct otrcp*)(rcp)));                           \
-		rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
-		return rc;                                                                         \
+	struct spinel_command cmd;                                                                 \
+	int rc;                                                                                    \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     __VA_ARGS__);                                                         \
+	return rc;
 
 #define SPINEL_FUNC_RESET(fmt)                                                                     \
 	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
@@ -92,7 +92,6 @@ enum {
 	kChannelMaskBufferSize =
 		32, ///< Max buffer size used to store `SPINEL_PROP_PHY_CHAN_SUPPORTED` value.
 };
-
 
 struct spinel_command {
 	uint8_t *buffer;
@@ -174,7 +173,8 @@ int spinel_prop_set(struct spinel_command *cmd, spinel_prop_key_t key, const cha
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
 			     size_t datasize);
 
-#define SPINEL_FORMAT_STRING(prop, format) static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
+#define SPINEL_FORMAT_STRING(prop, format)                                                         \
+	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
 
 SPINEL_FUNC_RESET((SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 
@@ -235,12 +235,5 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_EXTENDED_ADDRESSES
 SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 //Set( MAC_SRC_MATCH_SHORT_ADDRESSES, nullptr));
 */
-
-
-
-
-
-
-
 
 #endif // RCP_COMMON_H__

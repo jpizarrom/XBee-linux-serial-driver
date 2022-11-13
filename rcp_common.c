@@ -484,7 +484,6 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 	return 0;
 }
 
-
 int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
 {
 	int packed;
