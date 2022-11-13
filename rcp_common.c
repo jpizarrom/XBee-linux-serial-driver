@@ -42,16 +42,6 @@ static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
 	return false;
 }
 
-#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	{                                                                                          \
-		struct spinel_command cmd;                                                         \
-		int rc;                                                                            \
-		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
-		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
-		return rc;                                                                         \
-	}
-
-
 static int otrcp_get_protocol_version(struct otrcp *rcp, uint8_t *major, uint8_t *minor)
 {
 	SPINEL_GET_PROP_IMPL(PROTOCOL_VERSION, rcp, major, minor);
@@ -94,47 +84,47 @@ static int otrcp_get_phy_tx_power(struct otrcp *rcp, s8 *power)
 
 static int otrcp_set_enable(struct otrcp *rcp, bool enabled)
 {
-	SPINEL_SET_PROP(PHY_ENABLED, rcp, enabled);
+	SPINEL_SET_PROP_IMPL(PHY_ENABLED, rcp, enabled);
 }
 
 static int otrcp_set_panid(struct otrcp *rcp, u16 panid)
 {
-	SPINEL_SET_PROP(MAC_15_4_PANID, rcp, panid);
+	SPINEL_SET_PROP_IMPL(MAC_15_4_PANID, rcp, panid);
 }
 
 static int otrcp_set_saddr(struct otrcp *rcp, u16 saddr)
 {
-	SPINEL_SET_PROP(MAC_15_4_SADDR, rcp, saddr);
+	SPINEL_SET_PROP_IMPL(MAC_15_4_SADDR, rcp, saddr);
 }
 
 static int otrcp_set_laddr(struct otrcp *rcp, u64 laddr)
 {
-	SPINEL_SET_PROP(MAC_15_4_LADDR, rcp, &laddr);
+	SPINEL_SET_PROP_IMPL(MAC_15_4_LADDR, rcp, &laddr);
 }
 
 static int otrcp_set_scan_period(struct otrcp *rcp, uint16_t duration)
 {
-	SPINEL_SET_PROP(MAC_SCAN_MASK, rcp, duration);
+	SPINEL_SET_PROP_IMPL(MAC_SCAN_MASK, rcp, duration);
 }
 
 static int otrcp_set_scan_state(struct otrcp *rcp, uint8_t state)
 {
-	SPINEL_SET_PROP(MAC_SCAN_STATE, rcp, state);
+	SPINEL_SET_PROP_IMPL(MAC_SCAN_STATE, rcp, state);
 }
 
 static int otrcp_set_phy_cca_threshold(struct otrcp *rcp, s8 ed_level)
 {
-	SPINEL_SET_PROP(PHY_CCA_THRESHOLD, rcp, ed_level);
+	SPINEL_SET_PROP_IMPL(PHY_CCA_THRESHOLD, rcp, ed_level);
 }
 
 static int otrcp_set_phy_tx_power(struct otrcp *rcp, s8 power)
 {
-	SPINEL_SET_PROP(PHY_TX_POWER, rcp, power);
+	SPINEL_SET_PROP_IMPL(PHY_TX_POWER, rcp, power);
 }
 
 static int otrcp_set_phy_chan(struct otrcp *rcp, u8 chan)
 {
-	SPINEL_SET_PROP(PHY_CHAN, rcp, chan);
+	SPINEL_SET_PROP_IMPL(PHY_CHAN, rcp, chan);
 }
 
 static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
@@ -315,7 +305,7 @@ int otrcp_set_frame_retries(struct ieee802154_hw *hw, s8 max_frame_retries)
 int otrcp_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
 	pr_debug("%s(%p, %d)\n", __func__, hw, on);
-	SPINEL_SET_PROP(MAC_PROMISCUOUS_MODE, hw->priv, on);
+	SPINEL_SET_PROP_IMPL(MAC_PROMISCUOUS_MODE, hw->priv, on);
 }
 
 int otrcp_start(struct ieee802154_hw *hw)

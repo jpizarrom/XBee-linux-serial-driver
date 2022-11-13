@@ -51,6 +51,24 @@
 		return rc;                                                                         \
 	}
 
+#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+	{                                                                                          \
+		struct spinel_command cmd;                                                         \
+		int rc;                                                                            \
+		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
+		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
+		return rc;                                                                         \
+	}
+
+#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
+	{                                                                                          \
+		struct spinel_command cmd;                                                         \
+		int rc;                                                                            \
+		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
+		rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
+		return rc;                                                                         \
+	}
+
 #define SPINEL_GET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(GET_, prop, (rcp), __VA_ARGS__)
 #define SPINEL_SET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(SET_, prop, (rcp), __VA_ARGS__)
 
@@ -93,6 +111,8 @@
 		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
 		return err;                                                                        \
 	}
+
+
 
 #define SETUP_SPINEL_COMMAND(cmd, rcp) rcp->spinel_command_setup(&cmd, rcp)
 
@@ -245,27 +265,21 @@ SPINEL_FORMAT_STRING(
 SPINEL_FORMAT_STRING(RCP_API_VERSION, (SPINEL_DATATYPE_UINT_PACKED_S));
 SPINEL_FORMAT_STRING(THREAD_ACTIVE_DATASET, (SPINEL_DATATYPE_VOID_S));
 SPINEL_FORMAT_STRING(THREAD_PENDING_DATASET, (SPINEL_DATATYPE_VOID_S));
-SPINEL_FUNC_PROP_SET(MAC_15_4_LADDR, (SPINEL_DATATYPE_EUI64_S));
-SPINEL_FUNC_PROP_SET(MAC_15_4_PANID, (SPINEL_DATATYPE_UINT16_S));
-SPINEL_FUNC_PROP_SET(MAC_15_4_SADDR, (SPINEL_DATATYPE_UINT16_S));
-SPINEL_FUNC_PROP_SET(MAC_PROMISCUOUS_MODE, (SPINEL_DATATYPE_UINT8_S));
-SPINEL_FUNC_PROP_SET(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
-SPINEL_FUNC_PROP_SET(MAC_SCAN_MASK, (SPINEL_DATATYPE_DATA_S));
-SPINEL_FUNC_PROP_SET(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
-SPINEL_FUNC_PROP_SET(MAC_SCAN_STATE, (SPINEL_DATATYPE_UINT8_S));
-SPINEL_FUNC_PROP_SET(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
-SPINEL_FUNC_PROP_SET(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
-SPINEL_FUNC_PROP_SET(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
-SPINEL_FUNC_PROP_SET(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
-SPINEL_FUNC_PROP_SET(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
-SPINEL_FUNC_PROP_SET(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
-SPINEL_FUNC_PROP_SET(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
-SPINEL_FUNC_PROP_SET(PHY_TX_POWER, (SPINEL_DATATYPE_INT8_S));
-SPINEL_FUNC_PROP_SET(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
-SPINEL_FUNC_PROP_SET(RCP_ENH_ACK_PROBING,
+SPINEL_FORMAT_STRING(MAC_15_4_LADDR, (SPINEL_DATATYPE_EUI64_S));
+SPINEL_FORMAT_STRING(MAC_15_4_PANID, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FORMAT_STRING(MAC_15_4_SADDR, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FORMAT_STRING(MAC_PROMISCUOUS_MODE, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FORMAT_STRING(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
+SPINEL_FORMAT_STRING(MAC_SCAN_MASK, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FORMAT_STRING(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FORMAT_STRING(MAC_SCAN_STATE, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FORMAT_STRING(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
+SPINEL_FORMAT_STRING(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
+SPINEL_FORMAT_STRING(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
+SPINEL_FORMAT_STRING(RCP_ENH_ACK_PROBING,
 		     (SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S SPINEL_DATATYPE_UINT8_S));
-SPINEL_FUNC_PROP_SET(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
-SPINEL_FUNC_PROP_SET(RCP_MAC_KEY,
+SPINEL_FORMAT_STRING(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
+SPINEL_FORMAT_STRING(RCP_MAC_KEY,
 		     (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_DATA_WLEN_S
 			      SPINEL_DATATYPE_DATA_WLEN_S SPINEL_DATATYPE_DATA_WLEN_S));
 
