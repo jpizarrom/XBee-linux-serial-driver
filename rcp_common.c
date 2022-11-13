@@ -191,7 +191,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 
 	pr_debug("%s(%p, %d)\n", __func__, rcp, reset);
 	rcp->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));
-	rc = SPINEL_RESET(&cmd, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
+	rc = spinel_reset(&cmd, spinel_data_format_str_RESET, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 			  (uint8_t)reset);
 	if (rc < 0) {
 		pr_err("%s: Failed SPINEL_RESET(): %d\n", __func__, rc);
@@ -610,6 +610,31 @@ int spinel_prop_set(struct spinel_command *cmd, spinel_prop_key_t key, const cha
 	rc = spinel_prop_set_v(cmd, key, fmt, args);
 	va_end(args);
 	return rc;
+}
+
+int spinel_reset_v(struct spinel_command *cmd, const char *fmt, va_list args) 
+{
+	int err;
+											
+	mutex_lock(cmd->send_mutex);
+	err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);
+	if (err >= 0) {
+		err = cmd->send(cmd->ctx, cmd->buffer, err, fmt, 0, 0);
+	}
+	mutex_unlock(cmd->send_mutex);
+	err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, fmt, 0, 0);
+	return err;
+}
+
+int spinel_reset(struct spinel_command *cmd, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_reset_v(cmd, fmt, args);
+	va_end(args);
+	return rc;
+
 }
 
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,

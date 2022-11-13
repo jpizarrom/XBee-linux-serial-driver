@@ -31,7 +31,6 @@
 	kfree(work_buffer);                                                                        \
 	if (rc < 0) {                                                                              \
 		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
-		goto end;                                                                          \
 	}                                                                                          \
 	return rc;
 
@@ -169,6 +168,8 @@ int spinel_prop_get(struct spinel_command *cmd, spinel_prop_key_t key, const cha
 int spinel_prop_set_v(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
 		      va_list args);
 int spinel_prop_set(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
+int spinel_reset_v(struct spinel_command *cmd, const char *fmt, va_list args);
+int spinel_reset(struct spinel_command *cmd, const char *fmt, ...);
 
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
 			     size_t datasize);
@@ -176,7 +177,7 @@ int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t le
 #define SPINEL_FORMAT_STRING(prop, format)                                                         \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
 
-SPINEL_FUNC_RESET((SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
+SPINEL_FORMAT_STRING(RESET, (SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 
 SPINEL_FORMAT_STRING(CAPS, (SPINEL_DATATYPE_DATA_S));
 SPINEL_FORMAT_STRING(HWADDR, (SPINEL_DATATYPE_EUI64_S));
