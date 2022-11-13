@@ -397,10 +397,6 @@ int otrcp_start(struct ieee802154_hw *hw)
 	if (rc < 0)
 		return rc;
 
-	rc = otrcp_set_mac_scan_mask(rcp, rcp->phy_chan_supported, rcp->phy_chan_supported_size);
-	if (rc < 0)
-		return rc;
-
 	return 0;
 }
 
@@ -442,8 +438,9 @@ int otrcp_ed(struct ieee802154_hw *hw, u8 *level)
 
 	int rc = 0;
 
-	//    SuccessOrExit(error = Set(SPINEL_PROP_MAC_SCAN_MASK, SPINEL_DATATYPE_DATA_S,
-	//    &aScanChannel, sizeof(uint8_t)));
+	rc = otrcp_set_mac_scan_mask(rcp, rcp->phy_chan_supported, rcp->phy_chan_supported_size);
+	if (rc < 0)
+		return rc;
 
 	rc = otrcp_set_scan_period(rcp, rcp->scan_period);
 	if (rc < 0)
