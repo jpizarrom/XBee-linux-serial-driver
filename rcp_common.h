@@ -50,24 +50,6 @@
 			     __VA_ARGS__);                                                         \
 	return rc;
 
-#define SPINEL_FUNC_RESET(fmt)                                                                     \
-	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
-	{                                                                                          \
-		va_list args;                                                                      \
-		int err;                                                                           \
-                                                                                                   \
-		mutex_lock(cmd->send_mutex);                                                       \
-		va_start(args, cmd);                                                               \
-		err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);                   \
-		va_end(args);                                                                      \
-		if (err >= 0) {                                                                    \
-			err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_RESET, 0, 0);       \
-		}                                                                                  \
-		mutex_unlock(cmd->send_mutex);                                                     \
-		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
-		return err;                                                                        \
-	}
-
 enum {
 	OT_RADIO_CAPS_NONE = 0,		    ///< Radio supports no capability.
 	OT_RADIO_CAPS_ACK_TIMEOUT = 1 << 0, ///< Radio supports AckTime event.
