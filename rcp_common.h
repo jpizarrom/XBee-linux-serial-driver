@@ -39,18 +39,6 @@
 		return rc;                                                                         \
 	}
 
-#define SPINEL_PROP_IMPL(setget, prop, rcp, ...)                                                   \
-	{                                                                                          \
-		struct spinel_command cmd;                                                         \
-		int rc;                                                                            \
-		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
-		rc = CONCATENATE(CONCATENATE(SPINEL_, setget), prop)(&cmd, __VA_ARGS__);           \
-		if (rc < 0) {                                                                      \
-			pr_err("%s: Failed SPINEL_" #setget #prop "(): %d\n", __func__, rc);       \
-		}                                                                                  \
-		return rc;                                                                         \
-	}
-
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	{                                                                                          \
 		struct spinel_command cmd;                                                         \
@@ -66,31 +54,6 @@
 		int rc;                                                                            \
 		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
 		rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
-		return rc;                                                                         \
-	}
-
-#define SPINEL_GET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(GET_, prop, (rcp), __VA_ARGS__)
-#define SPINEL_SET_PROP(prop, rcp, ...) SPINEL_PROP_IMPL(SET_, prop, (rcp), __VA_ARGS__)
-
-#define SPINEL_FUNC_PROP_GET(prop, fmt)                                                            \
-	static inline int __CONCAT(SPINEL_GET_, prop)(struct spinel_command * cmd, ...)            \
-	{                                                                                          \
-		int rc;                                                                            \
-		va_list args;                                                                      \
-		va_start(args, cmd);                                                               \
-		rc = spinel_prop_get_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
-		va_end(args);                                                                      \
-		return rc;                                                                         \
-	}
-
-#define SPINEL_FUNC_PROP_SET(prop, fmt)                                                            \
-	static inline int __CONCAT(SPINEL_SET_, prop)(struct spinel_command * cmd, ...)            \
-	{                                                                                          \
-		int rc;                                                                            \
-		va_list args;                                                                      \
-		va_start(args, cmd);                                                               \
-		rc = spinel_prop_set_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
-		va_end(args);                                                                      \
 		return rc;                                                                         \
 	}
 
@@ -202,15 +165,6 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb);
 int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
-
-
-
-
-
-
-
-
-
 
 uint32_t spinel_expected_command(uint32_t cmd);
 
