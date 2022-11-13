@@ -80,6 +80,20 @@ enum {
 		32, ///< Max buffer size used to store `SPINEL_PROP_PHY_CHAN_SUPPORTED` value.
 };
 
+
+struct spinel_command {
+	uint8_t *buffer;
+	size_t length;
+	spinel_tid_t tid;
+	int (*send)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
+		    spinel_tid_t tid);
+	int (*resp)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
+		    spinel_tid_t tid);
+	void *ctx;
+	struct mutex *send_mutex;
+	struct mutex *resp_mutex;
+};
+
 struct otrcp {
 	struct ieee802154_hw *hw;
 	struct device *parent;
@@ -128,5 +142,143 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb);
 int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
+
+
+
+
+
+
+
+
+
+
+uint32_t spinel_expected_command(uint32_t cmd);
+
+int spinel_command(uint8_t *buffer, size_t length, uint32_t aCommand, spinel_prop_key_t aKey,
+		   spinel_tid_t tid, const char *aFormat, va_list args);
+
+int spinel_reset_command(uint8_t *buffer, size_t length, const char *aFormat, va_list args);
+
+int spinel_prop_get_v(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+		      va_list args);
+int spinel_prop_set_v(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+		      va_list args);
+int spinel_prop_set(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
+
+int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
+			     size_t datasize);
+
+#define SPINEL_FUNC_PROP_GET(prop, fmt)                                                            \
+	static inline int __CONCAT(SPINEL_GET_, prop)(struct spinel_command * cmd, ...)            \
+	{                                                                                          \
+		int rc;                                                                            \
+		va_list args;                                                                      \
+		va_start(args, cmd);                                                               \
+		rc = spinel_prop_get_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
+		va_end(args);                                                                      \
+		return rc;                                                                         \
+	}
+
+#define SPINEL_FUNC_PROP_SET(prop, fmt)                                                            \
+	static inline int __CONCAT(SPINEL_SET_, prop)(struct spinel_command * cmd, ...)            \
+	{                                                                                          \
+		int rc;                                                                            \
+		va_list args;                                                                      \
+		va_start(args, cmd);                                                               \
+		rc = spinel_prop_set_v(cmd, __CONCAT(SPINEL_PROP_, prop), fmt, args);              \
+		va_end(args);                                                                      \
+		return rc;                                                                         \
+	}
+
+#define SPINEL_FUNC_RESET(fmt)                                                                     \
+	static inline int SPINEL_RESET(struct spinel_command *cmd, ...)                            \
+	{                                                                                          \
+		va_list args;                                                                      \
+		int err;                                                                           \
+                                                                                                   \
+		mutex_lock(cmd->send_mutex);                                                       \
+		va_start(args, cmd);                                                               \
+		err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);                   \
+		va_end(args);                                                                      \
+		if (err >= 0) {                                                                    \
+			err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_RESET, 0, 0);       \
+		}                                                                                  \
+		mutex_unlock(cmd->send_mutex);                                                     \
+		err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_RESET, 0, 0);       \
+		return err;                                                                        \
+	}
+
+SPINEL_FUNC_RESET((SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
+
+SPINEL_FUNC_PROP_GET(CAPS, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FUNC_PROP_GET(HWADDR, (SPINEL_DATATYPE_EUI64_S));
+SPINEL_FUNC_PROP_GET(NCP_VERSION, (SPINEL_DATATYPE_UTF8_S));
+SPINEL_FUNC_PROP_GET(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_GET(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FUNC_PROP_GET(PHY_CHAN_PREFERRED, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FUNC_PROP_GET(PHY_CHAN_SUPPORTED, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FUNC_PROP_GET(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_GET(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FUNC_PROP_GET(PHY_RSSI, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_GET(PHY_RX_SENSITIVITY, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_GET(PHY_TX_POWER, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_GET(PROTOCOL_VERSION,
+		     (SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
+SPINEL_FUNC_PROP_GET(RADIO_CAPS, (SPINEL_DATATYPE_UINT_PACKED_S));
+SPINEL_FUNC_PROP_GET(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
+SPINEL_FUNC_PROP_GET(
+	RADIO_COEX_METRICS,
+	(SPINEL_DATATYPE_STRUCT_S(
+		SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
+			SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
+				SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S)
+		 SPINEL_DATATYPE_STRUCT_S(
+			 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
+				 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
+					 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
+						 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S)
+			 SPINEL_DATATYPE_BOOL_S SPINEL_DATATYPE_UINT32_S));
+SPINEL_FUNC_PROP_GET(RCP_API_VERSION, (SPINEL_DATATYPE_UINT_PACKED_S));
+SPINEL_FUNC_PROP_GET(THREAD_ACTIVE_DATASET, (SPINEL_DATATYPE_VOID_S));
+SPINEL_FUNC_PROP_GET(THREAD_PENDING_DATASET, (SPINEL_DATATYPE_VOID_S));
+SPINEL_FUNC_PROP_SET(MAC_15_4_LADDR, (SPINEL_DATATYPE_EUI64_S));
+SPINEL_FUNC_PROP_SET(MAC_15_4_PANID, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FUNC_PROP_SET(MAC_15_4_SADDR, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FUNC_PROP_SET(MAC_PROMISCUOUS_MODE, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FUNC_PROP_SET(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
+SPINEL_FUNC_PROP_SET(MAC_SCAN_MASK, (SPINEL_DATATYPE_DATA_S));
+SPINEL_FUNC_PROP_SET(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FUNC_PROP_SET(MAC_SCAN_STATE, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FUNC_PROP_SET(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
+SPINEL_FUNC_PROP_SET(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_SET(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_SET(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
+SPINEL_FUNC_PROP_SET(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
+SPINEL_FUNC_PROP_SET(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_SET(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
+SPINEL_FUNC_PROP_SET(PHY_TX_POWER, (SPINEL_DATATYPE_INT8_S));
+SPINEL_FUNC_PROP_SET(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
+SPINEL_FUNC_PROP_SET(RCP_ENH_ACK_PROBING,
+		     (SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S SPINEL_DATATYPE_UINT8_S));
+SPINEL_FUNC_PROP_SET(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
+SPINEL_FUNC_PROP_SET(RCP_MAC_KEY,
+		     (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_DATA_WLEN_S
+			      SPINEL_DATATYPE_DATA_WLEN_S SPINEL_DATATYPE_DATA_WLEN_S));
+
+/*
+SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_ENABLED
+//Set( MAC_SRC_MATCH_ENABLED, SPINEL_DATATYPE_BOOL_S, aEnable);
+SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_EXTENDED_ADDRESSES
+//Set( MAC_SRC_MATCH_EXTENDED_ADDRESSES, nullptr));
+SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
+//Set( MAC_SRC_MATCH_SHORT_ADDRESSES, nullptr));
+*/
+
+
+
+
+
+
+
 
 #endif // RCP_COMMON_H__
