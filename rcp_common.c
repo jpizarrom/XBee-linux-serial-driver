@@ -42,44 +42,54 @@ static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
 	return false;
 }
 
+#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+	{                                                                                          \
+		struct spinel_command cmd;                                                         \
+		int rc;                                                                            \
+		SETUP_SPINEL_COMMAND(cmd, ((struct otrcp *)(rcp)));                                \
+		rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_ ## prop, __VA_ARGS__);              \
+		return rc;                                                                         \
+	}
+
+
 static int otrcp_get_protocol_version(struct otrcp *rcp, uint8_t *major, uint8_t *minor)
 {
-	SPINEL_GET_PROP(PROTOCOL_VERSION, rcp, major, minor);
+	SPINEL_GET_PROP_IMPL(PROTOCOL_VERSION, rcp, major, minor);
 }
 
 static int otrcp_get_rcp_api_version(struct otrcp *rcp, uint32_t *rcp_api_version)
 {
-	SPINEL_GET_PROP(RCP_API_VERSION, rcp, rcp_api_version);
+	SPINEL_GET_PROP_IMPL(RCP_API_VERSION, rcp, rcp_api_version);
 }
 
 static int otrcp_get_ncp_version(struct otrcp *rcp, uint8_t *ncp_version, size_t len)
 {
-	SPINEL_GET_PROP(NCP_VERSION, rcp, ncp_version, len);
+	SPINEL_GET_PROP_IMPL(NCP_VERSION, rcp, ncp_version, len);
 }
 
 static int otrcp_get_radio_caps(struct otrcp *rcp, uint32_t *radio_caps)
 {
-	SPINEL_GET_PROP(RADIO_CAPS, rcp, radio_caps);
+	SPINEL_GET_PROP_IMPL(RADIO_CAPS, rcp, radio_caps);
 }
 
 static int otrcp_get_hwaddr(struct otrcp *rcp, uint8_t *hwaddr)
 {
-	SPINEL_GET_PROP(HWADDR, rcp, hwaddr);
+	SPINEL_GET_PROP_IMPL(HWADDR, rcp, hwaddr);
 }
 
 static int otrcp_get_phy_cca_threshold(struct otrcp *rcp, s8 *level)
 {
-	SPINEL_GET_PROP(PHY_CCA_THRESHOLD, rcp, level);
+	SPINEL_GET_PROP_IMPL(PHY_CCA_THRESHOLD, rcp, level);
 }
 
 static int otrcp_get_phy_chan(struct otrcp *rcp, uint8_t *chan)
 {
-	SPINEL_GET_PROP(PHY_CHAN, rcp, chan);
+	SPINEL_GET_PROP_IMPL(PHY_CHAN, rcp, chan);
 }
 
 static int otrcp_get_phy_tx_power(struct otrcp *rcp, s8 *power)
 {
-	SPINEL_GET_PROP(PHY_TX_POWER, rcp, power);
+	SPINEL_GET_PROP_IMPL(PHY_TX_POWER, rcp, power);
 }
 
 static int otrcp_set_enable(struct otrcp *rcp, bool enabled)
@@ -569,6 +579,16 @@ int spinel_prop_get_v(struct spinel_command *cmd, spinel_prop_key_t key, const c
 	err = spinel_datatype_vunpack_in_place(cmd->buffer, err, fmt, args);
 	mutex_unlock(cmd->resp_mutex);
 	return err;
+}
+
+int spinel_prop_get(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_prop_get_v(cmd, key, fmt, args);
+	va_end(args);
+	return rc;
 }
 
 int spinel_prop_set_v(struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
