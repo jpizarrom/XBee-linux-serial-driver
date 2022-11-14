@@ -3,7 +3,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-
 #include <net/mac802154.h>
 
 #define SPINEL_FORMAT_STRING(prop, format)                                                         \
@@ -16,18 +15,18 @@ SPINEL_FORMAT_STRING(HWADDR, (SPINEL_DATATYPE_EUI64_S));
 SPINEL_FORMAT_STRING(NCP_VERSION, (SPINEL_DATATYPE_UTF8_S));
 SPINEL_FORMAT_STRING(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
-//SPINEL_FORMAT_STRING(PHY_CHAN_PREFERRED, (SPINEL_DATATYPE_DATA_S));
+// SPINEL_FORMAT_STRING(PHY_CHAN_PREFERRED, (SPINEL_DATATYPE_DATA_S));
 SPINEL_FORMAT_STRING(PHY_CHAN_SUPPORTED, (SPINEL_DATATYPE_DATA_S));
-//SPINEL_FORMAT_STRING(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
-//SPINEL_FORMAT_STRING(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
-//SPINEL_FORMAT_STRING(PHY_RSSI, (SPINEL_DATATYPE_INT8_S));
-//SPINEL_FORMAT_STRING(PHY_RX_SENSITIVITY, (SPINEL_DATATYPE_INT8_S));
+// SPINEL_FORMAT_STRING(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
+// SPINEL_FORMAT_STRING(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
+// SPINEL_FORMAT_STRING(PHY_RSSI, (SPINEL_DATATYPE_INT8_S));
+// SPINEL_FORMAT_STRING(PHY_RX_SENSITIVITY, (SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PHY_TX_POWER, (SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PROTOCOL_VERSION,
 		     (SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 SPINEL_FORMAT_STRING(RADIO_CAPS, (SPINEL_DATATYPE_UINT_PACKED_S));
-//SPINEL_FORMAT_STRING(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
-//SPINEL_FORMAT_STRING(
+// SPINEL_FORMAT_STRING(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
+// SPINEL_FORMAT_STRING(
 //	RADIO_COEX_METRICS,
 //	(SPINEL_DATATYPE_STRUCT_S(
 //		SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
@@ -40,23 +39,23 @@ SPINEL_FORMAT_STRING(RADIO_CAPS, (SPINEL_DATATYPE_UINT_PACKED_S));
 //						 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S)
 //			 SPINEL_DATATYPE_BOOL_S SPINEL_DATATYPE_UINT32_S));
 SPINEL_FORMAT_STRING(RCP_API_VERSION, (SPINEL_DATATYPE_UINT_PACKED_S));
-//SPINEL_FORMAT_STRING(THREAD_ACTIVE_DATASET, (SPINEL_DATATYPE_VOID_S));
-//SPINEL_FORMAT_STRING(THREAD_PENDING_DATASET, (SPINEL_DATATYPE_VOID_S));
+// SPINEL_FORMAT_STRING(THREAD_ACTIVE_DATASET, (SPINEL_DATATYPE_VOID_S));
+// SPINEL_FORMAT_STRING(THREAD_PENDING_DATASET, (SPINEL_DATATYPE_VOID_S));
 SPINEL_FORMAT_STRING(MAC_15_4_LADDR, (SPINEL_DATATYPE_EUI64_S));
 SPINEL_FORMAT_STRING(MAC_15_4_PANID, (SPINEL_DATATYPE_UINT16_S));
 SPINEL_FORMAT_STRING(MAC_15_4_SADDR, (SPINEL_DATATYPE_UINT16_S));
 SPINEL_FORMAT_STRING(MAC_PROMISCUOUS_MODE, (SPINEL_DATATYPE_UINT8_S));
-//SPINEL_FORMAT_STRING(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
+// SPINEL_FORMAT_STRING(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
 SPINEL_FORMAT_STRING(MAC_SCAN_MASK, (SPINEL_DATATYPE_DATA_S));
-//SPINEL_FORMAT_STRING(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
+// SPINEL_FORMAT_STRING(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
 SPINEL_FORMAT_STRING(MAC_SCAN_STATE, (SPINEL_DATATYPE_UINT8_S));
-//SPINEL_FORMAT_STRING(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
-//SPINEL_FORMAT_STRING(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
+// SPINEL_FORMAT_STRING(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
+// SPINEL_FORMAT_STRING(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
 SPINEL_FORMAT_STRING(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
-//SPINEL_FORMAT_STRING(RCP_ENH_ACK_PROBING,
+// SPINEL_FORMAT_STRING(RCP_ENH_ACK_PROBING,
 //		     (SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S SPINEL_DATATYPE_UINT8_S));
-//SPINEL_FORMAT_STRING(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
-//SPINEL_FORMAT_STRING(RCP_MAC_KEY,
+// SPINEL_FORMAT_STRING(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
+// SPINEL_FORMAT_STRING(RCP_MAC_KEY,
 //		     (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_DATA_WLEN_S
 //			      SPINEL_DATATYPE_DATA_WLEN_S SPINEL_DATATYPE_DATA_WLEN_S));
 
@@ -69,26 +68,27 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 //Set( MAC_SRC_MATCH_SHORT_ADDRESSES, nullptr));
 */
 
-#define SPINEL_PROP_ARRAY_PACK(prop, data, len, elemfmt, datasize)                                  \
-	int rc, i; \
-	char* fmt;                                                                      \
+#define SPINEL_PROP_ARRAY_PACK(prop, data, len, elemfmt, datasize)                                 \
+	int rc, i;                                                                                 \
+	char *fmt;                                                                                 \
 	uint8_t *work_buffer;                                                                      \
 	size_t work_len;                                                                           \
-	\
+                                                                                                   \
 	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
 	work_len = rcp->spinel_max_frame_size;                                                     \
-	fmt = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
-	fmt[0] = '\0'; \
-	strcat(fmt, (spinel_data_format_str_##prop));\
-	strcat(fmt, "(");\
-	for (i = 0; i < len; i++) { \
-		strcat(fmt, elemfmt); \
-	} \
-	strcat(fmt, ")"); \
-	\
-	rc = otrcp_spinel_prop_set(rcp, work_buffer, work_len, __CONCAT(SPINEL_PROP_, prop), fmt, data, len); \
-	kfree(work_buffer); \
-	kfree(fmt); \
+	fmt = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                     \
+	fmt[0] = '\0';                                                                             \
+	strcat(fmt, (spinel_data_format_str_##prop));                                              \
+	strcat(fmt, "(");                                                                          \
+	for (i = 0; i < len; i++) {                                                                \
+		strcat(fmt, elemfmt);                                                              \
+	}                                                                                          \
+	strcat(fmt, ")");                                                                          \
+                                                                                                   \
+	rc = otrcp_spinel_prop_set(rcp, work_buffer, work_len, __CONCAT(SPINEL_PROP_, prop), fmt,  \
+				   data, len);                                                     \
+	kfree(work_buffer);                                                                        \
+	kfree(fmt);                                                                                \
 	return rc;
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
@@ -96,13 +96,14 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	size_t work_len;                                                                           \
 	int rc;                                                                                    \
                                                                                                    \
-	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
-	work_len = (rcp)->spinel_max_frame_size;                                                     \
-	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
-			     work_buffer, &work_len);                                              \
-	if (rc >= 0) {                                                                              \
-		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);                  \
-	} \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                           \
+	work_len = (rcp)->spinel_max_frame_size;                                                   \
+	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len,                   \
+				   __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+				   work_buffer, &work_len);                                        \
+	if (rc >= 0) {                                                                             \
+		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);          \
+	}                                                                                          \
 	kfree(work_buffer);                                                                        \
 	if (rc < 0) {                                                                              \
 		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
@@ -113,10 +114,11 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	uint8_t *work_buffer;                                                                      \
 	size_t work_len;                                                                           \
 	int rc;                                                                                    \
-	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
-	work_len = (rcp)->spinel_max_frame_size;                                                     \
-	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
-			     __VA_ARGS__);                                                         \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                           \
+	work_len = (rcp)->spinel_max_frame_size;                                                   \
+	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len,                   \
+				   __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+				   __VA_ARGS__);                                                   \
 	kfree(work_buffer);                                                                        \
 	return rc;
 
@@ -124,24 +126,25 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	uint8_t *work_buffer;                                                                      \
 	size_t work_len;                                                                           \
 	int rc;                                                                                    \
-	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                           \
 	work_len = rcp->spinel_max_frame_size;                                                     \
-	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), work_buffer, work_len, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
-			     __VA_ARGS__);                                                         \
+	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), work_buffer, work_len,                   \
+				   __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+				   __VA_ARGS__);                                                   \
 	kfree(work_buffer);                                                                        \
 	return rc;
 
-#define SPINEL_RESET_IMPL(rcp, ...) \
+#define SPINEL_RESET_IMPL(rcp, ...)                                                                \
 	uint8_t *work_buffer;                                                                      \
 	size_t work_len;                                                                           \
-	int rc; \
+	int rc;                                                                                    \
 	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
 	work_len = rcp->spinel_max_frame_size;                                                     \
-	rc = otrcp_spinel_reset(((struct otrcp *)rcp), work_buffer, work_len, spinel_data_format_str_RESET, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, \
-			  __VA_ARGS__); \
-	kfree(work_buffer); \
+	rc = otrcp_spinel_reset(                                                                   \
+		((struct otrcp *)rcp), work_buffer, work_len, spinel_data_format_str_RESET,        \
+		SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, __VA_ARGS__);          \
+	kfree(work_buffer);                                                                        \
 	return rc;
-
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
 {
@@ -160,7 +163,7 @@ static int spinel_reset_command(uint8_t *buffer, size_t length, const char *form
 }
 
 static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
-		   spinel_tid_t tid, const char *format, va_list args)
+			  spinel_tid_t tid, const char *format, va_list args)
 {
 	int packed;
 	uint16_t offset;
@@ -201,8 +204,8 @@ static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spin
 	return offset;
 }
 
-static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
-			     size_t datasize)
+static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
+				    const char *fmt, size_t datasize)
 {
 	int rc;
 	int remains = out_len;
@@ -227,26 +230,23 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	return (out - start) / datasize;
 }
 
-static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
-		      va_list args)
+static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
+				   spinel_prop_key_t key, const char *fmt, va_list args)
 {
 	int err;
 
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	rcp->tid = tid;
 
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid,
-			     NULL, 0);
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				tid);
+		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			tid);
+	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	if (err < 0) {
 		return err;
 	}
@@ -254,7 +254,8 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	return err;
 }
 
-static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
+static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length,
+				 spinel_prop_key_t key, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
@@ -264,30 +265,28 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	return rc;
 }
 
-static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
-		      va_list args)
+static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
+				   spinel_prop_key_t key, const char *fmt, va_list args)
 {
 	int err;
 
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	rcp->tid = tid;
 
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid,
-			     fmt, args);
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				tid);
+		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			tid);
+	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	return err;
 }
 
-static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
+static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
+				 spinel_prop_key_t key, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
@@ -297,10 +296,11 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	return rc;
 }
 
-static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, va_list args) 
+static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt,
+				va_list args)
 {
 	int err;
-											
+
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_RESET, 0, 0);
@@ -309,7 +309,8 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	return err;
 }
 
-static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, ...)
+static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt,
+			      ...)
 {
 	va_list args;
 	int rc;
@@ -317,7 +318,6 @@ static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,
 	rc = otrcp_spinel_reset_v(rcp, buffer, length, fmt, args);
 	va_end(args);
 	return rc;
-
 }
 
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
@@ -342,28 +342,26 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 {
 	SPINEL_PROP_ARRAY_PACK(MAC_SCAN_MASK, mask, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t))
 
-/*
-	int rc, i;
-	char fmt[36] = "D(";
+	/*
+		int rc, i;
+		char fmt[36] = "D(";
 
-	uint8_t *work_buffer;                                                                      \
-	size_t work_len;                                                                           \
+		uint8_t *work_buffer; \
+		size_t work_len; \
 
-	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
-	work_len = rcp->spinel_max_frame_size;                                                     \
-	for (i = 0; i < len; i++) {
-		strcat(fmt, "C");
-	}
-	strcat(fmt, ")");
+		work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL); \
+		work_len = rcp->spinel_max_frame_size; \ for (i = 0; i < len; i++) { strcat(fmt,
+	   "C");
+		}
+		strcat(fmt, ")");
 
-	rc = otrcp_spinel_prop_set(rcp, work_buffer, work_len, SPINEL_PROP_MAC_SCAN_MASK, fmt, mask, len);
-	if (rc < 0) {
-		pr_err("%s: Failed SPINEL_ (): %d\n", __func__, rc);
-	}
+		rc = otrcp_spinel_prop_set(rcp, work_buffer, work_len, SPINEL_PROP_MAC_SCAN_MASK,
+	   fmt, mask, len); if (rc < 0) { pr_err("%s: Failed SPINEL_ (): %d\n", __func__, rc);
+		}
 
-	kfree(work_buffer);
-	return rc;
-*/
+		kfree(work_buffer);
+		return rc;
+	*/
 }
 
 static int otrcp_get_protocol_version(struct otrcp *rcp, uint8_t *major, uint8_t *minor)
@@ -809,4 +807,3 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 
 	return 0;
 }
-

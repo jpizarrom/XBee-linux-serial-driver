@@ -2,6 +2,7 @@
 #define RCP_COMMON_H__
 
 #include "spinel.h"
+
 #include <linux/types.h>
 
 #ifdef MODTEST_ENABLE
