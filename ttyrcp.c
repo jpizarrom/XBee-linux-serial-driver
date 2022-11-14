@@ -374,10 +374,10 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 		goto end;
 	}
 
-	dev_dbg(rcp->otrcp.parent,
-		"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
-		spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
-		data_len);
+	//dev_dbg(rcp->otrcp.parent,
+	//	"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
+	//	spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
+	//	data_len);
 
 	kfree_skb(rcp->cmd_resp);
 	rcp->cmd_resp = NULL;
