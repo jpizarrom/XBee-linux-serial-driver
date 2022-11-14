@@ -40,11 +40,7 @@ enum {
 
 struct spinel_command {
 	spinel_tid_t tid;
-	int (*send)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
-		    spinel_tid_t tid);
-	int (*resp)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
-		    spinel_tid_t tid);
-	void *ctx;
+
 };
 
 struct otrcp {
@@ -55,6 +51,8 @@ struct otrcp {
 	uint8_t csma_max_be;
 	uint8_t csma_retries;
 	int8_t max_frame_retries;
+
+	uint8_t tid;
 
 	uint8_t ncp_version[kVersionStringSize];
 	uint8_t protocol_version_major;
@@ -80,6 +78,10 @@ struct otrcp {
 	uint8_t hwaddr[8];
 
 	void (*spinel_command_setup)(struct spinel_command *cmd, struct otrcp *rcp);
+	int (*send)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
+		    spinel_tid_t tid);
+	int (*resp)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
+		    spinel_tid_t tid);
 };
 
 int otrcp_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel);

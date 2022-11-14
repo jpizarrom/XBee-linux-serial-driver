@@ -455,9 +455,6 @@ static void ttyrcp_spinel_command_setup(struct spinel_command *cmd, struct otrcp
 	struct ttyrcp *rcp = (struct ttyrcp *)otrcp;
 	rcp->cmd_tid = SPINEL_GET_NEXT_TID(rcp->cmd_tid);
 	cmd->tid = rcp->cmd_tid;
-	cmd->send = ttyrcp_spinel_send;
-	cmd->resp = ttyrcp_spinel_resp;
-	cmd->ctx = rcp;
 }
 
 static int ttyrcp_ldisc_open(struct tty_struct *tty)
