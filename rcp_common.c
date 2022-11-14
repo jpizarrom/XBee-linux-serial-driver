@@ -611,14 +611,14 @@ int spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, struct 
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, cmd->tid,
 			     NULL, 0);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+		err = cmd->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
 				cmd->tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = cmd->resp(cmd->ctx, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
+	err = cmd->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
 			cmd->tid);
 	if (err < 0) {
 		return err;
@@ -645,14 +645,14 @@ int spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, cmd->tid,
 			     fmt, args);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+		err = cmd->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
 				cmd->tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = cmd->resp(cmd->ctx, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
+	err = cmd->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
 			cmd->tid);
 	return err;
 }
@@ -673,9 +673,9 @@ int spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct sp
 											
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, buffer, err, fmt, 0, 0);
+		err = cmd->send(rcp, buffer, err, fmt, 0, 0);
 	}
-	err = cmd->resp(cmd->ctx, buffer, length, fmt, 0, 0);
+	err = cmd->resp(rcp, buffer, length, fmt, 0, 0);
 	return err;
 }
 
