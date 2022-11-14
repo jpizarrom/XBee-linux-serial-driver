@@ -450,13 +450,6 @@ static const struct ieee802154_ops ttyrcp_ops = {
  * Line discipline interface for IEEE 802.15.4 serial device
  *****************************************************************************/
 
-static void ttyrcp_spinel_command_setup(struct spinel_command *cmd, struct otrcp *otrcp)
-{
-	struct ttyrcp *rcp = (struct ttyrcp *)otrcp;
-	rcp->cmd_tid = SPINEL_GET_NEXT_TID(rcp->cmd_tid);
-	cmd->tid = rcp->cmd_tid;
-}
-
 static int ttyrcp_ldisc_open(struct tty_struct *tty)
 {
 	struct ieee802154_hw *hw;
@@ -491,7 +484,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.spinel_max_frame_size = 8192;
 	rcp->otrcp.phy_chan_supported_size = sizeof(rcp->otrcp.phy_chan_supported);
 	rcp->otrcp.caps_size = sizeof(rcp->otrcp.caps);
-	rcp->otrcp.spinel_command_setup = ttyrcp_spinel_command_setup;
 
 	tty->disc_data = rcp;
 	tty->receive_room = 65536;

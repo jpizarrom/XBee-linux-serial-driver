@@ -38,11 +38,6 @@ enum {
 		32, ///< Max buffer size used to store `SPINEL_PROP_PHY_CHAN_SUPPORTED` value.
 };
 
-struct spinel_command {
-	spinel_tid_t tid;
-
-};
-
 struct otrcp {
 	struct ieee802154_hw *hw;
 	struct device *parent;
@@ -77,7 +72,6 @@ struct otrcp {
 
 	uint8_t hwaddr[8];
 
-	void (*spinel_command_setup)(struct spinel_command *cmd, struct otrcp *rcp);
 	int (*send)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
 		    spinel_tid_t tid);
 	int (*resp)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
