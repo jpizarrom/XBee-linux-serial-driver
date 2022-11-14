@@ -341,27 +341,6 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 {
 	SPINEL_PROP_ARRAY_PACK(MAC_SCAN_MASK, mask, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t))
-
-	/*
-		int rc, i;
-		char fmt[36] = "D(";
-
-		uint8_t *work_buffer; \
-		size_t work_len; \
-
-		work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL); \
-		work_len = rcp->spinel_max_frame_size; \ for (i = 0; i < len; i++) { strcat(fmt,
-	   "C");
-		}
-		strcat(fmt, ")");
-
-		rc = otrcp_spinel_prop_set(rcp, work_buffer, work_len, SPINEL_PROP_MAC_SCAN_MASK,
-	   fmt, mask, len); if (rc < 0) { pr_err("%s: Failed SPINEL_ (): %d\n", __func__, rc);
-		}
-
-		kfree(work_buffer);
-		return rc;
-	*/
 }
 
 static int otrcp_get_protocol_version(struct otrcp *rcp, uint8_t *major, uint8_t *minor)
