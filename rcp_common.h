@@ -91,7 +91,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb);
 int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
-
+/*
 uint32_t spinel_expected_command(uint32_t cmd);
 
 int spinel_command(uint8_t *buffer, size_t length, uint32_t aCommand, spinel_prop_key_t aKey,
@@ -111,6 +111,7 @@ int spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *
 
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
 			     size_t datasize);
+*/
 
 #define SPINEL_FORMAT_STRING(prop, format)                                                         \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;

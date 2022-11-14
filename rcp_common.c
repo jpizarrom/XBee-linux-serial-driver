@@ -40,6 +40,191 @@
 	kfree(work_buffer);                                                                        \
 	return rc;
 
+
+static uint32_t spinel_expected_command(uint32_t cmd)
+{
+	switch (cmd) {
+	case SPINEL_CMD_PROP_VALUE_SET:
+		return SPINEL_CMD_PROP_VALUE_IS;
+	case SPINEL_CMD_PROP_VALUE_INSERT:
+		return SPINEL_CMD_PROP_VALUE_INSERTED;
+	case SPINEL_CMD_PROP_VALUE_REMOVE:
+		return SPINEL_CMD_PROP_VALUE_REMOVED;
+	}
+	return 0;
+}
+
+static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
+{
+	int packed;
+
+	// Pack the header, command and key
+	packed = spinel_datatype_vpack(buffer, length, format, args);
+
+	if (packed < 0)
+		return packed;
+
+	if (!(packed > 0 && packed <= sizeof(buffer)))
+		return -ENOBUFS;
+
+	return packed;
+}
+
+static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
+		   spinel_tid_t tid, const char *format, va_list args)
+{
+	int packed;
+	uint16_t offset;
+
+	// Pack the header, command and key
+	packed = spinel_datatype_pack(buffer, length, "Cii",
+				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key);
+
+	if (packed < 0) {
+		// pr_debug("%s: %d\n", __func__, __LINE__);
+		return packed;
+	}
+
+	if (!(packed > 0 && packed <= sizeof(buffer))) {
+		// pr_debug("%s: %d\n", __func__, __LINE__);
+		return -ENOBUFS;
+	}
+
+	offset = packed;
+
+	// Pack the data (if any)
+	if (format) {
+		packed = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
+
+		if (packed < 0) {
+			// pr_debug("%s: %d\n", __func__, __LINE__);
+			return packed;
+		}
+
+		if (!(packed > 0 && (packed + offset) <= length)) {
+			// pr_debug("%s: %d\n", __func__, __LINE__);
+			return -ENOBUFS;
+		}
+
+		offset += packed;
+	}
+
+	return offset;
+}
+
+static int spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
+		      va_list args)
+{
+	int err;
+
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, rcp->tid,
+			     NULL, 0);
+	if (err >= 0) {
+		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+				rcp->tid);
+	}
+	if (err < 0) {
+		return err;
+	}
+
+	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
+			rcp->tid);
+	if (err < 0) {
+		return err;
+	}
+	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
+	return err;
+}
+
+static int spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_prop_get_v(rcp, buffer, length, key, fmt, args);
+	va_end(args);
+	return rc;
+}
+
+static int spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
+		      va_list args)
+{
+	int err;
+
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, rcp->tid,
+			     fmt, args);
+	if (err >= 0) {
+		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+				rcp->tid);
+	}
+	if (err < 0) {
+		return err;
+	}
+
+	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
+			rcp->tid);
+	return err;
+}
+
+static int spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
+	va_end(args);
+	return rc;
+}
+
+static int spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, va_list args) 
+{
+	int err;
+											
+	err = spinel_reset_command(buffer, length, fmt, args);
+	if (err >= 0) {
+		err = rcp->send(rcp, buffer, err, fmt, 0, 0);
+	}
+	err = rcp->resp(rcp, buffer, length, fmt, 0, 0);
+	return err;
+}
+
+static int spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_reset_v(rcp, buffer, length, fmt, args);
+	va_end(args);
+	return rc;
+
+}
+
+static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
+			     size_t datasize)
+{
+	int rc;
+	int remains = out_len;
+	void *start = out;
+
+	while (len > 0) {
+		if (remains <= 0) {
+			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
+			return -1;
+		}
+		rc = spinel_datatype_unpack(data, len, fmt, out);
+		if (rc < 0) {
+			pr_debug("%s: %d rc=%d\n", __func__, __LINE__, rc);
+			return rc;
+		}
+		data += rc;
+		out += datasize;
+		len -= rc;
+		remains -= datasize;
+	}
+
+	return (out - start) / datasize;
+}
+
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	SPINEL_PROP_ARRAY_EXTRACT(CAPS, caps, caps_len, SPINEL_DATATYPE_UINT_PACKED_S,
@@ -75,16 +260,6 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 
 	kfree(work_buffer);
 	return rc;
-}
-
-static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
-{
-	int i;
-	for (i = 0; i < rcp->caps_size; i++) {
-		if (rcp->caps[i] == cap)
-			return true;
-	}
-	return false;
 }
 
 static int otrcp_get_protocol_version(struct otrcp *rcp, uint8_t *major, uint8_t *minor)
@@ -247,6 +422,16 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	kfree(work_buffer);
 
 	return rc;
+}
+
+static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
+{
+	int i;
+	for (i = 0; i < rcp->caps_size; i++) {
+		if (rcp->caps[i] == cap)
+			return true;
+	}
+	return false;
 }
 
 static int otrcp_check_rcp_supported(struct otrcp *rcp)
@@ -535,186 +720,3 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 	return 0;
 }
 
-int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
-{
-	int packed;
-
-	// Pack the header, command and key
-	packed = spinel_datatype_vpack(buffer, length, format, args);
-
-	if (packed < 0)
-		return packed;
-
-	if (!(packed > 0 && packed <= sizeof(buffer)))
-		return -ENOBUFS;
-
-	return packed;
-}
-
-int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
-		   spinel_tid_t tid, const char *format, va_list args)
-{
-	int packed;
-	uint16_t offset;
-
-	// Pack the header, command and key
-	packed = spinel_datatype_pack(buffer, length, "Cii",
-				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key);
-
-	if (packed < 0) {
-		// pr_debug("%s: %d\n", __func__, __LINE__);
-		return packed;
-	}
-
-	if (!(packed > 0 && packed <= sizeof(buffer))) {
-		// pr_debug("%s: %d\n", __func__, __LINE__);
-		return -ENOBUFS;
-	}
-
-	offset = packed;
-
-	// Pack the data (if any)
-	if (format) {
-		packed = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
-
-		if (packed < 0) {
-			// pr_debug("%s: %d\n", __func__, __LINE__);
-			return packed;
-		}
-
-		if (!(packed > 0 && (packed + offset) <= length)) {
-			// pr_debug("%s: %d\n", __func__, __LINE__);
-			return -ENOBUFS;
-		}
-
-		offset += packed;
-	}
-
-	return offset;
-}
-
-int spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
-		      va_list args)
-{
-	int err;
-
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, rcp->tid,
-			     NULL, 0);
-	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				rcp->tid);
-	}
-	if (err < 0) {
-		return err;
-	}
-
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			rcp->tid);
-	if (err < 0) {
-		return err;
-	}
-	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
-	return err;
-}
-
-int spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
-{
-	va_list args;
-	int rc;
-	va_start(args, fmt);
-	rc = spinel_prop_get_v(rcp, buffer, length, key, fmt, args);
-	va_end(args);
-	return rc;
-}
-
-int spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt,
-		      va_list args)
-{
-	int err;
-
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, rcp->tid,
-			     fmt, args);
-	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				rcp->tid);
-	}
-	if (err < 0) {
-		return err;
-	}
-
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			rcp->tid);
-	return err;
-}
-
-int spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length, spinel_prop_key_t key, const char *fmt, ...)
-{
-	va_list args;
-	int rc;
-	va_start(args, fmt);
-	rc = spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
-	va_end(args);
-	return rc;
-}
-
-int spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, va_list args) 
-{
-	int err;
-											
-	err = spinel_reset_command(buffer, length, fmt, args);
-	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, fmt, 0, 0);
-	}
-	err = rcp->resp(rcp, buffer, length, fmt, 0, 0);
-	return err;
-}
-
-int spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, const char *fmt, ...)
-{
-	va_list args;
-	int rc;
-	va_start(args, fmt);
-	rc = spinel_reset_v(rcp, buffer, length, fmt, args);
-	va_end(args);
-	return rc;
-
-}
-
-int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
-			     size_t datasize)
-{
-	int rc;
-	int remains = out_len;
-	void *start = out;
-
-	while (len > 0) {
-		if (remains <= 0) {
-			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
-			return -1;
-		}
-		rc = spinel_datatype_unpack(data, len, fmt, out);
-		if (rc < 0) {
-			pr_debug("%s: %d rc=%d\n", __func__, __LINE__, rc);
-			return rc;
-		}
-		data += rc;
-		out += datasize;
-		len -= rc;
-		remains -= datasize;
-	}
-
-	return (out - start) / datasize;
-}
-
-uint32_t spinel_expected_command(uint32_t cmd)
-{
-	switch (cmd) {
-	case SPINEL_CMD_PROP_VALUE_SET:
-		return SPINEL_CMD_PROP_VALUE_IS;
-	case SPINEL_CMD_PROP_VALUE_INSERT:
-		return SPINEL_CMD_PROP_VALUE_INSERTED;
-	case SPINEL_CMD_PROP_VALUE_REMOVE:
-		return SPINEL_CMD_PROP_VALUE_REMOVED;
-	}
-	return 0;
-}
