@@ -6,10 +6,10 @@
 	size_t work_len;                                                                           \
 	int rc;                                                                                    \
                                                                                                    \
-	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
-	work_len = rcp->spinel_max_frame_size;                                                     \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = (rcp)->spinel_max_frame_size;                                                     \
 	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
-	rc = spinel_prop_get(((struct otrcp *)rcp), &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+	rc = spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len, &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
 			     work_buffer, &work_len);                                              \
 	if (rc >= 0) {                                                                              \
 		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);                  \
@@ -22,18 +22,28 @@
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct spinel_command cmd;                                                                 \
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
 	int rc;                                                                                    \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = (rcp)->spinel_max_frame_size;                                                     \
 	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
-	rc = spinel_prop_get(((struct otrcp *)rcp), &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+	rc = spinel_prop_get(((struct otrcp *)rcp), work_buffer, work_len, &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
 			     __VA_ARGS__);                                                         \
+	kfree(work_buffer);                                                                        \
 	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct spinel_command cmd;                                                                 \
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
 	int rc;                                                                                    \
+	work_buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = rcp->spinel_max_frame_size;                                                     \
 	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
-	rc = spinel_prop_set(((struct otrcp *)rcp), &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+	rc = spinel_prop_set(((struct otrcp *)rcp), work_buffer, work_len, &cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
 			     __VA_ARGS__);                                                         \
+	kfree(work_buffer);                                                                        \
 	return rc;
 
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
@@ -55,16 +65,23 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 	int rc, i;
 	char fmt[36] = "D(";
 
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
+
+	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = rcp->spinel_max_frame_size;                                                     \
 	for (i = 0; i < len; i++) {
 		strcat(fmt, "C");
 	}
 	strcat(fmt, ")");
 
 	rcp->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));
-	rc = spinel_prop_set(rcp, &cmd, SPINEL_PROP_MAC_SCAN_MASK, fmt, mask, len);
+	rc = spinel_prop_set(rcp, work_buffer, work_len, &cmd, SPINEL_PROP_MAC_SCAN_MASK, fmt, mask, len);
 	if (rc < 0) {
 		pr_err("%s: Failed SPINEL_ (): %d\n", __func__, rc);
 	}
+
+	kfree(work_buffer);
 	return rc;
 }
 
@@ -224,14 +241,20 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
 	struct spinel_command cmd;
 	int rc;
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
 
 	pr_debug("%s(%p, %d)\n", __func__, rcp, reset);
+	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = rcp->spinel_max_frame_size;                                                     \
 	rcp->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));
-	rc = spinel_reset(rcp, &cmd, spinel_data_format_str_RESET, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
+	rc = spinel_reset(rcp, work_buffer, work_len, &cmd, spinel_data_format_str_RESET, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 			  (uint8_t)reset);
 	if (rc < 0) {
 		pr_err("%s: Failed SPINEL_RESET(): %d\n", __func__, rc);
 	}
+
+	kfree(work_buffer);
 
 	return rc;
 }
@@ -340,8 +363,10 @@ int otrcp_set_frame_retries(struct ieee802154_hw *hw, s8 max_frame_retries)
 
 int otrcp_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
+	struct otrcp *rcp = hw->priv;
 	pr_debug("%s(%p, %d)\n", __func__, hw, on);
-	SPINEL_SET_PROP_IMPL(MAC_PROMISCUOUS_MODE, hw->priv, on);
+	SPINEL_SET_PROP_IMPL(MAC_PROMISCUOUS_MODE, rcp, on);
+	return 0;
 }
 
 int otrcp_start(struct ieee802154_hw *hw)
@@ -578,88 +603,88 @@ int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop
 	return offset;
 }
 
-int spinel_prop_get_v(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+int spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
 		      va_list args)
 {
 	int err;
 
-	err = spinel_command(cmd->buffer, cmd->length, SPINEL_CMD_PROP_VALUE_GET, key, cmd->tid,
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, cmd->tid,
 			     NULL, 0);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+		err = cmd->send(cmd->ctx, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
 				cmd->tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_PROP_VALUE_SET, key,
+	err = cmd->resp(cmd->ctx, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
 			cmd->tid);
 	if (err < 0) {
 		return err;
 	}
-	err = spinel_datatype_vunpack_in_place(cmd->buffer, err, fmt, args);
+	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
 	return err;
 }
 
-int spinel_prop_get(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...)
+int spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
 	va_start(args, fmt);
-	rc = spinel_prop_get_v(rcp, cmd, key, fmt, args);
+	rc = spinel_prop_get_v(rcp, buffer, length, cmd, key, fmt, args);
 	va_end(args);
 	return rc;
 }
 
-int spinel_prop_set_v(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+int spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
 		      va_list args)
 {
 	int err;
 
-	err = spinel_command(cmd->buffer, cmd->length, SPINEL_CMD_PROP_VALUE_SET, key, cmd->tid,
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, cmd->tid,
 			     fmt, args);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, cmd->buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
+		err = cmd->send(cmd->ctx, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
 				cmd->tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
-	err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, SPINEL_CMD_PROP_VALUE_SET, key,
+	err = cmd->resp(cmd->ctx, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
 			cmd->tid);
 	return err;
 }
 
-int spinel_prop_set(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...)
+int spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
 	va_start(args, fmt);
-	rc = spinel_prop_set_v(rcp, cmd, key, fmt, args);
+	rc = spinel_prop_set_v(rcp, buffer, length, cmd, key, fmt, args);
 	va_end(args);
 	return rc;
 }
 
-int spinel_reset_v(struct otrcp *rcp, struct spinel_command *cmd, const char *fmt, va_list args) 
+int spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct spinel_command *cmd, const char *fmt, va_list args) 
 {
 	int err;
 											
-	err = spinel_reset_command(cmd->buffer, cmd->length, fmt, args);
+	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
-		err = cmd->send(cmd->ctx, cmd->buffer, err, fmt, 0, 0);
+		err = cmd->send(cmd->ctx, buffer, err, fmt, 0, 0);
 	}
-	err = cmd->resp(cmd->ctx, cmd->buffer, cmd->length, fmt, 0, 0);
+	err = cmd->resp(cmd->ctx, buffer, length, fmt, 0, 0);
 	return err;
 }
 
-int spinel_reset(struct otrcp *rcp, struct spinel_command *cmd, const char *fmt, ...)
+int spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,  struct spinel_command *cmd, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
 	va_start(args, fmt);
-	rc = spinel_reset_v(rcp, cmd, fmt, args);
+	rc = spinel_reset_v(rcp, buffer, length, cmd, fmt, args);
 	va_end(args);
 	return rc;
 

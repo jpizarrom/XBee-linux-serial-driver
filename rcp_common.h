@@ -105,15 +105,15 @@ int spinel_command(uint8_t *buffer, size_t length, uint32_t aCommand, spinel_pro
 
 int spinel_reset_command(uint8_t *buffer, size_t length, const char *aFormat, va_list args);
 
-int spinel_prop_get_v(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+int spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
 		      va_list args);
-int spinel_prop_get(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
+int spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
 
-int spinel_prop_set_v(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
+int spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt,
 		      va_list args);
-int spinel_prop_set(struct otrcp *rcp, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
-int spinel_reset_v(struct otrcp *rcp, struct spinel_command *cmd, const char *fmt, va_list args);
-int spinel_reset(struct otrcp *rcp, struct spinel_command *cmd, const char *fmt, ...);
+int spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, spinel_prop_key_t key, const char *fmt, ...);
+int spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, const char *fmt, va_list args);
+int spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, struct spinel_command *cmd, const char *fmt, ...);
 
 int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len, const char *fmt,
 			     size_t datasize);
