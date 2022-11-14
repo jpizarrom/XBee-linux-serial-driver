@@ -39,8 +39,6 @@ enum {
 };
 
 struct spinel_command {
-	uint8_t *buffer;
-	size_t length;
 	spinel_tid_t tid;
 	int (*send)(void *ctx, uint8_t *buf, size_t len, uint32_t cmd, spinel_prop_key_t key,
 		    spinel_tid_t tid);

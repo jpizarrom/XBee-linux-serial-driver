@@ -454,8 +454,6 @@ static void ttyrcp_spinel_command_setup(struct spinel_command *cmd, struct otrcp
 {
 	struct ttyrcp *rcp = (struct ttyrcp *)otrcp;
 	rcp->cmd_tid = SPINEL_GET_NEXT_TID(rcp->cmd_tid);
-	cmd->buffer = rcp->spinel_buf;
-	cmd->length = sizeof(rcp->spinel_buf);
 	cmd->tid = rcp->cmd_tid;
 	cmd->send = ttyrcp_spinel_send;
 	cmd->resp = ttyrcp_spinel_resp;
