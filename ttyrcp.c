@@ -460,8 +460,6 @@ static void ttyrcp_spinel_command_setup(struct spinel_command *cmd, struct otrcp
 	cmd->send = ttyrcp_spinel_send;
 	cmd->resp = ttyrcp_spinel_resp;
 	cmd->ctx = rcp;
-	cmd->send_mutex = &rcp->cmd_mutex;
-	cmd->resp_mutex = &rcp->queue_mutex;
 }
 
 static int ttyrcp_ldisc_open(struct tty_struct *tty)
