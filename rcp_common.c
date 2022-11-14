@@ -232,18 +232,21 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 {
 	int err;
 
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, rcp->tid,
+	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	rcp->tid = tid;
+
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid,
 			     NULL, 0);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				rcp->tid);
+				tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			rcp->tid);
+			tid);
 	if (err < 0) {
 		return err;
 	}
@@ -266,18 +269,21 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 {
 	int err;
 
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, rcp->tid,
+	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	rcp->tid = tid;
+
+	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid,
 			     fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key,
-				rcp->tid);
+				tid);
 	}
 	if (err < 0) {
 		return err;
 	}
 
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key,
-			rcp->tid);
+			tid);
 	return err;
 }
 
