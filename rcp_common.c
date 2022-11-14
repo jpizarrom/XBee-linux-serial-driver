@@ -1,5 +1,41 @@
 #include "rcp_common.h"
 
+#define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
+	struct spinel_command cmd;                                                                 \
+	uint8_t *work_buffer;                                                                      \
+	size_t work_len;                                                                           \
+	int rc;                                                                                    \
+                                                                                                   \
+	work_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                             \
+	work_len = rcp->spinel_max_frame_size;                                                     \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     work_buffer, &work_len);                                              \
+	if (rc >= 0) {                                                                              \
+		rc = spinel_data_array_unpack(data, len, work_buffer, rc, fmt, datasize);                  \
+	} \
+	kfree(work_buffer);                                                                        \
+	if (rc < 0) {                                                                              \
+		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
+	}                                                                                          \
+	return rc;
+
+#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+	struct spinel_command cmd;                                                                 \
+	int rc;                                                                                    \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_get(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     __VA_ARGS__);                                                         \
+	return rc;
+
+#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
+	struct spinel_command cmd;                                                                 \
+	int rc;                                                                                    \
+	((struct otrcp *)rcp)->spinel_command_setup(&cmd, ((struct otrcp *)(rcp)));                \
+	rc = spinel_prop_set(&cmd, __CONCAT(SPINEL_PROP_, prop), spinel_data_format_str_##prop,    \
+			     __VA_ARGS__);                                                         \
+	return rc;
+
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	SPINEL_PROP_ARRAY_EXTRACT(CAPS, caps, caps_len, SPINEL_DATATYPE_UINT_PACKED_S,
