@@ -2,13 +2,7 @@
 #define RCP_COMMON_H__
 
 #include "spinel.h"
-
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/skbuff.h>
-#include <linux/tty.h>
 #include <linux/types.h>
-#include <net/mac802154.h>
 
 #ifdef MODTEST_ENABLE
 #include "modtest.h"
@@ -78,6 +72,11 @@ struct otrcp {
 		    spinel_tid_t tid);
 };
 
+struct ieee802154_hw;
+struct ieee802154_hw_addr_filt;
+struct sk_buff;
+struct wpan_phy_cca;
+
 int otrcp_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel);
 int otrcp_set_tx_power(struct ieee802154_hw *hw, s32 power);
 int otrcp_set_cca_mode(struct ieee802154_hw *hw, const struct wpan_phy_cca *cca);
@@ -92,7 +91,7 @@ int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
 
-static uint32_t spinel_expected_command(uint32_t cmd)
+static inline uint32_t spinel_expected_command(uint32_t cmd)
 {
 	switch (cmd) {
 	case SPINEL_CMD_PROP_VALUE_SET:

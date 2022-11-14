@@ -66,10 +66,7 @@ struct ttyrcp {
 	struct mutex queue_mutex;
 	struct mutex cmd_mutex;
 
-	uint8_t cmd_tid;
-
 	uint8_t hdlc_lite_buf[SPINEL_FRAME_MAX_SIZE * 2 + 4];
-	uint8_t spinel_buf[SPINEL_FRAME_MAX_SIZE];
 };
 
 static void hdlc_frame_update_fcs(struct hdlc_frame *frame, uint8_t byte)
@@ -374,10 +371,10 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 		goto end;
 	}
 
-	//dev_dbg(rcp->otrcp.parent,
-	//	"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
-	//	spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
-	//	data_len);
+	dev_dbg(rcp->otrcp.parent,
+		"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
+		spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
+		data_len);
 
 	kfree_skb(rcp->cmd_resp);
 	rcp->cmd_resp = NULL;
@@ -419,7 +416,7 @@ static void ttyrcp_recv_work(struct work_struct *param)
 		// dev_dbg(rcp->parent, "tid = %x, expected %x\n",
 		// SPINEL_HEADER_GET_TID(skb->data[0]), 	rcp->cmd_tid);
 		if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
-		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->cmd_tid) {
+		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
 			rcp->cmd_resp = skb;
 			complete_all(&rcp->cmd_resp_done);
 		}
@@ -484,6 +481,9 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.spinel_max_frame_size = 8192;
 	rcp->otrcp.phy_chan_supported_size = sizeof(rcp->otrcp.phy_chan_supported);
 	rcp->otrcp.caps_size = sizeof(rcp->otrcp.caps);
+	rcp->otrcp.tid = 0xFF;
+	rcp->otrcp.send = ttyrcp_spinel_send;
+	rcp->otrcp.resp = ttyrcp_spinel_resp;
 
 	tty->disc_data = rcp;
 	tty->receive_room = 65536;
@@ -491,7 +491,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
 
-	rcp->cmd_tid = 0xFF;
 	rcp->recv_workq = workq;
 	rcp->recv_work.rcp = rcp;
 
