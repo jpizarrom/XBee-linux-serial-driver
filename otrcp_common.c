@@ -291,8 +291,9 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	if (err >= 0) {
 		if(key == SPINEL_PROP_STREAM_RAW) {
 			pr_debug("%s %s\n", __func__, "spinel_command");
-		}
+		} else {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+		}
 	}
 	if(key == SPINEL_PROP_STREAM_RAW) {
 		pr_debug("%s %d\n", __func__, err);

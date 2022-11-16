@@ -1,7 +1,15 @@
-MODNAME ?= openthread-rcp
+
+ifeq (scp,$(DEV))
+MODNAME ?= openthread-spi-rcp
 TARGET := $(MODNAME).ko
 obj-m := $(MODNAME).o
-openthread-rcp-objs := rcp_common.o ttyrcp.o spinel.o
+else
+MODNAME ?= openthread-tty-rcp
+TARGET := $(MODNAME).ko
+obj-m := $(MODNAME).o
+openthread-tty-rcp-objs := otrcp_common.o otrcp_tty.o spinel.o
+openthread-spi-rcp-objs := otrcp_common.o otrcp_spi.o spinel.o
+endif
 
 ifeq (,$(KERNELRELEASE))
 KVERS_UNAME ?= $(shell uname -r)
