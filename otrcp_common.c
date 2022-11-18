@@ -411,6 +411,20 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 }
 */
 
+/*
+	uint8_t *buffer;                                                                           \
+	size_t buflen;                                                                             \
+	int rc;                                                                                    \
+	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
+	buflen = rcp->spinel_max_frame_size;                                                       \
+	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
+				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
+				   __VA_ARGS__);                                                   \
+	kfree(buffer);                                                                             \
+	pr_debug("end %s:%d\n", __func__, __LINE__); \
+*/
+
 static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t channel, uint8_t backoffs,
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
@@ -418,18 +432,19 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t chann
 	uint8_t *buffer;
 	size_t buflen;
 	int rc;
+	pr_debug("start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);
 	buflen = rcp->spinel_max_frame_size;
-	pr_debug("%s %s\n", __func__, "otrcp_spinel_prop_set");
-	pr_debug("spinel_data_format_str_STREAM_RAW %s\n", spinel_data_format_str_STREAM_RAW);
+	//pr_debug("%s %s\n", __func__, "otrcp_spinel_prop_set");
+	//pr_debug("spinel_data_format_str_STREAM_RAW %s\n", spinel_data_format_str_STREAM_RAW);
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,
 				   SPINEL_PROP_STREAM_RAW,
 				   spinel_data_format_str_STREAM_RAW,
 				   frame, channel, backoffs, retries, csmaca, headerupdate, aretx,
 				   skipaes, txdelay, txdelay_base);
-	pr_debug("%s %d\n", __func__, rc);
+	//pr_debug("%s %d\n", __func__, rc);
 	kfree(buffer);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	//pr_debug("end %s:%d\n", __func__, __LINE__);
 	return rc;
 
 	//SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, *frame, channel, backoffs, retries,
