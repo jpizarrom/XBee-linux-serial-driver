@@ -118,7 +118,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	}                                                                                          \
 	kfree(buffer);                                                                             \
 	if (rc < 0) {                                                                              \
-		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
+		dev_err(rcp->parent, "%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
 	}                                                                                          \
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
@@ -583,20 +583,20 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	if (!otrcp_has_caps(rcp, SPINEL_CAP_MAC_RAW) &&
 	    !otrcp_has_caps(rcp, SPINEL_CAP_CONFIG_RADIO)) {
-		pr_err("%s: Radic co-processor function not supported\n", __func__);
+		dev_err(rcp->parent, "%s: Radic co-processor function not supported\n", __func__);
 		return -ENOTSUPP;
 	}
 
 	if (rcp->protocol_version_major != SPINEL_PROTOCOL_VERSION_THREAD_MAJOR ||
 	    rcp->protocol_version_minor != SPINEL_PROTOCOL_VERSION_THREAD_MINOR) {
-		pr_err("%s: Not supported spinel version %u.%u\n", __func__,
+		dev_err(rcp->parent, "%s: Not supported spinel version %u.%u\n", __func__,
 		       rcp->protocol_version_major, rcp->protocol_version_minor);
 		return -ENOTSUPP;
 	}
 
 	if ((rcp->rcp_api_version < SPINEL_MIN_HOST_SUPPORTED_RCP_API_VERSION) ||
 	    (rcp->rcp_api_version > SPINEL_RCP_API_VERSION)) {
-		pr_err("%s: Not supported RCP API version %u\n", __func__, rcp->rcp_api_version);
+		dev_err(rcp->parent, "%s: Not supported RCP API version %u\n", __func__, rcp->rcp_api_version);
 		return -ENOTSUPP;
 	}
 
@@ -696,8 +696,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 	struct otrcp *rcp = hw->priv;
 	int rc, i;
 
-	pr_debug("%s(%p)\n", __func__, hw);
-	dev_dbg(rcp->parent, "ptr %s\n", dev_driver_string(&hw->phy->dev));
+	dev_dbg(rcp->parent, "%s(%p)\n", __func__, hw);
 
 	otrcp_reset(rcp, SPINEL_RESET_STACK);
 
