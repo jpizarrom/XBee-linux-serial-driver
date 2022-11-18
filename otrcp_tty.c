@@ -344,6 +344,7 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
 		goto end;
 
 end:
+	dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -365,8 +366,10 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 	reinit_completion(&rcp->cmd_resp_done);
 	if (rc < 0) {
 		dev_dbg(rcp->otrcp.parent,
-			"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
+			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", rc, __func__,
 			ctx, buf, len, sent_cmd, sent_key, sent_tid);
+		//if (rc == 0)
+		//	rc = -ETIMEDOUT;
 		goto end;
 	}
 
@@ -413,7 +416,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 	}
 
 end:
-	// dev_dbg(rcp->parent, "%s: end %d\n", __func__, rc);
+	dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
 	return rc;
 }
 
@@ -426,11 +429,11 @@ static void ttyrcp_recv_work(struct work_struct *param)
 	struct ttyrcp *rcp = ((struct ttyrcp_work *)param)->rcp;
 	struct sk_buff *skb;
 
-	//pr_debug("%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
 
 	mutex_lock(&rcp->queue_mutex);
 
 	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
+		pr_debug("%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
 		if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
 		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
 			rcp->cmd_resp = skb;
@@ -476,11 +479,15 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!capable(CAP_NET_ADMIN)) {
+		pr_debug("end %s: %d\n", __func__, __LINE__);
 		return -EPERM;
+	}
 
-	if (tty->ops->write == NULL)
+	if (tty->ops->write == NULL) {
+		pr_debug("end %s: %d\n", __func__, __LINE__);
 		return -EOPNOTSUPP;
+	}
 
 	workq = create_workqueue("ttyrcp_recv_workq");
 	if (!workq) {
@@ -623,6 +630,11 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);
 		return 0;
 	}
+
+	//if (rcp->otrcp.tid == 0xFF) {
+	//	pr_debug("%s(): not initialized\n", __func__);
+	//	return 0;
+	//}
 
 	skb = alloc_skb(count, GFP_KERNEL);
 	if (!skb) {
