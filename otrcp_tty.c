@@ -514,7 +514,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.send = ttyrcp_spinel_send;
 	rcp->otrcp.resp = ttyrcp_spinel_resp;
 
-	tty->disc_data = rcp;
 	tty->receive_room = 65536;
 
 	rcp->tty = tty_kref_get(tty);
@@ -530,6 +529,7 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 
 	INIT_WORK(&rcp->recv_work.work, ttyrcp_recv_work);
 
+	tty->disc_data = rcp;
 	rc = ieee802154_register_hw(hw);
 
 	if (rc < 0)
@@ -630,11 +630,6 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);
 		return 0;
 	}
-
-	//if (rcp->otrcp.tid == 0xFF) {
-	//	pr_debug("%s(): not initialized\n", __func__);
-	//	return 0;
-	//}
 
 	skb = alloc_skb(count, GFP_KERNEL);
 	if (!skb) {
