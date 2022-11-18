@@ -311,7 +311,7 @@ static int hdlc_frame_decode(struct hdlc_frame *frame, const uint8_t *data, uint
 	return decoder.length;
 }
 
-static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
+static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t *len, uint32_t cmd,
 			      spinel_prop_key_t key, spinel_tid_t tid)
 {
 	struct ttyrcp *rcp = ctx;
@@ -325,7 +325,7 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
 	if (rc < 0)
 		goto end;
 
-	rc = hdlc_frame_encode_buffer(&frm, buf, len);
+	rc = hdlc_frame_encode_buffer(&frm, buf, *len);
 	if (rc < 0)
 		goto end;
 
@@ -348,7 +348,7 @@ end:
 	return rc;
 }
 
-static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent_cmd,
+static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t *len, uint32_t sent_cmd,
 			      spinel_prop_key_t sent_key, spinel_tid_t sent_tid)
 {
 	struct ttyrcp *rcp = ctx;
@@ -361,13 +361,13 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 
 	dev_dbg(rcp->otrcp.parent,
 		"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
-		ctx, buf, len, sent_cmd, sent_key, sent_tid);
+		ctx, buf, *len, sent_cmd, sent_key, sent_tid);
 	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
 	reinit_completion(&rcp->cmd_resp_done);
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", rc, __func__,
-			ctx, buf, len, sent_cmd, sent_key, sent_tid);
+			ctx, buf, *len, sent_cmd, sent_key, sent_tid);
 		if (rc == 0) {
 			pr_debug("******************* TIMEOUT *******************\n");
 			rc = -ETIMEDOUT;
@@ -394,6 +394,11 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 
 	kfree_skb(rcp->cmd_resp);
 	rcp->cmd_resp = NULL;
+
+	if (*len < data_len) {
+		rc = -1;
+		goto end;
+	}
 
 	memcpy(buf, data, data_len);
 

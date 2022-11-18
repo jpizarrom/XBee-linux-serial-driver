@@ -270,14 +270,15 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+		size_t len = err;
+		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 	if (err < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	err = rcp->resp(rcp, buffer, &length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer, length,
 			key, tid);
@@ -312,7 +313,8 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+		size_t len = err;
+		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 
 	if (err < 0) {
@@ -323,7 +325,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	if(key == SPINEL_PROP_STREAM_RAW) {
 		dev_dbg(rcp->parent, "%s STREAM_RAW %d\n", __func__, err);
 	}
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	err = rcp->resp(rcp, buffer, &length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
@@ -349,9 +351,10 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, SPINEL_CMD_RESET, 0, 0);
+		size_t len = err;
+		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_RESET, 0, 0);
 	}
-	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_RESET, 0, 0);
+	err = rcp->resp(rcp, buffer, &length, SPINEL_CMD_RESET, 0, 0);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
