@@ -336,7 +336,7 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
 	if (key == SPINEL_PROP_STREAM_RAW) {
 		print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
 			frm.ptr - rcp->hdlc_lite_buf, true);
-		pr_debug("%s: %s\n", __func__, "STREAM_RAW");
+		dev_dbg(rcp->otrcp.parent, "%s: %s\n", __func__, "STREAM_RAW");
 	}
 
 	rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf);
@@ -436,13 +436,13 @@ static void ttyrcp_recv_work(struct work_struct *param)
 	mutex_lock(&rcp->queue_mutex);
 
 	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
-		pr_debug("%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
+		dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
 		if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
 		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
 			rcp->cmd_resp = skb;
 			complete_all(&rcp->cmd_resp_done);
 		} else {
-			pr_debug("%s: not handled tid = %x, expected %x\n",  __func__,
+			dev_dbg(rcp->otrcp.parent, "%s: not handled tid = %x, expected %x\n",  __func__,
 				 SPINEL_HEADER_GET_TID(skb->data[0]), 	rcp->otrcp.tid);
 			//complete_all(&rcp->cmd_resp_done);
 		}
@@ -483,24 +483,24 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
 
 	if (!capable(CAP_NET_ADMIN)) {
-		pr_debug("end %s: %d\n", __func__, __LINE__);
+		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 		return -EPERM;
 	}
 
 	if (tty->ops->write == NULL) {
-		pr_debug("end %s: %d\n", __func__, __LINE__);
+		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 		return -EOPNOTSUPP;
 	}
 
 	workq = create_workqueue("ttyrcp_recv_workq");
 	if (!workq) {
-		pr_debug("end %s: %d\n", __func__, __LINE__);
+		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
 
 	hw = ieee802154_alloc_hw(sizeof(struct ttyrcp), &ttyrcp_ops);
 	if (!hw) {
-		pr_debug("end %s: %d\n", __func__, __LINE__);
+		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 		destroy_workqueue(workq);
 		return -ENOMEM;
 	}
@@ -539,7 +539,7 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 		goto end;
 
 end:
-	pr_debug("end %s: %d\n", __func__, __LINE__);
+	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -601,7 +601,7 @@ static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 {
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
 	ttyrcp_ldisc_close(tty);
-	pr_debug("end %s: %d\n", __func__, __LINE__);
+	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -661,7 +661,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	pr_debug("end %s: %d\n", __func__, __LINE__);
+	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 	return count;
 }
 
