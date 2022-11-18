@@ -83,7 +83,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
                                                                                                    \
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                  \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	fmt = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                     \
@@ -99,7 +99,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 				   data, len);                                                     \
 	kfree(buffer);                                                                             \
 	kfree(fmt);                                                                                \
-	pr_debug("end %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
@@ -107,7 +107,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
                                                                                                    \
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
@@ -120,49 +120,49 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	if (rc < 0) {                                                                              \
 		pr_err("%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
 	}                                                                                          \
-	pr_debug("end %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	kfree(buffer);                                                                             \
-	pr_debug("end %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	kfree(buffer);                                                                             \
-	pr_debug("end %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
 
 #define SPINEL_RESET_IMPL(rcp, ...)                                                                \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                  \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_reset(                                                                   \
 		((struct otrcp *)rcp), buffer, buflen, spinel_data_format_str_RESET,               \
 		SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, __VA_ARGS__);          \
 	kfree(buffer);                                                                             \
-	pr_debug("end %s:%d\n", __func__, __LINE__); \
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
 	return rc;
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
@@ -267,13 +267,13 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	rcp->tid = tid;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 	if (err < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return err;
 	}
 
@@ -284,7 +284,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
 
@@ -293,11 +293,11 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 {
 	va_list args;
 	int rc;
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_get_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -309,22 +309,22 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	rcp->tid = tid;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 
 	if (err < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return err;
 	}
 
 	if(key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("%s STREAM_RAW %d\n", __func__, err);
+		dev_dbg(rcp->parent, "%s STREAM_RAW %d\n", __func__, err);
 	}
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
 
@@ -333,11 +333,11 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 {
 	va_list args;
 	int rc;
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -346,13 +346,13 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 {
 	int err;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_RESET, 0, 0);
 	}
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_RESET, 0, 0);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
 
@@ -361,11 +361,11 @@ static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,
 {
 	va_list args;
 	int rc;
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
 	rc = otrcp_spinel_reset_v(rcp, buffer, length, fmt, args);
 	va_end(args);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -500,7 +500,7 @@ static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
 {
 	int i, rc;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
 		int8_t power;
@@ -520,11 +520,11 @@ static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
 
 	rc = otrcp_set_phy_tx_power(rcp, 0);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -532,7 +532,7 @@ static int otrcp_get_cca_ed_level_table(struct otrcp *rcp, s32 *ed_levels, size_
 {
 	int i, rc;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
 		int8_t level;
@@ -553,25 +553,25 @@ static int otrcp_get_cca_ed_level_table(struct otrcp *rcp, s32 *ed_levels, size_
 
 	rc = otrcp_set_phy_cca_threshold(rcp, 0);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
 static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
 {
 	int i;
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	for (i = 0; i < rcp->caps_size; i++) {
 		if (rcp->caps[i] == cap) {
-			pr_debug("end %s:%d\n", __func__, __LINE__);
+			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 			return true;
 		}
 	}
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return false;
 }
 
@@ -580,7 +580,7 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	uint32_t kRequiredRadioCaps = OT_RADIO_CAPS_ACK_TIMEOUT | OT_RADIO_CAPS_TRANSMIT_RETRIES |
 				      OT_RADIO_CAPS_CSMA_BACKOFF;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	if (!otrcp_has_caps(rcp, SPINEL_CAP_MAC_RAW) &&
 	    !otrcp_has_caps(rcp, SPINEL_CAP_CONFIG_RADIO)) {
 		pr_err("%s: Radic co-processor function not supported\n", __func__);
@@ -603,7 +603,7 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	if ((rcp->radio_caps & kRequiredRadioCaps) != kRequiredRadioCaps) {
 		uint32_t missingCaps = (rcp->radio_caps & kRequiredRadioCaps) ^ kRequiredRadioCaps;
 
-		pr_debug("RCP is missing required capabilities: %s%s%s%s%s",
+		dev_dbg(rcp->parent, "RCP is missing required capabilities: %s%s%s%s%s",
 			 (missingCaps & OT_RADIO_CAPS_ACK_TIMEOUT) ? "ack-timeout " : "",
 			 (missingCaps & OT_RADIO_CAPS_TRANSMIT_RETRIES) ? "tx-retries " : "",
 			 (missingCaps & OT_RADIO_CAPS_CSMA_BACKOFF) ? "CSMA-backoff " : "",
@@ -613,7 +613,7 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 		return -ENOTSUPP;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -662,12 +662,12 @@ int otrcp_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 ret
 {
 	struct otrcp *rcp = hw->priv;
 
-	pr_debug("%s(%p, %u, %u, %u)\n", __func__, hw, min_be, max_be, retries);
+	dev_dbg(rcp->parent, "%s(%p, %u, %u, %u)\n", __func__, hw, min_be, max_be, retries);
 	rcp->csma_min_be = min_be;
 	rcp->csma_max_be = max_be;
 	rcp->csma_retries = retries;
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -675,9 +675,9 @@ int otrcp_set_frame_retries(struct ieee802154_hw *hw, s8 max_frame_retries)
 {
 	struct otrcp *rcp = hw->priv;
 
-	pr_debug("%s(%p, %d)\n", __func__, hw, max_frame_retries);
+	dev_dbg(rcp->parent, "%s(%p, %d)\n", __func__, hw, max_frame_retries);
 	rcp->max_frame_retries = max_frame_retries;
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -703,26 +703,26 @@ int otrcp_start(struct ieee802154_hw *hw)
 
 	rc = otrcp_get_ncp_version(rcp, rcp->ncp_version, sizeof(rcp->ncp_version));
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_protocol_version(rcp, &rcp->protocol_version_major,
 					&rcp->protocol_version_minor);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_hwaddr(rcp, rcp->hwaddr);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_caps(rcp, rcp->caps, rcp->caps_size);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
@@ -734,38 +734,38 @@ int otrcp_start(struct ieee802154_hw *hw)
 
 	rc = otrcp_get_radio_caps(rcp, &rcp->radio_caps);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_phy_chan(rcp, &hw->phy->current_channel);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_cca_ed_level_table(rcp, rcp->cca_ed_levels, &rcp->cca_ed_levels_size);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_tx_power_table(rcp, rcp->tx_powers, &rcp->tx_powers_size);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_check_rcp_supported(rcp);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
 	rc = otrcp_get_phy_chan_supported(rcp, rcp->phy_chan_supported,
 					  sizeof(rcp->phy_chan_supported));
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
@@ -798,11 +798,11 @@ int otrcp_start(struct ieee802154_hw *hw)
 
 	rc = otrcp_set_enable(rcp, true);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -810,10 +810,10 @@ void otrcp_stop(struct ieee802154_hw *hw)
 {
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
-	pr_debug("%s %p\n", __func__, rcp);
+	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 	rc = otrcp_set_enable(rcp, false);
 	if (rc < 0)
-		pr_debug("%s %d\n", __func__, rc);
+		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 }
 
 
@@ -822,20 +822,20 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
 
-	pr_debug("%s %p\n", __func__, rcp);
+	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
 	rc = otrcp_set_stream_raw(rcp, skb->data, hw->phy->current_channel, 4,
 				  4, !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false,
 				  false, 0, 0);
 
-	pr_debug("%s %d\n", __func__, rc);
+	dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 	if (rc < 0) {
 		print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
 			       skb->len, true);
 		return 0; //TODO
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -846,11 +846,11 @@ int otrcp_ed(struct ieee802154_hw *hw, u8 *level)
 
 	rc = otrcp_get_phy_rssi(rcp, level);
 	if (rc < 0) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -861,14 +861,14 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 	int rc = 0;
 
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
-		pr_debug("end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return -ENOTSUPP;
 	}
 
 	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		rc = otrcp_set_laddr(rcp, filt->ieee_addr);
 		if (rc < 0) {
-			pr_debug("end %s:%d\n", __func__, __LINE__);
+			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 			return rc;
 		}
 	}
@@ -876,7 +876,7 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		rc = otrcp_set_saddr(rcp, filt->short_addr);
 		if (rc < 0) {
-			pr_debug("end %s:%d\n", __func__, __LINE__);
+			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 			return rc;
 		}
 	}
@@ -884,11 +884,11 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		rc = otrcp_set_panid(rcp, le16_to_cpu(filt->pan_id));
 		if (rc < 0) {
-			pr_debug("end %s:%d\n", __func__, __LINE__);
+			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 			return rc;
 		}
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
