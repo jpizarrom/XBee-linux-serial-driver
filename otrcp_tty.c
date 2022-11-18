@@ -563,7 +563,7 @@ static void ttyrcp_ldisc_close(struct tty_struct *tty)
 	ieee802154_free_hw(rcp->otrcp.hw);
 
 	rcp->tty = NULL;
-	pr_debug("end %s: %d\n", __func__, __LINE__);
+	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 }
 
 static int ttyrcp_ldisc_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
