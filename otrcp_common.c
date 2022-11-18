@@ -323,7 +323,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	if(key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("%s %d\n", __func__, err);
+		pr_debug("%s STREAM_RAW %d\n", __func__, err);
 		return 0;
 	}
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
