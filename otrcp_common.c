@@ -58,6 +58,7 @@ FORMAT_STRING(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
 //		     (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_DATA_WLEN_S
 //			      SPINEL_DATATYPE_DATA_WLEN_S SPINEL_DATATYPE_DATA_WLEN_S));
 
+
 FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_UINT8_S      // Channel
 			   SPINEL_DATATYPE_UINT8_S      // MaxCsmaBackoffs
@@ -68,6 +69,7 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_BOOL_S       // SkipAes
 			   SPINEL_DATATYPE_UINT32_S     // TxDelay
 			   SPINEL_DATATYPE_UINT32_S))   // TxDelayBaseTime
+							//
 /*
 SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_ENABLED
 //Set( MAC_SRC_MATCH_ENABLED, SPINEL_DATATYPE_BOOL_S, aEnable);
@@ -344,6 +346,12 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	va_list args;
 	int rc;
 	pr_debug("start %s:%d\n", __func__, __LINE__);
+
+	if (key == SPINEL_PROP_STREAM_RAW) {
+		pr_debug("fmt = %s\n", fmt);
+	}
+
+
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
@@ -413,6 +421,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t chann
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);
 	buflen = rcp->spinel_max_frame_size;
 	pr_debug("%s %s\n", __func__, "otrcp_spinel_prop_set");
+	pr_debug("spinel_data_format_str_STREAM_RAW %s\n", spinel_data_format_str_STREAM_RAW);
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,
 				   SPINEL_PROP_STREAM_RAW,
 			  (SPINEL_DATATYPE_DATA_WLEN_S
