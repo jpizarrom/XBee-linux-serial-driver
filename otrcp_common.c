@@ -424,16 +424,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t chann
 	pr_debug("spinel_data_format_str_STREAM_RAW %s\n", spinel_data_format_str_STREAM_RAW);
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,
 				   SPINEL_PROP_STREAM_RAW,
-			  (SPINEL_DATATYPE_DATA_WLEN_S
-			   SPINEL_DATATYPE_UINT8_S
-			   SPINEL_DATATYPE_UINT8_S
-			   SPINEL_DATATYPE_UINT8_S
-			   SPINEL_DATATYPE_BOOL_S
-			   SPINEL_DATATYPE_BOOL_S
-			   SPINEL_DATATYPE_BOOL_S
-			   SPINEL_DATATYPE_BOOL_S
-			   SPINEL_DATATYPE_UINT32_S
-			   SPINEL_DATATYPE_UINT32_S),
+				   spinel_data_format_str_STREAM_RAW,
 				   frame, channel, backoffs, retries, csmaca, headerupdate, aretx,
 				   skipaes, txdelay, txdelay_base);
 	pr_debug("%s %d\n", __func__, rc);
