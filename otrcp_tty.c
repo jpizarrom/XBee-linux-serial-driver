@@ -364,12 +364,15 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 		ctx, buf, len, sent_cmd, sent_key, sent_tid);
 	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
 	reinit_completion(&rcp->cmd_resp_done);
-	if (rc < 0) {
+	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", rc, __func__,
 			ctx, buf, len, sent_cmd, sent_key, sent_tid);
-		//if (rc == 0)
-		//	rc = -ETIMEDOUT;
+		if (rc == 0) {
+			pr_debug("******************* TIMEOUT *******************\n");
+			rc = -ETIMEDOUT;
+			rc = 0; //TODO
+		}
 		goto end;
 	}
 
