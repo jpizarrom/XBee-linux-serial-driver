@@ -312,20 +312,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	rcp->tid = tid;
 
 	pr_debug("start %s:%d\n", __func__, __LINE__);
-	if(key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("%s %s\n", __func__, "spinel_command");
-	}
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
-		if(key == SPINEL_PROP_STREAM_RAW) {
-			pr_debug("%s %s\n", __func__, "spinel_command");
-		} else {
 		err = rcp->send(rcp, buffer, err, SPINEL_CMD_PROP_VALUE_SET, key, tid);
-		}
 	}
-	if(key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("%s %d\n", __func__, err);
-	}
+
 	if (err < 0) {
 		pr_debug("end %s:%d\n", __func__, __LINE__);
 		return err;
@@ -346,12 +337,6 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	va_list args;
 	int rc;
 	pr_debug("start %s:%d\n", __func__, __LINE__);
-
-	if (key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("fmt = %s\n", fmt);
-	}
-
-
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
@@ -429,26 +414,8 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t chann
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
-	uint8_t *buffer;
-	size_t buflen;
-	int rc;
-	pr_debug("start %s:%d\n", __func__, __LINE__); \
-	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);
-	buflen = rcp->spinel_max_frame_size;
-	//pr_debug("%s %s\n", __func__, "otrcp_spinel_prop_set");
-	//pr_debug("spinel_data_format_str_STREAM_RAW %s\n", spinel_data_format_str_STREAM_RAW);
-	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,
-				   SPINEL_PROP_STREAM_RAW,
-				   spinel_data_format_str_STREAM_RAW,
-				   frame, channel, backoffs, retries, csmaca, headerupdate, aretx,
-				   skipaes, txdelay, txdelay_base);
-	//pr_debug("%s %d\n", __func__, rc);
-	kfree(buffer);
-	//pr_debug("end %s:%d\n", __func__, __LINE__);
-	return rc;
-
-	//SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, *frame, channel, backoffs, retries,
-	//			csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
+	SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, frame, channel, backoffs, retries,
+				csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
 
 }
 
