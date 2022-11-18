@@ -412,7 +412,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 		rc = data_len;
 	} else {
 		dev_dbg(rcp->otrcp.parent,
-			"not handled cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
+			"************ not handled cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
 			spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
 			data_len);
 		rc = -1;
