@@ -337,7 +337,6 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
 		print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
 			frm.ptr - rcp->hdlc_lite_buf, true);
 		pr_debug("%s: %s\n", __func__, "STREAM_RAW");
-		goto end;
 	}
 
 	rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf);
@@ -397,7 +396,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 			pr_debug("------------- SPINEL_CMD_PROP_VALUE_IS %d --------\n", key);
 		} else {
 			pr_debug("------------- NOT_HANDLED --------\n");
-			rc = -1;
+			rc = 0; //TODO
 			goto end;
 		}
 	} else if (((spinel_expected_command(sent_cmd) == cmd) ||

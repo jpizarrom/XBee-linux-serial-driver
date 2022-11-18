@@ -324,7 +324,6 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 
 	if(key == SPINEL_PROP_STREAM_RAW) {
 		pr_debug("%s STREAM_RAW %d\n", __func__, err);
-		return 0;
 	}
 	err = rcp->resp(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	pr_debug("end %s:%d\n", __func__, __LINE__);
@@ -849,7 +848,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (rc < 0) {
 		print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
 			       skb->len, true);
-		return rc;
+		return 0; //TODO
 	}
 
 	pr_debug("end %s:%d\n", __func__, __LINE__);
