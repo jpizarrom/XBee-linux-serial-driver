@@ -334,8 +334,8 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, uint32_t cmd,
 		goto end;
 
 	if (key == SPINEL_PROP_STREAM_RAW) {
-		//print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
-		//	frm.ptr - rcp->hdlc_lite_buf, true);
+		print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
+			frm.ptr - rcp->hdlc_lite_buf, true);
 		pr_debug("%s: %s\n", __func__, "STREAM_RAW");
 		goto end;
 	}
