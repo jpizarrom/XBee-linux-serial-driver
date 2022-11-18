@@ -394,9 +394,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, uint32_t sent
 
 	if (SPINEL_HEADER_GET_TID(header) == 0) {
 		if (cmd == SPINEL_CMD_PROP_VALUE_IS) {
-			if(key == SPINEL_PROP_STREAM_RAW) {
-				pr_debug("------------- STREAM_RAW --------\n");
-			}
+			pr_debug("------------- SPINEL_CMD_PROP_VALUE_IS %d --------\n", key);
 		} else {
 			pr_debug("------------- NOT_HANDLED --------\n");
 			rc = -1;
