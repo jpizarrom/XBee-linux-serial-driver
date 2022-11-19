@@ -293,6 +293,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
+	kfree(recv_buffer);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
@@ -342,6 +343,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		dev_dbg(rcp->parent, "%s STREAM_RAW %d\n", __func__, err);
 	}
 	err = rcp->resp(rcp, buffer, &length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	kfree(recv_buffer);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
@@ -389,6 +391,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes, true);
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer, recv_buflen, true);
 	}
+	kfree(recv_buffer);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
