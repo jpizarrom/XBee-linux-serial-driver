@@ -460,12 +460,202 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 	SPINEL_PROP_ARRAY_PACK(MAC_SCAN_MASK, mask, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t))
 }
 */
+typedef struct otRadioFrame
+{
+    uint8_t *mPsdu; ///< The PSDU.
+
+    uint16_t mLength;  ///< Length of the PSDU.
+    uint8_t  mChannel; ///< Channel used to transmit/receive the frame.
+
+    uint8_t mRadioType; ///< Radio link type - should be ignored by radio driver.
+
+    /**
+     * The union of transmit and receive information for a radio frame.
+     */
+    union
+    {
+        /**
+         * Structure representing radio frame transmit information.
+         */
+        struct
+        {
+            const void *mAesKey;  ///< The key material used for AES-CCM frame security.
+            void*         mIeInfo;  ///< The pointer to the Header IE(s) related information.
+            uint32_t                mTxDelay; ///< The delay time for this transmission (based on `mTxDelayBaseTime`).
+            uint32_t                mTxDelayBaseTime; ///< The base time for the transmission delay.
+            uint8_t mMaxCsmaBackoffs; ///< Maximum number of backoffs attempts before declaring CCA failure.
+            uint8_t mMaxFrameRetries; ///< Maximum number of retries allowed after a transmission failure.
+
+            /**
+             * Indicates whether frame counter and CSL IEs are properly updated in the header.
+             *
+             * If the platform layer does not provide `OT_RADIO_CAPS_TRANSMIT_SEC` capability, it can ignore this flag.
+             *
+             * If the platform provides `OT_RADIO_CAPS_TRANSMIT_SEC` capability, then platform is expected to handle tx
+             * security processing and assignment of frame counter. In this case the following behavior is expected:
+             *
+             * When `mIsHeaderUpdated` is set, it indicates that OpenThread core has already set the frame counter and
+             * CSL IEs (if security is enabled) in the prepared frame. The counter is ensured to match the counter value
+             * from the previous attempts of the same frame. The platform should not assign or change the frame counter
+             * (but may still need to perform security processing depending on `mIsSecurityProcessed` flag).
+             *
+             * If `mIsHeaderUpdated` is not set, then the frame counter and key CSL IE not set in the frame by
+             * OpenThread core and it is the responsibility of the radio platform to assign them. The platform
+             * must update the frame header (assign counter and CSL IE values) before sending the frame over the air,
+             * however if the the transmission gets aborted and the frame is never sent over the air (e.g., channel
+             * access error) the platform may choose to not update the header. If the platform updates the header,
+             * it must also set this flag before passing the frame back from the `otPlatRadioTxDone()` callback.
+             *
+             */
+            bool mIsHeaderUpdated : 1;
+            bool mIsARetx : 1;             ///< Indicates whether the frame is a retransmission or not.
+            bool mCsmaCaEnabled : 1;       ///< Set to true to enable CSMA-CA for this packet, false otherwise.
+            bool mCslPresent : 1;          ///< Set to true if CSL header IE is present.
+            bool mIsSecurityProcessed : 1; ///< True if SubMac should skip the AES processing of this frame.
+        } mTxInfo;
+        /**
+         * Structure representing radio frame receive information.
+         */
+        struct
+        {
+            /**
+             * The timestamp when the frame was received in microseconds.
+             *
+             * The value SHALL be the time when the SFD was received when TIME_SYNC or CSL is enabled.
+             * Otherwise, the time when the MAC frame was fully received is also acceptable.
+             *
+             */
+            uint64_t mTimestamp;
+
+            uint32_t mAckFrameCounter; ///< ACK security frame counter (applicable when `mAckedWithSecEnhAck` is set).
+            uint8_t  mAckKeyId;        ///< ACK security key index (applicable when `mAckedWithSecEnhAck` is set).
+            int8_t   mRssi;            ///< Received signal strength indicator in dBm for received frames.
+            uint8_t  mLqi;             ///< Link Quality Indicator for received frames.
+
+            // Flags
+            bool mAckedWithFramePending : 1; ///< This indicates if this frame was acknowledged with frame pending set.
+            bool mAckedWithSecEnhAck : 1; ///< This indicates if this frame was acknowledged with secured enhance ACK.
+        } mRxInfo;
+    } mInfo;
+} otRadioFrame;
+
+#define OT_NUM_ERRORS 38
+
+int ParseRadioFrame(struct otRadioFrame *aFrame, const uint8_t * aBuffer, uint16_t        aLength, spinel_ssize_t *aUnpacked)
+{
+    int error        = 0;
+    uint16_t       flags        = 0;
+    int8_t         noiseFloor   = -128;
+    spinel_size_t  size         = 8192;//OT_RADIO_FRAME_MAX_SIZE;
+    unsigned int   receiveError = 0;
+    spinel_ssize_t unpacked;
+
+    //VerifyOrExit(aLength > 0, aFrame.mLength = 0);
+
+    unpacked = spinel_datatype_unpack_in_place(aBuffer, aLength,
+                                               SPINEL_DATATYPE_DATA_WLEN_S                          // Frame
+                                                   SPINEL_DATATYPE_INT8_S                           // RSSI
+                                                       SPINEL_DATATYPE_INT8_S                       // Noise Floor
+                                                           SPINEL_DATATYPE_UINT16_S                 // Flags
+                                                               SPINEL_DATATYPE_STRUCT_S(            // PHY-data
+                                                                   SPINEL_DATATYPE_UINT8_S          // 802.15.4 channel
+                                                                       SPINEL_DATATYPE_UINT8_S      // 802.15.4 LQI
+                                                                           SPINEL_DATATYPE_UINT64_S // Timestamp (us).
+                                                                   ) SPINEL_DATATYPE_STRUCT_S(      // Vendor-data
+                                                                   SPINEL_DATATYPE_UINT_PACKED_S    // Receive error
+                                                                   ),
+                                               aFrame->mPsdu, &size, &aFrame->mInfo.mRxInfo.mRssi, &noiseFloor, &flags,
+                                               &aFrame->mChannel, &aFrame->mInfo.mRxInfo.mLqi,
+                                               &aFrame->mInfo.mRxInfo.mTimestamp, &receiveError);
+    pr_debug("data size %d", size);
+    pr_debug("RSSI %d", aFrame->mInfo.mRxInfo.mRssi);
+    pr_debug("noiseFloor %d", noiseFloor);
+    pr_debug("flags %x", flags);
+    pr_debug("Channel %u", aFrame->mChannel);
+    pr_debug("LQI %u", aFrame->mInfo.mRxInfo.mLqi);
+    pr_debug("Timestamp %llu", aFrame->mInfo.mRxInfo.mTimestamp);
+
+    //VerifyOrExit(unpacked > 0, error = OT_ERROR_PARSE);
+    if (unpacked < 0) {
+	    return -1;
+    }
+
+    *aUnpacked = unpacked;
+
+    aBuffer += unpacked;
+    aLength -= unpacked;
+
+    if (receiveError == 0)
+    {
+        aFrame->mLength = size;
+
+        aFrame->mInfo.mRxInfo.mAckedWithFramePending = ((flags & SPINEL_MD_FLAG_ACKED_FP) != 0);
+        aFrame->mInfo.mRxInfo.mAckedWithSecEnhAck    = ((flags & SPINEL_MD_FLAG_ACKED_SEC) != 0);
+    }
+    else //if (receiveError < OT_NUM_ERRORS)
+    {
+        error = receiveError;
+    }
+    //else
+    //{
+     //   error = OT_ERROR_PARSE;
+    //}
+
+exit:
+    pr_debug("Handle radio frame failed %d", error);
+    return error;
+}
+
+int extract_stream_raw_response(struct otrcp *rcp, uint8_t *buf, size_t len)
+{
+	int unpacked;
+	spinel_status_t status;
+    bool            framePending  = false;
+    bool            headerUpdated = false;
+
+    struct otRadioFrame frame;
+
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+       	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
+
+	dev_dbg(rcp->parent, "status=%d %d\n", status, unpacked);
+       
+	if (unpacked < 0) return -1;
+
+	buf += unpacked;
+    	len -= unpacked;
+
+	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &framePending);
+	if (unpacked < 0) return -1;
+
+	dev_dbg(rcp->parent, "framePending=%d %d\n", framePending, unpacked);
+
+	buf += unpacked;
+    	len -= unpacked;
+
+	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &headerUpdated);
+	if (unpacked < 0) return -1;
+
+	dev_dbg(rcp->parent, "headerUpdated=%d\n", headerUpdated);
+
+	buf += unpacked;
+    	len -= unpacked;
+
+
+	ParseRadioFrame(&frame, buf, len, &unpacked);
+
+	buf += unpacked;
+    	len -= unpacked;
+
+	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
+	return len;
+}
 
 static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t frame_length, uint8_t channel, uint8_t backoffs,
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, frame, frame_length, channel, backoffs, retries,
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, frame, frame_length, channel, backoffs, retries,
 				csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
 
 }
