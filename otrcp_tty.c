@@ -419,7 +419,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	} else if (((spinel_expected_command(sent_cmd) == cmd) ||
 		    (spinel_expected_command(sent_cmd) == 0)) &&
 		   (sent_tid == SPINEL_HEADER_GET_TID(header)) && ((sent_key == key)|| (key == 0))) {
-		pr_debug("------------- RESPONSE -------- %d %x\n", data_len, buf[0]);
+		//pr_debug("------------- RESPONSE -------- %d %x\n", data_len, buf[0]);
 		rc = data_len;
 	} else {
 		dev_dbg(rcp->otrcp.parent,

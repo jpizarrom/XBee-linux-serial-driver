@@ -123,7 +123,11 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
-#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len) {
+	return len;
+}
+
+#define SPINEL_GET_PROP_IMPL_X(prop, rcp, postproc, ...)                                             \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -133,11 +137,17 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
+	if (rc >= 0) { \
+		rc = postproc(rcp, buffer, rc); \
+	} \
 	kfree(buffer);                                                                             \
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
-#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
+#define SPINEL_GET_PROP_IMPL(prop, rcp,  ...)                                             \
+	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
+
+#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, ...)                                             \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -147,11 +157,17 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
+	if (rc >= 0) { \
+		rc = postproc(rcp, buffer, rc); \
+	} \
 	kfree(buffer);                                                                             \
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
-#define SPINEL_RESET_IMPL(rcp, ...)                                                                \
+#define SPINEL_SET_PROP_IMPL(prop, rcp,  ...)                                             \
+	SPINEL_SET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
+
+#define SPINEL_RESET_IMPL_X(rcp, postproc, ...)                                                                \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -161,9 +177,15 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	rc = otrcp_spinel_reset(                                                                   \
 		((struct otrcp *)rcp), buffer, buflen, spinel_data_format_str_RESET,               \
 		SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, __VA_ARGS__);          \
+	if (rc >= 0) { \
+		rc = postproc(rcp, buffer, rc); \
+	} \
 	kfree(buffer);                                                                             \
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
+
+#define SPINEL_RESET_IMPL(rcp,  ...)                                             \
+	SPINEL_RESET_IMPL_X(rcp, simple_return, __VA_ARGS__)
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
 {
