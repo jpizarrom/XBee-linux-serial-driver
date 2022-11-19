@@ -605,7 +605,10 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
 
-	//skb_queue_tail(&rcp->recv_queue, skb);
+	rc = spinel_datatype_unpack(buf, count, "C", &header);
+	if (rc < 0) {
+		return 0;
+	}
 
 	// dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__,
 	// skb_queue_len(&rcp->recv_queue), skb->data[0]);
