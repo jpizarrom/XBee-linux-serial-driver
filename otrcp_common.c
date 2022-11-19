@@ -297,9 +297,6 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	if (key == SPINEL_PROP_STREAM_RAW) {
-		dev_dbg(rcp->parent, "%s STREAM_RAW %d\n", __func__, err);
-	}
 	err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_PROP_VALUE_SET,
 			key, tid);
 	if (err < 0) {
