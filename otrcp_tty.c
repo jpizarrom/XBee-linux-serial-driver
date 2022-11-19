@@ -418,13 +418,13 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		}
 	} else if (((spinel_expected_command(sent_cmd) == cmd) ||
 		    (spinel_expected_command(sent_cmd) == 0)) &&
-		   (sent_tid == SPINEL_HEADER_GET_TID(header)) && (sent_key == key)) {
-		pr_debug("------------- RESPONSE --------\n");
+		   (sent_tid == SPINEL_HEADER_GET_TID(header)) && ((sent_key == key)|| (key == 0))) {
+		pr_debug("------------- RESPONSE -------- %d %x\n", data_len, buf[0]);
 		rc = data_len;
 	} else {
 		dev_dbg(rcp->otrcp.parent,
-			"************ not handled cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
-			spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
+			"************ not handled cmd=%u(expected=%u), key=%u, tid=%u, sent_tid=%u, data=%p, data_len=%u\n", cmd,
+			spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), rcp->otrcp.tid, data,
 			data_len);
 		rc = -1;
 	}
@@ -453,7 +453,7 @@ static void ttyrcp_recv_work(struct work_struct *param)
 			rcp->cmd_resp = skb;
 			complete_all(&rcp->cmd_resp_done);
 		} else {
-			dev_dbg(rcp->otrcp.parent, "%s: not handled tid = %x, expected %x\n",  __func__,
+			dev_dbg(rcp->otrcp.parent, "%s: ***************** not handled tid = %x, expected %x\n",  __func__,
 				 SPINEL_HEADER_GET_TID(skb->data[0]), 	rcp->otrcp.tid);
 			//complete_all(&rcp->cmd_resp_done);
 		}
