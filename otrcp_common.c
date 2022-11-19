@@ -601,6 +601,23 @@ int ParseRadioFrame(struct otRadioFrame *aFrame, const uint8_t * aBuffer, uint16
      //   error = OT_ERROR_PARSE;
     //}
 
+    //if (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)
+    {
+        unpacked =
+            spinel_datatype_unpack_in_place(aBuffer, aLength,
+                                            SPINEL_DATATYPE_STRUCT_S(        // MAC-data
+                                                SPINEL_DATATYPE_UINT8_S      // Security key index
+                                                    SPINEL_DATATYPE_UINT32_S // Security frame counter
+                                                ),
+                                            &aFrame->mInfo.mRxInfo.mAckKeyId, &aFrame->mInfo.mRxInfo.mAckFrameCounter);
+
+      pr_debug("AckKeyId %u", aFrame->mInfo.mRxInfo.mAckKeyId);
+      pr_debug("AckFrameCounter %u", aFrame->mInfo.mRxInfo.mAckFrameCounter);
+        //VerifyOrExit(unpacked > 0, error = OT_ERROR_PARSE);
+        *aUnpacked += unpacked;
+    }
+    
+
 exit:
     pr_debug("Handle radio frame failed %d", error);
     return error;
@@ -1081,8 +1098,16 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
+/*
+$2 = (otRadioFrame &) @0x5555557574d8: {mPsdu = 0x5555557573a7 <sRadioSpinel+8551> "\003\b", mLength = 10, mChannel = 11 '\v', 
+  mRadioType = 0 '\000', mInfo = {mTxInfo = {mAesKey = 0x0, mIeInfo = 0x0, mTxDelay = 0, mTxDelayBaseTime = 0, 
+      mMaxCsmaBackoffs = 4 '\004', mMaxFrameRetries = 15 '\017', mIsHeaderUpdated = false, mIsARetx = false, mCsmaCaEnabled = true, 
+      mCslPresent = false, mIsSecurityProcessed = false}, mRxInfo = {mTimestamp = 0, mAckFrameCounter = 0, mAckKeyId = 0 '\000', 
+      mRssi = 0 '\000', mLqi = 0 '\000', mAckedWithFramePending = false, mAckedWithSecEnhAck = false}}}
+ */
+
 	rc = otrcp_set_stream_raw(rcp, skb->data, skb->len, hw->phy->current_channel, 4,
-				  4, !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false,
+				  15, !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false,
 				  false, 0, 0);
 
 	dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
