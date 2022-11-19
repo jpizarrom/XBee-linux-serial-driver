@@ -365,7 +365,6 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		if (rc == 0) {
 			pr_debug("******************* TIMEOUT *******************\n");
 			rc = -ETIMEDOUT;
-			rc = 0; // TODO
 		}
 		goto end;
 	}
@@ -380,11 +379,6 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 				data_len);
 			goto end;
 		}
-
-		// dev_dbg(rcp->otrcp.parent,
-		//	"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
-		//	spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
-		//	data_len);
 
 		kfree_skb(skb);
 
@@ -587,6 +581,9 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	struct hdlc_frame frm = {(uint8_t *)buf, count, 0};
 	struct ttyrcp *rcp = tty->disc_data;
 	struct sk_buff *skb;
+	uint32_t cmd;
+	uint8_t header;
+	spinel_prop_key_t key;
 	int rc = 0;
 
 	// dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
@@ -631,6 +628,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		// complete_all(&rcp->cmd_resp_done);
 	}
 
+exit:
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
