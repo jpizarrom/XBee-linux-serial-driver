@@ -145,7 +145,7 @@ static int spinel_reset_command(uint8_t *buffer, size_t length, const char *form
 	return packed;
 }
 
-static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
+static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
 			  spinel_tid_t tid, const char *format, va_list args)
 {
 	int packed;
@@ -235,7 +235,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	rcp->tid = tid;
 
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
+	err = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
@@ -287,7 +287,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	rcp->tid = tid;
 
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
+	err = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
@@ -378,6 +378,10 @@ static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
+
+/*
+ * SPINEL commands
+ */
 
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
@@ -841,6 +845,10 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
+
+/*
+ * IEEE802.15.4 APIs
+ */
 
 int otrcp_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
