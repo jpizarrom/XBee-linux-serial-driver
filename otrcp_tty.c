@@ -334,11 +334,11 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 	if (rc < 0)
 		goto end;
 
-	//if (key == SPINEL_PROP_STREAM_RAW) {
+	// if (key == SPINEL_PROP_STREAM_RAW) {
 	//	print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
 	//		frm.ptr - rcp->hdlc_lite_buf, true);
 	//	dev_dbg(rcp->otrcp.parent, "%s: %s\n", __func__, "STREAM_RAW");
-	//}
+	// }
 
 	rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf);
 	if (rc < 0)
@@ -346,7 +346,7 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 
 	*sent = rc;
 end:
-	//dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
+	// dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -363,7 +363,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	*received = 0;
 
-	//dev_dbg(rcp->otrcp.parent,
+	// dev_dbg(rcp->otrcp.parent,
 	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
 	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
 	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
@@ -375,7 +375,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		if (rc == 0) {
 			pr_debug("******************* TIMEOUT *******************\n");
 			rc = -ETIMEDOUT;
-			rc = 0; //TODO
+			rc = 0; // TODO
 		}
 		goto end;
 	}
@@ -390,7 +390,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		goto end;
 	}
 
-	//dev_dbg(rcp->otrcp.parent,
+	// dev_dbg(rcp->otrcp.parent,
 	//	"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
 	//	spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
 	//	data_len);
@@ -412,7 +412,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			pr_debug("------------- SPINEL_CMD_PROP_VALUE_IS %d --------\n", key);
 		} else {
 			pr_debug("------------- NOT_HANDLED --------\n");
-			rc = 0; //TODO
+			rc = 0; // TODO
 			goto end;
 		}
 	} else if (((spinel_expected_command(sent_cmd) == cmd) ||
@@ -431,7 +431,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 end:
-	//dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
+	// dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
 	return rc;
 }
 
@@ -638,9 +638,9 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	struct sk_buff *skb;
 	int rc = 0;
 
-	//dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
+	// dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
 	//	count);
-	//print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
+	// print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 
 	if (!tty->disc_data) {
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);
@@ -674,7 +674,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	//dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
+	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
 
