@@ -439,11 +439,11 @@ static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
 }
 */
 
-static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint8_t channel, uint8_t backoffs,
+static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t frame_length, uint8_t channel, uint8_t backoffs,
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, frame, channel, backoffs, retries,
+	SPINEL_SET_PROP_IMPL(STREAM_RAW, rcp, frame, frame_length, channel, backoffs, retries,
 				csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
 
 }
@@ -869,7 +869,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
-	rc = otrcp_set_stream_raw(rcp, skb->data, hw->phy->current_channel, 4,
+	rc = otrcp_set_stream_raw(rcp, skb->data, skb->len, hw->phy->current_channel, 4,
 				  4, !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false,
 				  false, 0, 0);
 
