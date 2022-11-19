@@ -12,8 +12,8 @@
 enum {
 	kFlagXOn = 0x11,
 	kFlagXOff = 0x13,
-	kFlagSequence = 0x7e,	///< HDLC Flag value
-	kEscapeSequence = 0x7d, ///< HDLC Escape value
+	kFlagSequence = 0x7e,
+	kEscapeSequence = 0x7d,
 	kFlagSpecial = 0xf8,
 };
 
@@ -22,9 +22,9 @@ enum {
  *
  */
 enum {
-	kInitFcs = 0xffff, ///< Initial FCS value.
-	kGoodFcs = 0xf0b8, ///< Good FCS value.
-	kFcsSize = 2,	   ///< FCS size (number of bytes).
+	kInitFcs = 0xffff,
+	kGoodFcs = 0xf0b8,
+	kFcsSize = 2,
 };
 
 enum hdlc_frame_decode_state {
@@ -43,8 +43,6 @@ struct hdlc_frame {
 	uint16_t remaining;
 	uint16_t fcs;
 };
-
-struct ttyrcp;
 
 struct ttyrcp {
 	struct otrcp otrcp;
@@ -322,12 +320,6 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 	rc = hdlc_frame_end(&frm);
 	if (rc < 0)
 		goto end;
-
-	// if (key == SPINEL_PROP_STREAM_RAW) {
-	//	print_hex_dump(KERN_INFO, "write>>: ", DUMP_PREFIX_NONE, 16, 1, rcp->hdlc_lite_buf,
-	//		frm.ptr - rcp->hdlc_lite_buf, true);
-	//	dev_dbg(rcp->otrcp.parent, "%s: %s\n", __func__, "STREAM_RAW");
-	// }
 
 	rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf);
 	if (rc < 0)
