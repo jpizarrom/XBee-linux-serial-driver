@@ -276,7 +276,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	recv_buflen = rcp->spinel_max_frame_size;
 	rcp->tid = tid;
 
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
@@ -294,7 +294,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
 	kfree(recv_buffer);
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
 
@@ -303,11 +303,11 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 {
 	va_list args;
 	int rc;
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_get_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -328,7 +328,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	recv_buflen = rcp->spinel_max_frame_size;
 	rcp->tid = tid;
 
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
@@ -351,7 +351,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		memcpy(buffer, recv_buffer, recv_buflen);
 	}
 	kfree(recv_buffer);
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return err;
 }
 
@@ -360,11 +360,11 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 {
 	va_list args;
 	int rc;
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
 	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, fmt, args);
 	va_end(args);
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
