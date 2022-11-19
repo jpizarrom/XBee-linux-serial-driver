@@ -604,8 +604,8 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	// dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__,
 	// skb_queue_len(&rcp->recv_queue), skb->data[0]);
-	if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
-	    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
+	if (SPINEL_HEADER_GET_TID(header) == 0 ||
+	    SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
 	} else {
