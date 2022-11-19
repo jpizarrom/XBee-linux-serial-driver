@@ -608,6 +608,16 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
 	} else if (SPINEL_HEADER_GET_TID(header) == 0) {
+		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
+		if (rc < 0 || cmd != SPINEL_CMD_PROP_VALUE_IS) {
+			goto exit;
+		}
+
+		pr_debug("------ rc = %d, header=%d cmd=%d key=%d\n", rc, header, cmd, key);
+		
+		if (key == SPINEL_PROP_STREAM_RAW) {
+		} else if (key == SPINEL_PROP_LAST_STATUS) {
+		}
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
 	} else {
