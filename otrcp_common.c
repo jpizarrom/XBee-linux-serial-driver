@@ -83,7 +83,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
                                                                                                    \
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/ \
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                  \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	fmt = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                     \
@@ -99,7 +99,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 				   data, len);                                                     \
 	kfree(buffer);                                                                             \
 	kfree(fmt);                                                                                \
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
@@ -107,7 +107,7 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
                                                                                                    \
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/ \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
@@ -120,35 +120,35 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 	if (rc < 0) {                                                                              \
 		dev_err(rcp->parent, "%s: spinel_data_unpack() failed: %d\n", __func__, rc);                     \
 	}                                                                                          \
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/ \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	kfree(buffer);                                                                             \
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/ \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	kfree(buffer);                                                                             \
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
 #define SPINEL_RESET_IMPL(rcp, ...)                                                                \
@@ -162,14 +162,14 @@ SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
 		((struct otrcp *)rcp), buffer, buflen, spinel_data_format_str_RESET,               \
 		SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, __VA_ARGS__);          \
 	kfree(buffer);                                                                             \
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__); \
+	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/ \
 	return rc;
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
 {
 	int packed;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	//pr_debug("start %s:%d\n", __func__, __LINE__);
 	// Pack the header, command and key
 	packed = spinel_datatype_vpack(buffer, length, format, args);
 
@@ -183,7 +183,7 @@ static int spinel_reset_command(uint8_t *buffer, size_t length, const char *form
 		return -ENOBUFS;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	//pr_debug("end %s:%d\n", __func__, __LINE__);
 	return packed;
 }
 
@@ -193,7 +193,7 @@ static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spin
 	int packed;
 	uint16_t offset;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	//pr_debug("start %s:%d\n", __func__, __LINE__);
 	// Pack the header, command and key
 	packed = spinel_datatype_pack(buffer, length, "Cii",
 				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key);
@@ -227,7 +227,7 @@ static int spinel_command(uint8_t *buffer, size_t length, uint32_t command, spin
 		offset += packed;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	//pr_debug("end %s:%d\n", __func__, __LINE__);
 	return offset;
 }
 
@@ -238,7 +238,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	int remains = out_len;
 	void *start = out;
 
-	pr_debug("start %s:%d\n", __func__, __LINE__);
+	//pr_debug("start %s:%d\n", __func__, __LINE__);
 	while (len > 0) {
 		if (remains <= 0) {
 			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
@@ -255,7 +255,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 		remains -= datasize;
 	}
 
-	pr_debug("end %s:%d\n", __func__, __LINE__);
+	//pr_debug("end %s:%d\n", __func__, __LINE__);
 	return (out - start) / datasize;
 }
 

@@ -346,7 +346,7 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 
 	*sent = rc;
 end:
-	dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
+	//dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -363,9 +363,9 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	*received = 0;
 
-	dev_dbg(rcp->otrcp.parent,
-		"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
-		ctx, buf, len, sent_cmd, sent_key, sent_tid);
+	//dev_dbg(rcp->otrcp.parent,
+	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
+	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
 	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
 	reinit_completion(&rcp->cmd_resp_done);
 	if (rc <= 0) {
@@ -391,10 +391,10 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		goto end;
 	}
 
-	dev_dbg(rcp->otrcp.parent,
-		"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
-		spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
-		data_len);
+	//dev_dbg(rcp->otrcp.parent,
+	//	"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
+	//	spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
+	//	data_len);
 
 	kfree_skb(rcp->cmd_resp);
 	rcp->cmd_resp = NULL;
@@ -430,7 +430,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 end:
-	dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
+	//dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
 	return rc;
 }
 
@@ -447,7 +447,7 @@ static void ttyrcp_recv_work(struct work_struct *param)
 	mutex_lock(&rcp->queue_mutex);
 
 	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
-		dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
+		//dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__, skb_queue_len(&rcp->recv_queue), skb->data[0]);
 		if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
 		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
 			rcp->cmd_resp = skb;
@@ -636,8 +636,8 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	struct sk_buff *skb;
 	int rc = 0;
 
-	dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
-		count);
+	//dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
+	//	count);
 	//print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 
 	if (!tty->disc_data) {
@@ -672,7 +672,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
+	//dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
 
