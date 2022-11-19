@@ -563,7 +563,7 @@ typedef struct otRadioFrame {
 
 #define OT_NUM_ERRORS 38
 
-int ParseRadioFrame(struct otRadioFrame *aFrame, const uint8_t *aBuffer, uint16_t aLength,
+int ParseRadioFrame(struct otrcp *rcp, struct otRadioFrame *aFrame, const uint8_t *aBuffer, uint16_t aLength,
 		    spinel_ssize_t *aUnpacked)
 {
 	int error = 0;
@@ -627,7 +627,7 @@ int ParseRadioFrame(struct otRadioFrame *aFrame, const uint8_t *aBuffer, uint16_
 	//    error = OT_ERROR_PARSE;
 	//}
 
-	// if (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)
+	if (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)
 	{
 		unpacked = spinel_datatype_unpack_in_place(
 			aBuffer, aLength,
@@ -686,7 +686,7 @@ int extract_stream_raw_response(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buf += unpacked;
 	len -= unpacked;
 
-	ParseRadioFrame(&frame, buf, len, &unpacked);
+	ParseRadioFrame(rcp, &frame, buf, len, &unpacked);
 
 	buf += unpacked;
 	len -= unpacked;
