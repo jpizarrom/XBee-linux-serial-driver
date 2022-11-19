@@ -579,12 +579,6 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	skb = alloc_skb(count, GFP_KERNEL);
-	if (!skb) {
-		dev_err(tty->dev, "%s(): no memory\n", __func__);
-		return 0;
-	}
-
 	rc = hdlc_frame_decode(&frm, buf, count);
 	if (rc < 0) {
 		dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf,
@@ -595,15 +589,19 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
 	rc = spinel_datatype_unpack(buf, count, "C", &header);
 	if (rc < 0) {
 		return 0;
 	}
 
-	// dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__,
-	// skb_queue_len(&rcp->recv_queue), skb->data[0]);
+	skb = alloc_skb(count, GFP_KERNEL);
+	if (!skb) {
+		dev_err(tty->dev, "%s(): no memory\n", __func__);
+		return 0;
+	}
+
+	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+
 	if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
