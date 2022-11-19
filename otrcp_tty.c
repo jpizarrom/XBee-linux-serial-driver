@@ -46,25 +46,14 @@ struct hdlc_frame {
 
 struct ttyrcp;
 
-struct ttyrcp_work {
-	struct work_struct work;
-	struct ttyrcp *rcp;
-};
-
 struct ttyrcp {
 	struct otrcp otrcp;
 
 	struct tty_struct *tty;
 
-	struct sk_buff *cmd_resp;
 	struct completion cmd_resp_done;
 
 	struct sk_buff_head recv_queue;
-	struct workqueue_struct *recv_workq;
-	struct ttyrcp_work recv_work;
-
-	struct mutex queue_mutex;
-	struct mutex cmd_mutex;
 
 	uint8_t hdlc_lite_buf[SPINEL_FRAME_MAX_SIZE * 2 + 4];
 };
@@ -398,7 +387,6 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		//	data_len);
 
 		kfree_skb(skb);
-		//rcp->cmd_resp = NULL;
 
 		if (len < data_len) {
 			rc = -1;
@@ -436,37 +424,6 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 end:
 	// dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
 	return rc;
-}
-
-/**
- * recv_work_fn()
- * @param: workqueue parameter.
- */
-static void ttyrcp_recv_work(struct work_struct *param)
-{
-	struct ttyrcp *rcp = ((struct ttyrcp_work *)param)->rcp;
-	struct sk_buff *skb;
-
-	mutex_lock(&rcp->queue_mutex);
-
-	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
-		// dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__,
-		// skb_queue_len(&rcp->recv_queue), skb->data[0]);
-		if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
-		    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
-			rcp->cmd_resp = skb;
-			complete_all(&rcp->cmd_resp_done);
-		} else {
-			dev_dbg(rcp->otrcp.parent,
-				"%s: ***************** not handled tid = %x, expected %x\n",
-				__func__, SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
-			// complete_all(&rcp->cmd_resp_done);
-		}
-	}
-
-	mutex_unlock(&rcp->queue_mutex);
-
-	// dev_dbg(rcp->parent, "%s: end\n", __func__);
 }
 
 static const struct ieee802154_ops ttyrcp_ops = {
@@ -538,15 +495,8 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
 
-	rcp->recv_workq = workq;
-	rcp->recv_work.rcp = rcp;
-
-	mutex_init(&rcp->queue_mutex);
-	mutex_init(&rcp->cmd_mutex);
 	skb_queue_head_init(&rcp->recv_queue);
 	init_completion(&rcp->cmd_resp_done);
-
-	INIT_WORK(&rcp->recv_work.work, ttyrcp_recv_work);
 
 	tty->disc_data = rcp;
 	rc = ieee802154_register_hw(hw);
@@ -572,8 +522,6 @@ static void ttyrcp_ldisc_close(struct tty_struct *tty)
 		printk(KERN_WARNING "%s: rcp is not found\n", __func__);
 		return;
 	}
-
-	destroy_workqueue(rcp->recv_workq);
 
 	ieee802154_unregister_hw(rcp->otrcp.hw);
 	ieee802154_free_hw(rcp->otrcp.hw);
@@ -668,16 +616,13 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
 
-	//mutex_lock(&rcp->queue_mutex);
 	//skb_queue_tail(&rcp->recv_queue, skb);
-	//mutex_unlock(&rcp->queue_mutex);
 
 	// dev_dbg(rcp->otrcp.parent, "%s: queue_len=%d header=%x\n", __func__,
 	// skb_queue_len(&rcp->recv_queue), skb->data[0]);
 	if (SPINEL_HEADER_GET_TID(skb->data[0]) == 0 ||
 	    SPINEL_HEADER_GET_TID(skb->data[0]) == rcp->otrcp.tid) {
 		skb_queue_tail(&rcp->recv_queue, skb);
-		//rcp->cmd_resp = skb;
 		complete_all(&rcp->cmd_resp_done);
 	} else {
 		dev_dbg(rcp->otrcp.parent,
@@ -685,12 +630,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 			__func__, SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
 		// complete_all(&rcp->cmd_resp_done);
 	}
-/*
-	if (!queue_work(rcp->recv_workq, &rcp->recv_work.work)) {
-		dev_err(tty->dev, "%s(): work was already on queue\n", __func__);
-		return 0;
-	}
-*/
+
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
