@@ -266,6 +266,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	uint8_t *recv_buffer;
 	size_t recv_buflen;
 	size_t sent_bytes = 0;
+	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
@@ -278,15 +279,14 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
 	if (err >= 0) {
-		size_t len = err;
-		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 	if (err < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, &length, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	err = rcp->resp(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer, length,
 			key, tid);
@@ -316,8 +316,9 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 {
 	int err;
 	uint8_t *recv_buffer;
-	size_t recv_buflen;
+	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
+	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
@@ -330,9 +331,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
 	if (err >= 0) {
-		size_t len = err;
-		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_PROP_VALUE_SET, key, tid);
-		sent_bytes = err;
+		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	}
 
 	if (err < 0) {
@@ -343,11 +342,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	if(key == SPINEL_PROP_STREAM_RAW) {
 		dev_dbg(rcp->parent, "%s STREAM_RAW %d\n", __func__, err);
 	}
-	err = rcp->resp(rcp, recv_buffer, &recv_buflen, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes, true);
-		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer, recv_buflen, true);
+		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer, received_bytes, true);
 	} else {
 		memcpy(buffer, recv_buffer, recv_buflen);
 	}
@@ -374,8 +373,9 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 {
 	int err;
 	uint8_t *recv_buffer;
-	size_t recv_buflen;
+	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
+	size_t received_bytes = 0;
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -385,19 +385,17 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
-		size_t len = err;
-		err = rcp->send(rcp, buffer, &len, SPINEL_CMD_RESET, 0, 0);
-		sent_bytes = err;
+		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_RESET, 0, 0);
 	}
 	if (err >= 0) {
-		err = rcp->resp(rcp, recv_buffer, &recv_buflen, SPINEL_CMD_RESET, 0, 0);
+		err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_RESET, 0, 0);
 	}
 
 //end:
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes, true);
-		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer, recv_buflen, true);
+		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer, received_bytes, true);
 	}
 	kfree(recv_buffer);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
