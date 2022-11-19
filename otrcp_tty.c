@@ -391,15 +391,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 		*received = data_len;
 
-		if (SPINEL_HEADER_GET_TID(header) == 0) {
-			if (cmd == SPINEL_CMD_PROP_VALUE_IS) {
-				pr_debug("------------- SPINEL_CMD_PROP_VALUE_IS %d --------\n", key);
-			} else {
-				pr_debug("------------- NOT_HANDLED --------\n");
-				rc = 0; // TODO
-				goto end;
-			}
-		} else if (((spinel_expected_command(sent_cmd) == cmd) ||
+		if (((spinel_expected_command(sent_cmd) == cmd) ||
 			    (spinel_expected_command(sent_cmd) == 0)) &&
 			   (sent_tid == SPINEL_HEADER_GET_TID(header)) &&
 			   ((sent_key == key) || (key == 0))) {
