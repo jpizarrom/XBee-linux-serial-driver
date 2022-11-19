@@ -15,48 +15,17 @@ FORMAT_STRING(HWADDR, (SPINEL_DATATYPE_EUI64_S));
 FORMAT_STRING(NCP_VERSION, (SPINEL_DATATYPE_UTF8_S));
 FORMAT_STRING(PHY_CCA_THRESHOLD, (SPINEL_DATATYPE_INT8_S));
 FORMAT_STRING(PHY_CHAN, (SPINEL_DATATYPE_UINT8_S));
-// FORMAT_STRING(PHY_CHAN_PREFERRED, (SPINEL_DATATYPE_DATA_S));
 FORMAT_STRING(PHY_CHAN_SUPPORTED, (SPINEL_DATATYPE_DATA_S));
-// FORMAT_STRING(PHY_FEM_LNA_GAIN, (SPINEL_DATATYPE_INT8_S));
-// FORMAT_STRING(PHY_REGION_CODE, (SPINEL_DATATYPE_UINT16_S));
 FORMAT_STRING(PHY_RSSI, (SPINEL_DATATYPE_INT8_S));
-// FORMAT_STRING(PHY_RX_SENSITIVITY, (SPINEL_DATATYPE_INT8_S));
 FORMAT_STRING(PHY_TX_POWER, (SPINEL_DATATYPE_INT8_S));
 FORMAT_STRING(PROTOCOL_VERSION, (SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
 FORMAT_STRING(RADIO_CAPS, (SPINEL_DATATYPE_UINT_PACKED_S));
-// FORMAT_STRING(RADIO_COEX_ENABLE, (SPINEL_DATATYPE_BOOL_S));
-// FORMAT_STRING(
-//	RADIO_COEX_METRICS,
-//	(SPINEL_DATATYPE_STRUCT_S(
-//		SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
-//			SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
-//				SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S)
-//		 SPINEL_DATATYPE_STRUCT_S(
-//			 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
-//				 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
-//					 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S
-//						 SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT32_S)
-//			 SPINEL_DATATYPE_BOOL_S SPINEL_DATATYPE_UINT32_S));
 FORMAT_STRING(RCP_API_VERSION, (SPINEL_DATATYPE_UINT_PACKED_S));
-// FORMAT_STRING(THREAD_ACTIVE_DATASET, (SPINEL_DATATYPE_VOID_S));
-// FORMAT_STRING(THREAD_PENDING_DATASET, (SPINEL_DATATYPE_VOID_S));
 FORMAT_STRING(MAC_15_4_LADDR, (SPINEL_DATATYPE_EUI64_S));
 FORMAT_STRING(MAC_15_4_PANID, (SPINEL_DATATYPE_UINT16_S));
 FORMAT_STRING(MAC_15_4_SADDR, (SPINEL_DATATYPE_UINT16_S));
 FORMAT_STRING(MAC_PROMISCUOUS_MODE, (SPINEL_DATATYPE_UINT8_S));
-// FORMAT_STRING(MAC_RAW_STREAM_ENABLED, (SPINEL_DATATYPE_UTF8_S));
-// FORMAT_STRING(MAC_SCAN_MASK, (SPINEL_DATATYPE_DATA_S));
-// FORMAT_STRING(MAC_SCAN_PERIOD, (SPINEL_DATATYPE_UINT16_S));
-// FORMAT_STRING(MAC_SCAN_STATE, (SPINEL_DATATYPE_UINT8_S));
-// FORMAT_STRING(NEST_STREAM_MFG, (SPINEL_DATATYPE_UTF8_S));
-// FORMAT_STRING(PHY_CHAN_MAX_POWER, (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT8_S));
 FORMAT_STRING(PHY_ENABLED, (SPINEL_DATATYPE_BOOL_S));
-// FORMAT_STRING(RCP_ENH_ACK_PROBING,
-//		     (SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S SPINEL_DATATYPE_UINT8_S));
-// FORMAT_STRING(RCP_MAC_FRAME_COUNTER, (SPINEL_DATATYPE_UINT32_S));
-// FORMAT_STRING(RCP_MAC_KEY,
-//		     (SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_DATA_WLEN_S
-//			      SPINEL_DATATYPE_DATA_WLEN_S SPINEL_DATATYPE_DATA_WLEN_S));
 
 FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_UINT8_S      // Channel
@@ -68,39 +37,6 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_BOOL_S       // SkipAes
 			   SPINEL_DATATYPE_UINT32_S     // TxDelay
 			   SPINEL_DATATYPE_UINT32_S))   // TxDelayBaseTime
-/*
-SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_ENABLED
-//Set( MAC_SRC_MATCH_ENABLED, SPINEL_DATATYPE_BOOL_S, aEnable);
-SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_EXTENDED_ADDRESSES
-//Set( MAC_SRC_MATCH_EXTENDED_ADDRESSES, nullptr));
-SPINEL_FUNC_PROP_SET(MAC_SRC_MATCH_SHORT_ADDRESSES
-//Set( MAC_SRC_MATCH_SHORT_ADDRESSES, nullptr));
-*/
-
-#define SPINEL_PROP_ARRAY_PACK(prop, data, len, elemfmt, datasize)                                 \
-	int rc, i;                                                                                 \
-	char *fmt;                                                                                 \
-	uint8_t *buffer;                                                                           \
-	size_t buflen;                                                                             \
-                                                                                                   \
-	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
-	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                  \
-	buflen = rcp->spinel_max_frame_size;                                                       \
-	fmt = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                     \
-	fmt[0] = '\0';                                                                             \
-	strcat(fmt, (spinel_data_format_str_##prop));                                              \
-	strcat(fmt, "(");                                                                          \
-	for (i = 0; i < len; i++) {                                                                \
-		strcat(fmt, elemfmt);                                                              \
-	}                                                                                          \
-	strcat(fmt, ")");                                                                          \
-                                                                                                   \
-	rc = otrcp_spinel_prop_set(rcp, buffer, buflen, CONCATENATE(SPINEL_PROP_, prop), fmt,      \
-				   data, len);                                                     \
-	kfree(buffer);                                                                             \
-	kfree(fmt);                                                                                \
-	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
-	return rc;
 
 #define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
 	uint8_t *buffer;                                                                           \
@@ -460,12 +396,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 	SPINEL_PROP_ARRAY_EXTRACT(PHY_CHAN_SUPPORTED, phy_chan_supported, chan_len,
 				  SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
-/*
-static int otrcp_set_mac_scan_mask(struct otrcp *rcp, uint8_t *mask, size_t len)
-{
-	SPINEL_PROP_ARRAY_PACK(MAC_SCAN_MASK, mask, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t))
-}
-*/
+
 typedef struct otRadioFrame {
 	uint8_t *mPsdu; ///< The PSDU.
 
@@ -773,17 +704,7 @@ static int otrcp_set_mac_promiscuous_mode(struct otrcp *rcp, uint8_t on)
 {
 	SPINEL_SET_PROP_IMPL(MAC_PROMISCUOUS_MODE, rcp, on);
 }
-/*
-static int otrcp_set_scan_period(struct otrcp *rcp, uint16_t duration)
-{
-	SPINEL_SET_PROP_IMPL(MAC_SCAN_MASK, rcp, duration);
-}
 
-static int otrcp_set_scan_state(struct otrcp *rcp, uint8_t state)
-{
-	SPINEL_SET_PROP_IMPL(MAC_SCAN_STATE, rcp, state);
-}
-*/
 static int otrcp_set_phy_cca_threshold(struct otrcp *rcp, s8 ed_level)
 {
 	SPINEL_SET_PROP_IMPL(PHY_CCA_THRESHOLD, rcp, ed_level);
@@ -1126,25 +1047,13 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
-	/*
-	$2 = (otRadioFrame &) @0x5555557574d8: {mPsdu = 0x5555557573a7 <sRadioSpinel+8551> "\003\b",
-	mLength = 10, mChannel = 11 '\v', mRadioType = 0 '\000', mInfo = {mTxInfo = {mAesKey = 0x0,
-	mIeInfo = 0x0, mTxDelay = 0, mTxDelayBaseTime = 0, mMaxCsmaBackoffs = 4 '\004',
-	mMaxFrameRetries = 15 '\017', mIsHeaderUpdated = false, mIsARetx = false, mCsmaCaEnabled =
-	true, mCslPresent = false, mIsSecurityProcessed = false}, mRxInfo = {mTimestamp = 0,
-	mAckFrameCounter = 0, mAckKeyId = 0 '\000', mRssi = 0 '\000', mLqi = 0 '\000',
-	mAckedWithFramePending = false, mAckedWithSecEnhAck = false}}}
-	 */
-
 	rc = otrcp_set_stream_raw(rcp, skb->data, skb->len, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
 				  0);
 
-	dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 	if (rc < 0) {
-		print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
-			       true);
-		return 0; // TODO
+		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
+		return rc;
 	}
 
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
