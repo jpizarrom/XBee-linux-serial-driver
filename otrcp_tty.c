@@ -671,7 +671,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
+	dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
 
