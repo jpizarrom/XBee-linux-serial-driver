@@ -263,8 +263,16 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 				   spinel_prop_key_t key, const char *fmt, va_list args)
 {
 	int err;
-
+	uint8_t *recv_buffer;
+	size_t recv_buflen;
+	size_t sent_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+
+	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
+	if (!recv_buffer) {
+		return -ENOMEM;
+	}
+	recv_buflen = rcp->spinel_max_frame_size;
 	rcp->tid = tid;
 
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
@@ -306,8 +314,16 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 				   spinel_prop_key_t key, const char *fmt, va_list args)
 {
 	int err;
-
+	uint8_t *recv_buffer;
+	size_t recv_buflen;
+	size_t sent_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+
+	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
+	if (!recv_buffer) {
+		return -ENOMEM;
+	}
+	recv_buflen = rcp->spinel_max_frame_size;
 	rcp->tid = tid;
 
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
@@ -347,7 +363,15 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 				va_list args)
 {
 	int err;
+	uint8_t *recv_buffer;
+	size_t recv_buflen;
+	size_t sent_bytes = 0;
 
+	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
+	if (!recv_buffer) {
+		return -ENOMEM;
+	}
+	recv_buflen = rcp->spinel_max_frame_size;
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	err = spinel_reset_command(buffer, length, fmt, args);
 	if (err >= 0) {
@@ -705,7 +729,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 
 	rc = otrcp_get_ncp_version(rcp, rcp->ncp_version, sizeof(rcp->ncp_version));
 	if (rc < 0) {
-		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+		dev_dbg(rcp->parent, "end %s@%d %d\n", __func__, __LINE__, rc);
 		return rc;
 	}
 
