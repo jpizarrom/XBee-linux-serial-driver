@@ -348,7 +348,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_RESET, 0, 0);
 	}
 	if (err >= 0) {
-		err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_RESET, 0,
+		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_RESET, 0,
 				0, false, true, false);
 	}
 

@@ -50,8 +50,10 @@ struct ttyrcp {
 	struct tty_struct *tty;
 
 	struct completion cmd_resp_done;
+	struct completion wait_notify;
 
 	struct sk_buff_head recv_queue;
+	struct sk_buff_head notify_queue;
 
 	uint8_t hdlc_lite_buf[SPINEL_FRAME_MAX_SIZE * 2 + 4];
 };
@@ -349,8 +351,8 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	// dev_dbg(rcp->otrcp.parent,
 	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
 	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
-	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
 	reinit_completion(&rcp->cmd_resp_done);
+	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n",
@@ -384,6 +386,70 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
+		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
+		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
+				     true);
+		kfree_skb(skb);
+	}
+
+end:
+	// dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
+	return rc;
+}
+
+static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t *received,
+			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
+			      bool validate_cmd, bool validate_key, bool validate_tid)
+{
+	struct ttyrcp *rcp = ctx;
+	spinel_prop_key_t key;
+	uint8_t header;
+	uint32_t cmd;
+	uint8_t *data;
+	spinel_size_t data_len;
+	int rc;
+	struct sk_buff *skb;
+
+	*received = 0;
+
+	// dev_dbg(rcp->otrcp.parent,
+	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
+	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
+	reinit_completion(&rcp->wait_notify);
+	rc = wait_for_completion_interruptible_timeout(&rcp->wait_notify, msecs_to_jiffies(3000));
+	if (rc <= 0) {
+		dev_dbg(rcp->otrcp.parent,
+			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n",
+			rc, __func__, ctx, buf, len, sent_cmd, sent_key, sent_tid);
+		if (rc == 0) {
+			pr_debug("******************* TIMEOUT *******************\n");
+			rc = -ETIMEDOUT;
+		}
+		goto end;
+	}
+
+	while ((skb = skb_dequeue(&rcp->notify_queue)) != NULL) {
+		rc = spinel_datatype_unpack(skb->data, skb->len, "CiiD", &header, &cmd, &key, &data,
+					    &data_len);
+		kfree_skb(skb);
+
+		if ((rc >= 0 && len >= data_len) &&
+		    ((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) &&
+		    ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
+		    ((sent_key == key) || !validate_key)) {
+			memcpy(buf, data, data_len);
+			*received += data_len;
+			break;
+		} else {
+			dev_dbg(rcp->otrcp.parent,
+				"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
+				"tid=%u(expected=%u), data=%p, data_len=%u\n",
+				cmd, spinel_expected_command(sent_cmd), key, sent_key,
+				SPINEL_HEADER_GET_TID(header), sent_tid, data, data_len);
+		}
+	}
+
+	while ((skb = skb_dequeue(&rcp->notify_queue)) != NULL) {
 		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
 		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
 				     true);
@@ -458,14 +524,17 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.tid = 0xFF;
 	rcp->otrcp.send = ttyrcp_spinel_send;
 	rcp->otrcp.resp = ttyrcp_spinel_resp;
+	rcp->otrcp.wait_notify = ttyrcp_spinel_wait_notify;
 
 	tty->receive_room = 65536;
 
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
 
+	skb_queue_head_init(&rcp->notify_queue);
 	skb_queue_head_init(&rcp->recv_queue);
 	init_completion(&rcp->cmd_resp_done);
+	init_completion(&rcp->wait_notify);
 
 	tty->disc_data = rcp;
 	rc = ieee802154_register_hw(hw);
@@ -577,16 +646,41 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	skb = alloc_skb(count, GFP_KERNEL);
-	if (!skb) {
-		dev_err(tty->dev, "%s(): no memory\n", __func__);
-		return 0;
+	switch (otrcp_spinel_receive_type(&rcp->otrcp, buf, count)) {
+		case kSpinelReceiveNotification:
+
+			if (!completion_done(&rcp->wait_notify)) {
+				skb = alloc_skb(count, GFP_KERNEL);
+				if (!skb) {
+					dev_err(tty->dev, "%s(): no memory\n", __func__);
+					return 0;
+				}
+
+				memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+
+				skb_queue_tail(&rcp->notify_queue, skb);
+				complete_all(&rcp->wait_notify);
+			}
+			break;
+		case kSpinelReceiveResponse:
+			skb = alloc_skb(count, GFP_KERNEL);
+			if (!skb) {
+				dev_err(tty->dev, "%s(): no memory\n", __func__);
+				return 0;
+			}
+
+			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+
+			skb_queue_tail(&rcp->recv_queue, skb);
+			complete_all(&rcp->cmd_resp_done);
+			break;
+		default:
+			kfree_skb(skb);
+			dev_dbg(rcp->otrcp.parent,
+				"%s: ***************** not handled tid = %x, expected %x\n", __func__,
+				SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
+			break;
 	}
-
-	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
-	skb_queue_tail(&rcp->recv_queue, skb);
-	complete_all(&rcp->cmd_resp_done);
 
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;

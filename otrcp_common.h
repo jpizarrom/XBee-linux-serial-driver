@@ -79,6 +79,10 @@ struct otrcp {
 		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
 		    bool validate_cmd, bool validate_key, bool validate_tid);
 
+	int (*wait_notify)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
+		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
+		    bool validate_cmd, bool validate_key, bool validate_tid);
+
 	uint8_t prev_send[8192];
 	spinel_tid_t prev_tid;
 	spinel_prop_key_t prev_key;
