@@ -334,31 +334,10 @@ end:
 }
 
 
-static uint8_t* hoge(void *ctx, uint8_t *buf, size_t len, 
-			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
-			      bool validate_cmd, bool validate_key, bool validate_tid, spinel_size_t *data_len_x)
-{
-	spinel_prop_key_t key;
-	uint8_t header;
-	uint32_t cmd;
-	uint8_t *data;
-	spinel_size_t data_len;
-	int rc;
-
-	rc = spinel_datatype_unpack(buf, len, "CiiD", &header, &cmd, &key, &data,
-				    &data_len);
-
-	if ((rc >= 0 && len >= data_len) &&
-	    ((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) &&
-	    ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
-	    ((sent_key == key) || !validate_key)) {
-		//memcpy(buf, data, data_len);
-		//*received = data_len;
-		*data_len_x = data_len;
-		return data;
-	}
 	
-	return NULL;
+static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key, uint8_t **data, spinel_size_t *data_len)
+{
+	return spinel_datatype_unpack(buf, len, "CiiD", header, cmd, key, data, data_len);
 }
 
 static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *received,
@@ -394,7 +373,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = spinel_datatype_unpack(skb->data, skb->len, "CiiD", &header, &cmd, &key, &data,
+		rc = hoge(skb->data, skb->len, &header, &cmd, &key, &data,
 					    &data_len);
 
 		if ((rc >= 0 && len >= data_len) &&
