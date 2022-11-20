@@ -341,10 +341,13 @@ static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel
 		bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	int rc = spinel_datatype_unpack(buf, len, "CiiD", header, cmd, key, data, data_len);
-/*
-	if (rc < 0 || len < *data_len)  {
-		return false;
+	if (rc < 0) {
+		return rc;
 	}
+	if (len < *data_len)  {
+		return -1;
+	}
+/*
 	xcmd = *cmd;
 	xkey = *key;
 	xheader = *header;
