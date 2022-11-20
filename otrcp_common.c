@@ -511,7 +511,7 @@ int extract_stream_raw_response(struct otrcp *rcp, uint8_t *buf, size_t len)
 
 	skb = alloc_skb(8192, GFP_KERNEL);
 
-	rc = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
+	unpacked = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
 
 	kfree_skb(skb);
 
