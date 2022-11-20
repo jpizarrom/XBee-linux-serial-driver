@@ -49,10 +49,10 @@ struct ttyrcp {
 
 	struct tty_struct *tty;
 
-	struct completion cmd_resp_done;
+	struct completion wait_response;
 	struct completion wait_notify;
 
-	struct sk_buff_head recv_queue;
+	struct sk_buff_head response_queue;
 	struct sk_buff_head notify_queue;
 
 	uint8_t hdlc_lite_buf[SPINEL_FRAME_MAX_SIZE * 2 + 4];
@@ -351,8 +351,8 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	// dev_dbg(rcp->otrcp.parent,
 	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
 	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
-	reinit_completion(&rcp->cmd_resp_done);
-	rc = wait_for_completion_interruptible_timeout(&rcp->cmd_resp_done, msecs_to_jiffies(3000));
+	reinit_completion(&rcp->wait_response);
+	rc = wait_for_completion_interruptible_timeout(&rcp->wait_response, msecs_to_jiffies(3000));
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n",
@@ -364,7 +364,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		goto end;
 	}
 
-	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
+	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
 		rc = spinel_datatype_unpack(skb->data, skb->len, "CiiD", &header, &cmd, &key, &data,
 					    &data_len);
 		kfree_skb(skb);
@@ -374,7 +374,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		    ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
 		    ((sent_key == key) || !validate_key)) {
 			memcpy(buf, data, data_len);
-			*received += data_len;
+			*received = data_len;
 			break;
 		} else {
 			dev_dbg(rcp->otrcp.parent,
@@ -385,7 +385,7 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		}
 	}
 
-	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
+	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
 		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
 		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
 				     true);
@@ -438,7 +438,7 @@ static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t
 		    ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
 		    ((sent_key == key) || !validate_key)) {
 			memcpy(buf, data, data_len);
-			*received += data_len;
+			*received = data_len;
 			break;
 		} else {
 			dev_dbg(rcp->otrcp.parent,
@@ -532,8 +532,8 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	tty_driver_flush_buffer(tty);
 
 	skb_queue_head_init(&rcp->notify_queue);
-	skb_queue_head_init(&rcp->recv_queue);
-	init_completion(&rcp->cmd_resp_done);
+	skb_queue_head_init(&rcp->response_queue);
+	init_completion(&rcp->wait_response);
 	init_completion(&rcp->wait_notify);
 
 	tty->disc_data = rcp;
@@ -648,19 +648,24 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	switch (otrcp_spinel_receive_type(&rcp->otrcp, buf, count)) {
 		case kSpinelReceiveNotification:
+			pr_debug("----------------- notification -----------\n");
+			otrcp_handle_notification(&rcp->otrcp, buf, count);
 
-			if (!completion_done(&rcp->wait_notify)) {
-				skb = alloc_skb(count, GFP_KERNEL);
-				if (!skb) {
-					dev_err(tty->dev, "%s(): no memory\n", __func__);
-					return 0;
-				}
-
-				memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
-				skb_queue_tail(&rcp->notify_queue, skb);
-				complete_all(&rcp->wait_notify);
+			if (completion_done(&rcp->wait_notify)) {
+				pr_debug("----------------- completion_done -----------\n");
+				break;
 			}
+
+			skb = alloc_skb(count, GFP_KERNEL);
+			if (!skb) {
+				dev_err(tty->dev, "%s(): no memory\n", __func__);
+				return 0;
+			}
+
+			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+
+			skb_queue_tail(&rcp->notify_queue, skb);
+			complete_all(&rcp->wait_notify);
 			break;
 		case kSpinelReceiveResponse:
 			skb = alloc_skb(count, GFP_KERNEL);
@@ -671,8 +676,8 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
 
-			skb_queue_tail(&rcp->recv_queue, skb);
-			complete_all(&rcp->cmd_resp_done);
+			skb_queue_tail(&rcp->response_queue, skb);
+			complete_all(&rcp->wait_response);
 			break;
 		default:
 			kfree_skb(skb);

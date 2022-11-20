@@ -739,6 +739,10 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	return 0;
 }
 
+void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count)
+{
+}
+
 enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count)
 {
 	int rc;
@@ -747,6 +751,9 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	spinel_prop_key_t key;
 
 	rc = spinel_datatype_unpack(buf, count, "C", &header);
+	if (rc < 0) {
+		return kSpinelReceiveUnknown;
+	}
 
 	if (SPINEL_HEADER_GET_TID(header) == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
