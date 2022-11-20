@@ -461,6 +461,22 @@ end:
 	return rc;
 }
 
+static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb) {
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, len), buf, len);
+
+	skb_queue_tail(queue, skb);
+
+	return 0;
+}
+
 static const struct ieee802154_ops ttyrcp_ops = {
 	.owner = THIS_MODULE,
 	.start = otrcp_start,
@@ -604,22 +620,6 @@ static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
 	ttyrcp_ldisc_close(tty);
 	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
-	return 0;
-}
-
-static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_skb(len, GFP_KERNEL);
-	if (!skb) {
-		return -ENOMEM;
-	}
-
-	memcpy(skb_put(skb, len), buf, len);
-
-	skb_queue_tail(queue, skb);
-
 	return 0;
 }
 
