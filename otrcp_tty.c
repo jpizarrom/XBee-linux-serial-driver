@@ -347,11 +347,11 @@ static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel
 	if (len < *data_len)  {
 		return -1;
 	}
-/*
 	xcmd = *cmd;
 	xkey = *key;
 	xheader = *header;
 
+/*
 	if (
 	    ((spinel_expected_command(sent_cmd) == xcmd) || !validate_cmd) &&
 	    ((sent_tid == SPINEL_HEADER_GET_TID(xheader)) || !validate_tid) &&
