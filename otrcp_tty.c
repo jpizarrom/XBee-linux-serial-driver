@@ -456,7 +456,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 {
 	struct ieee802154_hw *hw;
 	struct ttyrcp *rcp;
-	struct workqueue_struct *workq;
 	int rc;
 
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
@@ -471,16 +470,9 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 		return -EOPNOTSUPP;
 	}
 
-	workq = create_workqueue("ttyrcp_recv_workq");
-	if (!workq) {
-		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
-		return -ENOMEM;
-	}
-
 	hw = ieee802154_alloc_hw(sizeof(struct ttyrcp), &ttyrcp_ops);
 	if (!hw) {
 		dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
-		destroy_workqueue(workq);
 		return -ENOMEM;
 	}
 
