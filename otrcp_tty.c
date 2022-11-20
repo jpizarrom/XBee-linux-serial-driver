@@ -352,9 +352,9 @@ static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel
 	xheader = *header;
 
 	if (
-	    ((spinel_expected_command(sent_cmd) == xcmd) || !validate_cmd) &&
-	    ((sent_tid == SPINEL_HEADER_GET_TID(xheader)) || !validate_tid) &&
-	    ((sent_key == xkey) || !validate_key)) {
+	    ((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
+	    ((sent_tid == SPINEL_HEADER_GET_TID(*header)) || !validate_tid) &&
+	    ((sent_key == *key) || !validate_key)) {
 
 		rc = *data_len;
 	}
