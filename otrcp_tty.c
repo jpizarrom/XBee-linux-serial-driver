@@ -339,9 +339,9 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			      bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
-	spinel_prop_key_t key;
-	uint8_t header;
-	uint32_t cmd;
+	spinel_prop_key_t key = sent_key;
+	uint8_t header = sent_tid;
+	uint32_t cmd = sent_cmd;
 	uint8_t *data;
 	spinel_size_t data_len;
 	int rc;
@@ -367,7 +367,6 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
 		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &header, &cmd, &key, &data, &data_len,
-				sent_cmd, sent_key, sent_tid,
 			      validate_cmd, validate_key, validate_tid);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
