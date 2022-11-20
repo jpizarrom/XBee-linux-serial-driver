@@ -768,29 +768,28 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	return kSpinelReceiveUnknown;
 }
 
-uint8_t* otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key,
-	       		bool validate_cmd, bool validate_key, bool validate_tid, size_t *data_len)
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key,
+	       	uint8_t **data, spinel_size_t *data_len,
+		uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
+		bool validate_cmd, bool validate_key, bool validate_tid)
 {
-	uint8_t *data;
-
-	spinel_prop_key_t wk_key;
-	uint8_t wk_header;
-	uint32_t wk_cmd;
-
-	uint32_t rc;
-	rc = spinel_datatype_unpack(buf, len, "CiiD", &wk_header, &wk_cmd, &wk_key, &data, data_len);
-
-	if ((rc >= 0 && len >= *data_len) &&
-	    ((spinel_expected_command(*cmd) == wk_cmd) || !validate_cmd) &&
-	    ((SPINEL_HEADER_GET_TID(*header) == SPINEL_HEADER_GET_TID(wk_header)) || !validate_tid) &&
-	    ((*key == wk_key) || !validate_key)) {
-		*key = wk_key;
-		*header = wk_header;
-		*cmd = wk_cmd;
-		return data;
+	int rc = spinel_datatype_unpack(buf, len, "CiiD", header, cmd, key, data, data_len);
+	if (rc < 0) {
+		return rc;
+	}
+	if (len < *data_len)  {
+		return -1;
 	}
 
-	return NULL;
+	if (
+	    ((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
+	    ((sent_tid == SPINEL_HEADER_GET_TID(*header)) || !validate_tid) &&
+	    ((sent_key == *key) || !validate_key)) {
+
+		rc = *data_len;
+	}
+
+	return rc;
 }
 
 /*
