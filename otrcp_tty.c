@@ -595,10 +595,10 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	if (SPINEL_HEADER_GET_TID(header) == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
-		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
+		//if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			skb_queue_tail(&rcp->recv_queue, skb);
 			complete_all(&rcp->cmd_resp_done);
-		}
+		//}
 	} else if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
