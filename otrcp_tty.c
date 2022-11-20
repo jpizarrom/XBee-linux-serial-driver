@@ -607,7 +607,7 @@ static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 	return 0;
 }
 
-static int ttyrcp_skb_append(struct sk_buff_head *skhead, const uint8_t *buf, size_t len)
+static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
 {
 	struct sk_buff *skb;
 
@@ -618,7 +618,7 @@ static int ttyrcp_skb_append(struct sk_buff_head *skhead, const uint8_t *buf, si
 
 	memcpy(skb_put(skb, len), buf, len);
 
-	skb_queue_tail(skhead, skb);
+	skb_queue_tail(queue, skb);
 
 	return 0;
 }
