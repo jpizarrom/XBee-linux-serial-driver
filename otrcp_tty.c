@@ -607,6 +607,22 @@ static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 	return 0;
 }
 
+static int ttyrcp_skb_append(struct sk_buff_head *skhead, const uint8_t *buf, size_t len)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb) {
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, len), buf, len);
+
+	skb_queue_tail(skhead, skb);
+
+	return 0;
+}
+
 /**
  * ttyrcp_ldisc_recv_buf - Receive serial bytes.
  *
@@ -654,27 +670,23 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 				break;
 			}
 
-			skb = alloc_skb(count, GFP_KERNEL);
-			if (!skb) {
-				dev_err(tty->dev, "%s(): no memory\n", __func__);
-				return 0;
+			rc = ttyrcp_skb_append(&rcp->notify_queue,  buf, frm.ptr - buf);
+			if (rc < 0) {
+				return rc;
 			}
 
-			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
-			skb_queue_tail(&rcp->notify_queue, skb);
 			complete_all(&rcp->wait_notify);
 			break;
 		case kSpinelReceiveResponse:
-			skb = alloc_skb(count, GFP_KERNEL);
-			if (!skb) {
-				dev_err(tty->dev, "%s(): no memory\n", __func__);
-				return 0;
+			if (completion_done(&rcp->wait_response)) {
+				dev_warn(rcp->otrcp.parent, "not wait\n");
 			}
 
-			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+			rc = ttyrcp_skb_append(&rcp->response_queue,  buf, frm.ptr - buf);
+			if (rc < 0) {
+				return rc;
+			}
 
-			skb_queue_tail(&rcp->response_queue, skb);
 			complete_all(&rcp->wait_response);
 			break;
 		default:
