@@ -398,7 +398,7 @@ end:
 	return rc;
 }
 
-static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *received,
+static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
 			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
 			      bool validate_cmd, bool validate_key, bool validate_tid)
 {
@@ -494,7 +494,7 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.caps_size = sizeof(rcp->otrcp.caps);
 	rcp->otrcp.tid = 0xFF;
 	rcp->otrcp.send = ttyrcp_spinel_send;
-	rcp->otrcp.resp = ttyrcp_spinel_resp;
+	rcp->otrcp.wait_response = ttyrcp_spinel_wait_response;
 	rcp->otrcp.wait_notify = ttyrcp_spinel_wait_notify;
 
 	tty->receive_room = 65536;

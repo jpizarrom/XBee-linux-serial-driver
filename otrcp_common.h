@@ -75,7 +75,7 @@ struct otrcp {
 
 	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes,
 		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid);
-	int (*resp)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
+	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
 		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
 		    bool validate_cmd, bool validate_key, bool validate_tid);
 
