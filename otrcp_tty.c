@@ -336,7 +336,6 @@ end:
 
 	
 static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key, uint8_t **data, spinel_size_t *data_len,
-		uint32_t xcmd,      spinel_prop_key_t xkey, uint8_t xheader,
 		uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
 		bool validate_cmd, bool validate_key, bool validate_tid)
 {
@@ -347,9 +346,6 @@ static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel
 	if (len < *data_len)  {
 		return -1;
 	}
-	xcmd = *cmd;
-	xkey = *key;
-	xheader = *header;
 
 	if (
 	    ((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
@@ -396,7 +392,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
 		rc = hoge(skb->data, skb->len, &header, &cmd, &key, &data, &data_len,
-				cmd, key, header, sent_cmd, sent_key, sent_tid,
+				sent_cmd, sent_key, sent_tid,
 			      validate_cmd, validate_key, validate_tid);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
