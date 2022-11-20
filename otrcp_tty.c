@@ -366,8 +366,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &header, &cmd, &key, &data, &data_len,
-			      validate_cmd, validate_key, validate_tid);
+		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &header, &cmd, &key,
+			      validate_cmd, validate_key, validate_tid,  &data, &data_len);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
