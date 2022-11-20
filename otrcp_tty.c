@@ -599,37 +599,6 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 			break;
 	}
 
-#if 0
-	rc = spinel_datatype_unpack(buf, count, "C", &header);
-	if (rc < 0) {
-		return 0;
-	}
-
-	skb = alloc_skb(count, GFP_KERNEL);
-	if (!skb) {
-		dev_err(tty->dev, "%s(): no memory\n", __func__);
-		return 0;
-	}
-
-	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
-	if (SPINEL_HEADER_GET_TID(header) == 0) {
-		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
-		//if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
-			skb_queue_tail(&rcp->recv_queue, skb);
-			complete_all(&rcp->cmd_resp_done);
-		//}
-	} else if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
-		skb_queue_tail(&rcp->recv_queue, skb);
-		complete_all(&rcp->cmd_resp_done);
-	} else {
-		kfree_skb(skb);
-		dev_dbg(rcp->otrcp.parent,
-			"%s: ***************** not handled tid = %x, expected %x\n", __func__,
-			SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
-	}
-#endif
-exit:
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
 }
