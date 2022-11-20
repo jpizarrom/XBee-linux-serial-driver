@@ -340,10 +340,14 @@ static int hoge(uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel
 	return spinel_datatype_unpack(buf, len, "CiiD", header, cmd, key, data, data_len);
 }
 
-static bool fuga(uint32_t cmd,      spinel_prop_key_t key, uint8_t header,
+static bool fuga(int rc, size_t len, uint32_t cmd,      spinel_prop_key_t key, uint8_t header,
 		uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
 		bool validate_cmd, bool validate_key, bool validate_tid, spinel_size_t data_len)
 {
+	if (rc < 0 || len < data_len)  {
+		return false;
+	}
+
 	if (
 	    ((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) &&
 	    ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
@@ -390,12 +394,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		rc = hoge(skb->data, skb->len, &header, &cmd, &key, &data,
 					    &data_len);
 	
-		if (rc < 0 || len < data_len)  {
-			rc = -1;
-			goto end;
-		}
-
-		if (fuga(cmd, key, header, sent_cmd, sent_key, sent_tid,
+		if (fuga(rc, len, cmd, key, header, sent_cmd, sent_key, sent_tid,
 			      validate_cmd, validate_key, validate_tid, data_len)) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
