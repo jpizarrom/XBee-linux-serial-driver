@@ -244,7 +244,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	err = rcp->resp(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid, true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
 			length, key, tid);
@@ -298,7 +298,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_PROP_VALUE_SET,
-			key, tid);
+			key, tid, true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -347,7 +347,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	}
 	if (err >= 0) {
 		err = rcp->resp(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_RESET, 0,
-				0);
+				0, false, true, false);
 	}
 
 	// end:

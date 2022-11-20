@@ -67,10 +67,11 @@ struct otrcp {
 
 	uint8_t hwaddr[8];
 
-	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes, uint32_t cmd,
-		    spinel_prop_key_t key, spinel_tid_t tid);
-	int (*resp)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes, uint32_t cmd,
-		    spinel_prop_key_t key, spinel_tid_t tid);
+	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes,
+		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid);
+	int (*resp)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
+		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
+		    bool validate_cmd, bool validate_key, bool validate_tid);
 
 	uint8_t prev_send[8192];
 	spinel_tid_t prev_tid;

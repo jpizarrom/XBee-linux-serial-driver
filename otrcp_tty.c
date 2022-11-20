@@ -332,7 +332,8 @@ end:
 }
 
 static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid)
+			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
+			      bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	spinel_prop_key_t key;
@@ -364,39 +365,33 @@ static int ttyrcp_spinel_resp(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	while ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
 		rc = spinel_datatype_unpack(skb->data, skb->len, "CiiD", &header, &cmd,
 					    &key, &data, &data_len);
-		if (rc < 0) {
+		kfree_skb(skb);
+
+		if (rc < 0 || len < data_len) {
 			dev_dbg(rcp->otrcp.parent,
 				"unpack cmd=%u(expected=%u), key=%u, tid=%u, data=%p, data_len=%u\n", cmd,
 				spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header), data,
 				data_len);
-			goto end;
+			continue;
 		}
 
-		kfree_skb(skb);
-
-		if (len < data_len) {
-			rc = -1;
-			goto end;
-		}
-
-		memcpy(buf, data, data_len);
-
-		*received = data_len;
-
-		if (((spinel_expected_command(sent_cmd) == cmd) ||
-			    (spinel_expected_command(sent_cmd) == 0)) &&
-			   (sent_tid == SPINEL_HEADER_GET_TID(header)) &&
-			   ((sent_key == key) || (key == 0))) {
-			// pr_debug("------------- RESPONSE -------- %d %x\n", data_len, buf[0]);
-			rc = data_len;
+		if ( ((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) && ((sent_tid == SPINEL_HEADER_GET_TID(header)) || !validate_tid) && ((sent_key == key) || !validate_key) ) {
+			memcpy(buf, data, data_len);
+			*received += data_len;
+			break;
 		} else {
 			dev_dbg(rcp->otrcp.parent,
-				"************ not handled cmd=%u(expected=%u), key=%u, tid=%u, "
-				"sent_tid=%u, data=%p, data_len=%u\n",
-				cmd, spinel_expected_command(sent_cmd), key, SPINEL_HEADER_GET_TID(header),
-				rcp->otrcp.tid, data, data_len);
-			rc = -1;
+				"unpack cmd=%u(expected=%u), key=%u(expected=%u), tid=%u(expected=%u), data=%p, data_len=%u\n", cmd,
+				spinel_expected_command(sent_cmd), key, sent_key, SPINEL_HEADER_GET_TID(header), sent_tid, data,
+				data_len);
+
 		}
+	}
+
+	if ((skb = skb_dequeue(&rcp->recv_queue)) != NULL) {
+		skb = skb_peek(&rcp->recv_queue);
+		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
+		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
 	}
 
 end:
@@ -602,10 +597,8 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
 
-	if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
-		skb_queue_tail(&rcp->recv_queue, skb);
-		complete_all(&rcp->cmd_resp_done);
-	} else if (SPINEL_HEADER_GET_TID(header) == 0) {
+	if (SPINEL_HEADER_GET_TID(header) == 0) {
+		pr_debug("---------- NOTIFICATION -----------------\n");
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
 		if (rc < 0 || cmd != SPINEL_CMD_PROP_VALUE_IS) {
 			goto exit;
@@ -616,6 +609,10 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		if (key == SPINEL_PROP_STREAM_RAW) {
 		} else if (key == SPINEL_PROP_LAST_STATUS) {
 		}
+		skb_queue_tail(&rcp->recv_queue, skb);
+		complete_all(&rcp->cmd_resp_done);
+	} else if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
+		pr_debug("---------- RESPONSE -----------------\n");
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
 	} else {
