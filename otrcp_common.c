@@ -245,8 +245,8 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->wait_response(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid,
-			true, true, true);
+	err = rcp->wait_response(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET,
+				 key, tid, true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
 			length, key, tid);
@@ -299,8 +299,8 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_PROP_VALUE_SET,
-			key, tid, true, true, true);
+	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
+				 SPINEL_CMD_PROP_VALUE_SET, key, tid, true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -348,8 +348,8 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_RESET, 0, 0);
 	}
 	if (err >= 0) {
-		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, SPINEL_CMD_RESET, 0,
-				0, false, true, false);
+		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
+				       SPINEL_CMD_RESET, 0, 0, false, true, false);
 	}
 
 	// end:
@@ -743,7 +743,8 @@ void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t cou
 {
 }
 
-enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count)
+enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
+							 size_t count)
 {
 	int rc;
 	uint8_t header;
@@ -768,9 +769,10 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	return kSpinelReceiveUnknown;
 }
 
-int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key,
-		bool validate_cmd, bool validate_key, bool validate_tid,
-	       	uint8_t **data, spinel_size_t *data_len)
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header,
+				 uint32_t *cmd, spinel_prop_key_t *key, bool validate_cmd,
+				 bool validate_key, bool validate_tid, uint8_t **data,
+				 spinel_size_t *data_len)
 {
 	uint32_t sent_cmd = *cmd;
 	spinel_prop_key_t sent_key = *key;
@@ -780,12 +782,11 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 	if (rc < 0) {
 		return rc;
 	}
-	if (len < *data_len)  {
+	if (len < *data_len) {
 		return -1;
 	}
 
-	if (
-	    ((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
+	if (((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
 	    ((sent_tid == SPINEL_HEADER_GET_TID(*header)) || !validate_tid) &&
 	    ((sent_key == *key) || !validate_key)) {
 

@@ -366,8 +366,9 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &header, &cmd, &key,
-			      validate_cmd, validate_key, validate_tid,  &data, &data_len);
+		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &header, &cmd,
+						  &key, validate_cmd, validate_key, validate_tid,
+						  &data, &data_len);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
@@ -396,21 +397,25 @@ end:
 }
 
 static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
-			      bool validate_cmd, bool validate_key, bool validate_tid)
+				       uint32_t sent_cmd, spinel_prop_key_t sent_key,
+				       spinel_tid_t sent_tid, bool validate_cmd, bool validate_key,
+				       bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
-	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response, &rcp->response_queue,
-			      sent_cmd, sent_key, sent_tid, validate_cmd, validate_key, validate_tid);
+	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response,
+				  &rcp->response_queue, sent_cmd, sent_key, sent_tid, validate_cmd,
+				  validate_key, validate_tid);
 }
 
 static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
-			      bool validate_cmd, bool validate_key, bool validate_tid)
+				     uint32_t sent_cmd, spinel_prop_key_t sent_key,
+				     spinel_tid_t sent_tid, bool validate_cmd, bool validate_key,
+				     bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_notify, &rcp->notify_queue,
-			      sent_cmd, sent_key, sent_tid, validate_cmd, validate_key, validate_tid);
+				  sent_cmd, sent_key, sent_tid, validate_cmd, validate_key,
+				  validate_tid);
 }
 
 static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
@@ -607,38 +612,38 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	}
 
 	switch (otrcp_spinel_receive_type(&rcp->otrcp, buf, count)) {
-		case kSpinelReceiveNotification:
-			otrcp_handle_notification(&rcp->otrcp, buf, count);
+	case kSpinelReceiveNotification:
+		otrcp_handle_notification(&rcp->otrcp, buf, count);
 
-			if (completion_done(&rcp->wait_notify)) {
-				return 0;
-			}
-
-			rc = ttyrcp_skb_append(&rcp->notify_queue,  buf, frm.ptr - buf);
-			if (rc < 0) {
-				return 0;
-			}
-
-			complete_all(&rcp->wait_notify);
-			break;
-		case kSpinelReceiveResponse:
-			if (completion_done(&rcp->wait_response)) {
-				dev_warn(rcp->otrcp.parent, "not wait\n");
-			}
-
-			rc = ttyrcp_skb_append(&rcp->response_queue,  buf, frm.ptr - buf);
-			if (rc < 0) {
-				return rc;
-			}
-
-			complete_all(&rcp->wait_response);
-			break;
-		default:
-			kfree_skb(skb);
-			dev_dbg(rcp->otrcp.parent,
-				"%s: ***************** not handled tid = %x, expected %x\n", __func__,
-				SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
+		if (completion_done(&rcp->wait_notify)) {
 			return 0;
+		}
+
+		rc = ttyrcp_skb_append(&rcp->notify_queue, buf, frm.ptr - buf);
+		if (rc < 0) {
+			return 0;
+		}
+
+		complete_all(&rcp->wait_notify);
+		break;
+	case kSpinelReceiveResponse:
+		if (completion_done(&rcp->wait_response)) {
+			dev_warn(rcp->otrcp.parent, "not wait\n");
+		}
+
+		rc = ttyrcp_skb_append(&rcp->response_queue, buf, frm.ptr - buf);
+		if (rc < 0) {
+			return rc;
+		}
+
+		complete_all(&rcp->wait_response);
+		break;
+	default:
+		kfree_skb(skb);
+		dev_dbg(rcp->otrcp.parent,
+			"%s: ***************** not handled tid = %x, expected %x\n", __func__,
+			SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
+		return 0;
 	}
 
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);

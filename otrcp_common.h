@@ -73,15 +73,15 @@ struct otrcp {
 
 	uint8_t hwaddr[8];
 
-	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes,
-		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid);
+	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes, uint32_t cmd,
+		    spinel_prop_key_t key, spinel_tid_t tid);
 	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
-		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
-		    bool validate_cmd, bool validate_key, bool validate_tid);
+			     uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
+			     bool validate_cmd, bool validate_key, bool validate_tid);
 
 	int (*wait_notify)(void *ctx, uint8_t *buf, size_t len, size_t *received_bytes,
-		    uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
-		    bool validate_cmd, bool validate_key, bool validate_tid);
+			   uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid, bool validate_cmd,
+			   bool validate_key, bool validate_tid);
 
 	uint8_t prev_send[8192];
 	spinel_tid_t prev_tid;
@@ -107,11 +107,13 @@ int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
 
-enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count);
+enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
+							 size_t count);
 void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count);
-int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header, uint32_t *cmd, spinel_prop_key_t *key,
-		bool validate_cmd, bool validate_key, bool validate_tid,
-	       	uint8_t **data, spinel_size_t *data_len);
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header,
+				 uint32_t *cmd, spinel_prop_key_t *key, bool validate_cmd,
+				 bool validate_key, bool validate_tid, uint8_t **data,
+				 spinel_size_t *data_len);
 static inline uint32_t spinel_expected_command(uint32_t cmd)
 {
 	switch (cmd) {
