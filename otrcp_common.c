@@ -782,8 +782,9 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 	if (rc < 0) {
 		return rc;
 	}
+
 	if (len < *data_len) {
-		return -1;
+		return -ENOBUFS;
 	}
 
 	if (((spinel_expected_command(sent_cmd) == *cmd) || !validate_cmd) &&
@@ -791,6 +792,13 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 	    ((sent_key == *key) || !validate_key)) {
 
 		rc = *data_len;
+	} else {
+			dev_dbg(rcp->parent,
+				"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
+				"tid=%u(expected=%u), data=%p, data_len=%u\n",
+				*cmd, spinel_expected_command(sent_cmd), *key, sent_key,
+				SPINEL_HEADER_GET_TID(*header), sent_tid, data, *data_len);
+		//rc = -EINVAL;
 	}
 
 	return rc;
