@@ -577,27 +577,16 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 		return 0;
 	}
 
-	switch (otrcp_spinel_receive_type(&rcp->otrcp, buf, count)) {
-		case kSpinelReceiveNotification:
-		case kSpinelReceiveResponse:
-			skb = alloc_skb(count, GFP_KERNEL);
-			if (!skb) {
-				dev_err(tty->dev, "%s(): no memory\n", __func__);
-				return 0;
-			}
-
-			memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
-
-			skb_queue_tail(&rcp->recv_queue, skb);
-			complete_all(&rcp->cmd_resp_done);
-			break;
-		default:
-			kfree_skb(skb);
-			dev_dbg(rcp->otrcp.parent,
-				"%s: ***************** not handled tid = %x, expected %x\n", __func__,
-				SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
-			break;
+	skb = alloc_skb(count, GFP_KERNEL);
+	if (!skb) {
+		dev_err(tty->dev, "%s(): no memory\n", __func__);
+		return 0;
 	}
+
+	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
+
+	skb_queue_tail(&rcp->recv_queue, skb);
+	complete_all(&rcp->cmd_resp_done);
 
 	// dev_dbg(tty->dev, "end %s:@%d %d\n", __func__, __LINE__, count);
 	return count;
