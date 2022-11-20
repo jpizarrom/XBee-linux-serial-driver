@@ -145,8 +145,9 @@ static int spinel_reset_command(uint8_t *buffer, size_t length, const char *form
 	return packed;
 }
 
-static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command, spinel_prop_key_t key,
-			  spinel_tid_t tid, const char *format, va_list args)
+static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
+			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
+			       va_list args)
 {
 	int packed;
 	uint16_t offset;
@@ -244,7 +245,8 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->resp(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid, true, true, true);
+	err = rcp->resp(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid,
+			true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
 			length, key, tid);
@@ -398,7 +400,8 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 				  SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
 
-int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb, uint8_t *channel, int8_t *lqi)
+int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
+		    uint8_t *channel, int8_t *lqi)
 {
 	int rc = 0;
 	uint16_t flags = 0;
@@ -438,9 +441,8 @@ int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk
 	buf += unpacked;
 	len -= unpacked;
 
-	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC))
-	{
-		unpacked = spinel_datatype_unpack_in_place(buf, len,
+	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
+		unpacked = spinel_datatype_unpack_in_place( buf, len,
 			SPINEL_DATATYPE_STRUCT_S(	 // MAC-data
 				SPINEL_DATATYPE_UINT8_S	 // Security key index
 				SPINEL_DATATYPE_UINT32_S // Security frame counter
