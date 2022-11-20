@@ -477,7 +477,6 @@ int extract_stream_raw_response(struct otrcp *rcp, uint8_t *buf, size_t len)
 	spinel_status_t status;
 	bool framePending = false;
 	bool headerUpdated = false;
-	int rc;
 	int8_t lqi;
 	uint8_t channel;
 	struct sk_buff *skb;
@@ -738,6 +737,28 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
+}
+
+enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count)
+{
+	int rc;
+	uint8_t header;
+	uint32_t cmd;
+	spinel_prop_key_t key;
+
+	rc = spinel_datatype_unpack(buf, count, "C", &header);
+
+	if (SPINEL_HEADER_GET_TID(header) == 0) {
+		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
+		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
+			return kSpinelReceiveNotification;
+		}
+		return kSpinelReceiveUnknown;
+	} else if (SPINEL_HEADER_GET_TID(header) == rcp->tid) {
+		return kSpinelReceiveResponse;
+	}
+
+	return kSpinelReceiveUnknown;
 }
 
 /*

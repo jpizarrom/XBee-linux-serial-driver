@@ -33,6 +33,12 @@ enum {
 		32, ///< Max buffer size used to store `SPINEL_PROP_PHY_CHAN_SUPPORTED` value.
 };
 
+enum spinel_received_data_type {
+	kSpinelReceiveUnknown = 0,
+	kSpinelReceiveResponse = 1,
+	kSpinelReceiveNotification = 2,
+};
+
 struct otrcp {
 	struct ieee802154_hw *hw;
 	struct device *parent;
@@ -96,6 +102,8 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb);
 int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
+
+enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count);
 
 static inline uint32_t spinel_expected_command(uint32_t cmd)
 {

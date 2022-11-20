@@ -594,28 +594,19 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	memcpy(skb_put(skb, frm.ptr - buf), buf, frm.ptr - buf);
 
 	if (SPINEL_HEADER_GET_TID(header) == 0) {
-		pr_debug("---------- NOTIFICATION -----------------\n");
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
-		if (rc < 0 || cmd != SPINEL_CMD_PROP_VALUE_IS) {
-			goto exit;
+		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
+			skb_queue_tail(&rcp->recv_queue, skb);
+			complete_all(&rcp->cmd_resp_done);
 		}
-
-		pr_debug("------ rc = %d, header=%d cmd=%d key=%d\n", rc, header, cmd, key);
-
-		if (key == SPINEL_PROP_STREAM_RAW) {
-		} else if (key == SPINEL_PROP_LAST_STATUS) {
-		}
-		skb_queue_tail(&rcp->recv_queue, skb);
-		complete_all(&rcp->cmd_resp_done);
 	} else if (SPINEL_HEADER_GET_TID(header) == rcp->otrcp.tid) {
-		pr_debug("---------- RESPONSE -----------------\n");
 		skb_queue_tail(&rcp->recv_queue, skb);
 		complete_all(&rcp->cmd_resp_done);
 	} else {
+		kfree_skb(skb);
 		dev_dbg(rcp->otrcp.parent,
 			"%s: ***************** not handled tid = %x, expected %x\n", __func__,
 			SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
-		// complete_all(&rcp->cmd_resp_done);
 	}
 
 exit:
