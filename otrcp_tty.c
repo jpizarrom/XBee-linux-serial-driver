@@ -368,7 +368,6 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	while ((skb = skb_dequeue(queue)) != NULL) {
 		rc = spinel_datatype_unpack(skb->data, skb->len, "CiiD", &header, &cmd, &key, &data,
 					    &data_len);
-		kfree_skb(skb);
 
 		if ((rc >= 0 && len >= data_len) &&
 		    ((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) &&
@@ -376,6 +375,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		    ((sent_key == key) || !validate_key)) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
+			kfree_skb(skb);
 			break;
 		} else {
 			dev_dbg(rcp->otrcp.parent,
@@ -384,6 +384,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 				cmd, spinel_expected_command(sent_cmd), key, sent_key,
 				SPINEL_HEADER_GET_TID(header), sent_tid, data, data_len);
 		}
+		kfree_skb(skb);
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
