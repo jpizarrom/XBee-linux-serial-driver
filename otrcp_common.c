@@ -84,7 +84,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, verify_cmd, verify_tid, verify_key, ...)                                           \
+#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, validate_cmd, validate_tid, validate_key, ...)                                           \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -93,8 +93,8 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), \
-				   verify_cmd, verify_tid, verify_key, \
-		       		spinel_data_format_str_##prop, \
+				   validate_cmd, validate_tid, validate_key, \
+				   spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -274,8 +274,8 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 }
 
 static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				   spinel_prop_key_t key, 
-				   bool verify_cmd, bool verify_key, bool verify_tid,
+				   spinel_prop_key_t key,
+				   bool validate_cmd, bool validate_key, bool validate_tid,
 				   const char *fmt, va_list args)
 {
 	int err;
@@ -304,7 +304,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
-				 SPINEL_CMD_PROP_VALUE_SET, key, tid, verify_cmd, verify_key, verify_tid);
+				 SPINEL_CMD_PROP_VALUE_SET, key, tid, validate_cmd, validate_key, validate_tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -321,7 +321,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 
 static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
 				 spinel_prop_key_t key,
-				   bool verify_cmd, bool verify_key, bool verify_tid,
+				 bool validate_cmd, bool validate_key, bool validate_tid,
 				 const char *fmt, ...)
 {
 	va_list args;
