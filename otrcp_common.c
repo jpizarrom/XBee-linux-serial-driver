@@ -787,8 +787,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 
 	int rc;
 
-	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, data_len)) <
-	    0) {
+	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, data_len)) < 0) {
 		return rc;
 	}
 
