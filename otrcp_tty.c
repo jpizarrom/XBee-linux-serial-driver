@@ -346,8 +346,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	*received = 0;
 
 	// dev_dbg(rcp->otrcp.parent,
-	//	"%s(ctx=%p, buf=%p, len=%lu, expected_cmd=%u, expected_key=%u, expected_tid=%u)\n", __func__,
-	//	ctx, buf, len, expected_cmd, expected_key, expected_tid);
+	//	"%s(ctx=%p, buf=%p, len=%lu, expected_cmd=%u, expected_key=%u, expected_tid=%u)\n",
+	//__func__, 	ctx, buf, len, expected_cmd, expected_key, expected_tid);
 	reinit_completion(completion);
 	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
 	if (rc <= 0) {
@@ -362,8 +362,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len,
-						  &data, &data_len, expected);
+		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &data,
+						  &data_len, expected);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
@@ -386,7 +386,7 @@ end:
 }
 
 static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
-		struct otrcp_received_data_verify *expected)
+				       struct otrcp_received_data_verify *expected)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response,
