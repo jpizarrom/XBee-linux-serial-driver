@@ -800,7 +800,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 				"tid=%u(expected=%u), data=%p, data_len=%u\n",
 				*cmd, spinel_expected_command(sent_cmd), *key, sent_key,
 				SPINEL_HEADER_GET_TID(*header), sent_tid, data, *data_len);
-		//rc = -EINVAL;
+		rc = -EINVAL;
 	}
 
 	return rc;
