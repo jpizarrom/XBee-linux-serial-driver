@@ -763,18 +763,20 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	uint8_t header;
 	uint32_t cmd;
 	spinel_prop_key_t key;
+	spinel_tid_t tid;
 
 	if ((rc = spinel_datatype_unpack(buf, count, "C", &header)) < 0) {
 		return kSpinelReceiveUnknown;
 	}
+	tid = SPINEL_HEADER_GET_TID(header);
 
-	if (SPINEL_HEADER_GET_TID(header) == 0) {
+	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			return kSpinelReceiveNotification;
 		}
 		return kSpinelReceiveUnknown;
-	} else if (SPINEL_HEADER_GET_TID(header) == rcp->tid) {
+	} else if (tid == rcp->tid) {
 		return kSpinelReceiveResponse;
 	}
 
@@ -1014,6 +1016,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
+	spinel_tid_t *tid_ptr;
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
@@ -1025,6 +1028,9 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 		return rc;
 	}
+
+	tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
+	*tid_ptr = 0;
 	
 	skb_queue_tail(&rcp->xmit_queue, skb);
 
