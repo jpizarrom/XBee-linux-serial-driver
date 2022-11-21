@@ -149,17 +149,16 @@ static int hdlc_frame_encode_byte(struct hdlc_frame *frame, uint8_t byte)
 			rc = -ENOBUFS;
 			goto exit;
 		}
-
-		rc = hdlc_frame_write_byte(frame, kEscapeSequence);
-		if (rc < 0)
+		
+		if ((rc = hdlc_frame_write_byte(frame, kEscapeSequence)) < 0)
 			goto exit;
 
-		rc = hdlc_frame_write_byte(frame, (byte ^ 0x20));
-		if (rc < 0)
+		
+		if ((rc = hdlc_frame_write_byte(frame, (byte ^ 0x20))) < 0)
 			goto exit;
 	} else {
-		rc = hdlc_frame_write_byte(frame, byte);
-		if (rc < 0)
+		
+		if ((rc = hdlc_frame_write_byte(frame, byte)) < 0)
 			goto exit;
 	}
 
@@ -175,8 +174,8 @@ static int hdlc_frame_encode_buffer(struct hdlc_frame *frame, const uint8_t *dat
 	int rc = 0;
 
 	while (len--) {
-		rc = hdlc_frame_encode_byte(frame, *data++);
-		if (rc < 0)
+		
+		if ((rc = hdlc_frame_encode_byte(frame, *data++)) < 0)
 			goto exit;
 	}
 
@@ -195,14 +194,13 @@ static int hdlc_frame_end(struct hdlc_frame *frame)
 
 	fcs ^= 0xffff;
 
-	rc = hdlc_frame_encode_byte(frame, fcs & 0xff);
-	if (rc < 0)
+	if ((rc = hdlc_frame_encode_byte(frame, fcs & 0xff)) < 0)
 		goto exit;
-	rc = hdlc_frame_encode_byte(frame, fcs >> 8);
-	if (rc < 0)
+
+	if ((rc = hdlc_frame_encode_byte(frame, fcs >> 8)) < 0)
 		goto exit;
-	rc = hdlc_frame_write_byte(frame, kFlagSequence);
-	if (rc < 0)
+
+	if ((rc = hdlc_frame_write_byte(frame, kFlagSequence)) < 0)
 		goto exit;
 
 exit:
@@ -311,20 +309,17 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 	// dev_dbg(rcp->parent, "%s buf=%p, len=%lu, cmd=%u, key=%u, tid=%u\n", __func__, buf, len,
 	//	cmd, key, tid);
 
-	rc = hdlc_frame_begin(&frm);
-	if (rc < 0)
+	
+	if ((rc = hdlc_frame_begin(&frm)) < 0)
 		goto end;
 
-	rc = hdlc_frame_encode_buffer(&frm, buf, len);
-	if (rc < 0)
+	if ((rc = hdlc_frame_encode_buffer(&frm, buf, len)) < 0)
 		goto end;
 
-	rc = hdlc_frame_end(&frm);
-	if (rc < 0)
+	if ((rc = hdlc_frame_end(&frm)) < 0)
 		goto end;
 
-	rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf);
-	if (rc < 0)
+	if ((rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf)) < 0)
 		goto end;
 
 	*sent = rc;
