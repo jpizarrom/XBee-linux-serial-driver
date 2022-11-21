@@ -84,22 +84,16 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, validate_cmd, validate_tid, validate_key, ...) \
+#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, expected, ...) \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
-	struct otrcp_received_data_verify expected = { \
-		0,	      0, \
-		0,	      validate_tid, \
-		validate_cmd, validate_key, \
-	}; \
-	\
 	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
-	expected.key = CONCATENATE(SPINEL_PROP_, prop); \
+	(expected)->key = CONCATENATE(SPINEL_PROP_, prop); \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), &expected,    \
+				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
 				   spinel_data_format_str_##prop, __VA_ARGS__);      \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -109,7 +103,13 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	SPINEL_SET_PROP_IMPL_X(prop, rcp, simple_return, true, true, true, __VA_ARGS__)
+	struct otrcp_received_data_verify expected = { \
+		0,	      0, \
+		0,	      true, \
+		true, true, \
+	}; \
+	\
+	SPINEL_SET_PROP_IMPL_X(prop, rcp, simple_return, &expected, __VA_ARGS__)
 
 #define SPINEL_RESET_IMPL_X(rcp, postproc, ...)                                                    \
 	uint8_t *buffer;                                                                           \
@@ -546,7 +546,12 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, false, false, false,
+	struct otrcp_received_data_verify expected = {
+		0,	      0,
+		0,	      false,
+		false, false,
+	};
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, &expected,
 			       frame, frame_length, channel, backoffs, retries, csmaca,
 			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
