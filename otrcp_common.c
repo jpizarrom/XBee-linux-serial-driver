@@ -203,7 +203,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
 			return -1;
 		}
-		
+
 		if ((rc = spinel_datatype_unpack(data, len, fmt, out)) < 0) {
 			pr_debug("%s: %d rc=%d\n", __func__, __LINE__, rc);
 			return rc;
@@ -230,8 +230,8 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
 	struct otrcp_received_data_verify expected = {
-		tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
-		true, true, true,
+		tid,  otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key, true, true,
+		true,
 	};
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
@@ -252,8 +252,6 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	err = rcp->wait_response(rcp, buffer, length, &received_bytes, &expected);
-			         //tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
-				 //true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
 			length, key, tid);
@@ -289,10 +287,10 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	struct otrcp_received_data_verify expected = {
-		tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
-		validate_tid, validate_cmd, validate_key,
+		tid,	      otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET),
+		key,	      validate_tid,
+		validate_cmd, validate_key,
 	};
-
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -313,8 +311,6 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
-				 //tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
-				 //validate_cmd, validate_key, validate_tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -353,8 +349,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	struct otrcp_received_data_verify expected = {
-		0, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0,
-		false, false, true,
+		0, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, false, false, true,
 	};
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
@@ -369,11 +364,8 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	}
 	if (err >= 0) {
 		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
-				       //otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0,
-				       //false, false, true);
 	}
 
-	// end:
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -422,7 +414,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 }
 
 static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
-		    uint8_t *channel, int8_t *lqi)
+			   uint8_t *channel, int8_t *lqi)
 {
 	int rc = 0;
 	uint16_t flags = 0;
@@ -646,7 +638,7 @@ static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
 		int8_t power;
-		
+
 		if ((rc = otrcp_set_phy_tx_power(rcp, i)) < 0)
 			continue;
 
@@ -659,7 +651,6 @@ static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
 		}
 	}
 
-	
 	if ((rc = otrcp_set_phy_tx_power(rcp, 0)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
@@ -677,10 +668,10 @@ static int otrcp_get_cca_ed_level_table(struct otrcp *rcp, s32 *ed_levels, size_
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
 		int8_t level;
-		
+
 		if ((rc = otrcp_set_phy_cca_threshold(rcp, i)) < 0)
 			continue;
-		
+
 		if ((rc = otrcp_get_phy_cca_threshold(rcp, &level)) < 0)
 			continue;
 
@@ -768,7 +759,6 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	uint32_t cmd;
 	spinel_prop_key_t key;
 
-	
 	if ((rc = spinel_datatype_unpack(buf, count, "C", &header)) < 0) {
 		return kSpinelReceiveUnknown;
 	}
@@ -786,17 +776,19 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	return kSpinelReceiveUnknown;
 }
 
-int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
-				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected)
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t **data,
+				 spinel_size_t *data_len,
+				 struct otrcp_received_data_verify *expected)
 {
 	uint8_t header;
 	uint32_t cmd;
 	spinel_prop_key_t key;
 	spinel_tid_t tid;
 
-	int rc; 
+	int rc;
 
-	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &header, &cmd, &key, data, data_len)) < 0) {
+	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &header, &cmd, &key, data, data_len)) <
+	    0) {
 		return rc;
 	}
 
@@ -910,23 +902,22 @@ int otrcp_start(struct ieee802154_hw *hw)
 
 	otrcp_reset(rcp, SPINEL_RESET_STACK);
 
-	
 	if ((rc = otrcp_get_ncp_version(rcp, rcp->ncp_version, sizeof(rcp->ncp_version))) < 0) {
 		dev_dbg(rcp->parent, "end %s@%d %d\n", __func__, __LINE__, rc);
 		return rc;
 	}
 
 	if ((rc = otrcp_get_protocol_version(rcp, &rcp->protocol_version_major,
-					&rcp->protocol_version_minor)) < 0) {
+					     &rcp->protocol_version_minor)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
-	
+
 	if ((rc = otrcp_get_hwaddr(rcp, rcp->hwaddr)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
-	
+
 	if ((rc = otrcp_get_caps(rcp, rcp->caps, rcp->caps_size)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
@@ -936,19 +927,19 @@ int otrcp_start(struct ieee802154_hw *hw)
 		if ((rc = otrcp_get_rcp_api_version(rcp, &rcp->rcp_api_version)) < 0)
 			return rc;
 	}
-	
+
 	if ((rc = otrcp_get_radio_caps(rcp, &rcp->radio_caps)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	
 	if ((rc = otrcp_get_phy_chan(rcp, &hw->phy->current_channel)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
 
-	if ((rc = otrcp_get_cca_ed_level_table(rcp, rcp->cca_ed_levels, &rcp->cca_ed_levels_size)) < 0) {
+	if ((rc = otrcp_get_cca_ed_level_table(rcp, rcp->cca_ed_levels, &rcp->cca_ed_levels_size)) <
+	    0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
@@ -964,7 +955,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 	}
 
 	if ((rc = otrcp_get_phy_chan_supported(rcp, rcp->phy_chan_supported,
-					  sizeof(rcp->phy_chan_supported))) < 0) {
+					       sizeof(rcp->phy_chan_supported))) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
@@ -1010,7 +1001,7 @@ void otrcp_stop(struct ieee802154_hw *hw)
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
-	
+
 	if ((rc = otrcp_set_enable(rcp, false)) < 0)
 		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 }

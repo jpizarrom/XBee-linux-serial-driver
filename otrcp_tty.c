@@ -149,15 +149,14 @@ static int hdlc_frame_encode_byte(struct hdlc_frame *frame, uint8_t byte)
 			rc = -ENOBUFS;
 			goto exit;
 		}
-		
+
 		if ((rc = hdlc_frame_write_byte(frame, kEscapeSequence)) < 0)
 			goto exit;
 
-		
 		if ((rc = hdlc_frame_write_byte(frame, (byte ^ 0x20))) < 0)
 			goto exit;
 	} else {
-		
+
 		if ((rc = hdlc_frame_write_byte(frame, byte)) < 0)
 			goto exit;
 	}
@@ -174,7 +173,7 @@ static int hdlc_frame_encode_buffer(struct hdlc_frame *frame, const uint8_t *dat
 	int rc = 0;
 
 	while (len--) {
-		
+
 		if ((rc = hdlc_frame_encode_byte(frame, *data++)) < 0)
 			goto exit;
 	}
@@ -309,7 +308,6 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 	// dev_dbg(rcp->parent, "%s buf=%p, len=%lu, cmd=%u, key=%u, tid=%u\n", __func__, buf, len,
 	//	cmd, key, tid);
 
-	
 	if ((rc = hdlc_frame_begin(&frm)) < 0)
 		goto end;
 
@@ -319,7 +317,8 @@ static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent,
 	if ((rc = hdlc_frame_end(&frm)) < 0)
 		goto end;
 
-	if ((rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf, frm.ptr - rcp->hdlc_lite_buf)) < 0)
+	if ((rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf,
+				       frm.ptr - rcp->hdlc_lite_buf)) < 0)
 		goto end;
 
 	*sent = rc;
@@ -348,9 +347,10 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
-			rc, __func__, (completion == &rcp->wait_response) ? "response" : "notification",
-		       	buf, len, expected->cmd, expected->key, expected->tid,
-		       	expected->validate_cmd, expected->validate_key, expected->validate_tid);
+			rc, __func__,
+			(completion == &rcp->wait_response) ? "response" : "notification", buf, len,
+			expected->cmd, expected->key, expected->tid, expected->validate_cmd,
+			expected->validate_key, expected->validate_tid);
 
 		return (rc == 0) ? -ETIMEDOUT : rc;
 	}
