@@ -84,7 +84,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, validate_cmd, validate_tid, validate_key, ...)                                           \
+#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, validate_cmd, validate_tid, validate_key, ...) \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -92,10 +92,8 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), \
-				   validate_cmd, validate_tid, validate_key, \
-				   spinel_data_format_str_##prop, \
-				   __VA_ARGS__);                                                   \
+				   CONCATENATE(SPINEL_PROP_, prop), validate_cmd, validate_tid,    \
+				   validate_key, spinel_data_format_str_##prop, __VA_ARGS__);      \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
 	}                                                                                          \
@@ -274,7 +272,8 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 }
 
 static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				   spinel_prop_key_t key, bool validate_cmd, bool validate_key, bool validate_tid, const char *fmt, va_list args)
+				   spinel_prop_key_t key, bool validate_cmd, bool validate_key,
+				   bool validate_tid, const char *fmt, va_list args)
 {
 	int err;
 	uint8_t *recv_buffer;
@@ -302,7 +301,8 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	}
 
 	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
-				 SPINEL_CMD_PROP_VALUE_SET, key, tid, validate_cmd, validate_key, validate_tid);
+				 SPINEL_CMD_PROP_VALUE_SET, key, tid, validate_cmd, validate_key,
+				 validate_tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -318,13 +318,15 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 }
 
 static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				 spinel_prop_key_t key, bool validate_cmd, bool validate_key, bool validate_tid, const char *fmt, ...)
+				 spinel_prop_key_t key, bool validate_cmd, bool validate_key,
+				 bool validate_tid, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, validate_cmd, validate_key, validate_tid, fmt, args);
+	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, validate_cmd, validate_key,
+				     validate_tid, fmt, args);
 	va_end(args);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
@@ -530,9 +532,9 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, true, false, true, frame, frame_length,
-			       channel, backoffs, retries, csmaca, headerupdate, aretx, skipaes,
-			       txdelay, txdelay_base);
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, true, false, true,
+			       frame, frame_length, channel, backoffs, retries, csmaca,
+			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
 
 static int otrcp_get_phy_rssi(struct otrcp *rcp, uint8_t *rssi)
@@ -795,11 +797,11 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 
 		rc = *data_len;
 	} else {
-			dev_dbg(rcp->parent,
-				"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
-				"tid=%u(expected=%u), data=%p, data_len=%u\n",
-				*cmd, spinel_expected_command(sent_cmd), *key, sent_key,
-				SPINEL_HEADER_GET_TID(*header), sent_tid, data, *data_len);
+		dev_dbg(rcp->parent,
+			"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
+			"tid=%u(expected=%u), data=%p, data_len=%u\n",
+			*cmd, spinel_expected_command(sent_cmd), *key, sent_key,
+			SPINEL_HEADER_GET_TID(*header), sent_tid, data, *data_len);
 		rc = -EINVAL;
 	}
 
