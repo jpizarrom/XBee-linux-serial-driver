@@ -347,6 +347,12 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	int rc;
 	struct sk_buff *skb;
 
+	struct otrcp_received_data_verify expected = {
+		sent_tid, sent_cmd, sent_key,
+		validate_tid, validate_cmd, validate_key,
+	};
+
+
 	*received = 0;
 
 	// dev_dbg(rcp->otrcp.parent,
@@ -366,9 +372,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, header, cmd,
-						  key, validate_cmd, validate_key, validate_tid,
-						  &data, &data_len);
+		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len,
+						  &data, &data_len, &expected);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;

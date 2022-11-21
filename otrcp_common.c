@@ -773,10 +773,8 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	return kSpinelReceiveUnknown;
 }
 
-int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, spinel_tid_t sent_tid,
-				 uint32_t sent_cmd, spinel_prop_key_t sent_key, bool validate_cmd,
-				 bool validate_key, bool validate_tid, uint8_t **data,
-				 spinel_size_t *data_len)
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
+				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected)
 {
 	uint32_t cmd;
 	spinel_prop_key_t key;
@@ -791,17 +789,18 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, sp
 		return -ENOBUFS;
 	}
 
-	if (((spinel_expected_command(sent_cmd) == cmd) || !validate_cmd) &&
-	    ((SPINEL_HEADER_GET_TID(sent_tid) == SPINEL_HEADER_GET_TID(header)) || !validate_tid) &&
-	    ((sent_key == key) || !validate_key)) {
+	if (
+	    ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
+	    ((spinel_expected_command(expected->cmd) == cmd) || !expected->validate_cmd) &&
+	    ((expected->key == key) || !expected->validate_key)) {
 
 		rc = *data_len;
 	} else {
 		dev_dbg(rcp->parent,
 			"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
 			"tid=%u(expected=%u), data=%p, data_len=%u\n",
-			cmd, spinel_expected_command(sent_cmd), key, sent_key,
-			SPINEL_HEADER_GET_TID(header), sent_tid, data, *data_len);
+			cmd, spinel_expected_command(expected->cmd), key, expected->key,
+			SPINEL_HEADER_GET_TID(header), expected->tid, data, *data_len);
 		rc = -EINVAL;
 	}
 
