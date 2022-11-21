@@ -351,8 +351,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	*received = 0;
 
 	// dev_dbg(rcp->otrcp.parent,
-	//	"%s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n", __func__,
-	//	ctx, buf, len, sent_cmd, sent_key, sent_tid);
+	//	"%s(ctx=%p, buf=%p, len=%lu, expected_cmd=%u, expected_key=%u, expected_tid=%u)\n", __func__,
+	//	ctx, buf, len, expected_cmd, expected_key, expected_tid);
 	reinit_completion(completion);
 	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
 	if (rc <= 0) {
