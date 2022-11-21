@@ -340,8 +340,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	struct ttyrcp *rcp = ctx;
 	uint8_t *data;
 	spinel_size_t data_len;
-	int rc;
 	struct sk_buff *skb;
+	int rc;
 
 	*received = 0;
 
@@ -352,13 +352,12 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
-			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n",
-			rc, __func__, ctx, buf, len, expected->cmd, expected->key, expected->tid);
-		if (rc == 0) {
-			pr_debug("******************* TIMEOUT *******************\n");
-			rc = -ETIMEDOUT;
-		}
-		goto end;
+			"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
+			rc, __func__, (completion == &rcp->wait_response) ? "response" : "notification",
+		       	buf, len, expected->cmd, expected->key, expected->tid,
+		       	expected->validate_cmd, expected->validate_key, expected->validate_tid);
+
+		return (rc == 0) ? -ETIMEDOUT : rc;
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
@@ -380,8 +379,6 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		kfree_skb(skb);
 	}
 
-end:
-	// dev_dbg(rcp->otrcp.parent, "%s: end %d\n", __func__, rc);
 	return rc;
 }
 

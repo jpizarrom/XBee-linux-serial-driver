@@ -420,7 +420,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 				  SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
 
-int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
+static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
 		    uint8_t *channel, int8_t *lqi)
 {
 	int rc = 0;
