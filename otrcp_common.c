@@ -792,9 +792,11 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected)
 {
+	uint8_t header;
 	uint32_t cmd;
 	spinel_prop_key_t key;
-	spinel_tid_t header;
+	spinel_tid_t tid;
+
 	int rc = spinel_datatype_unpack(buf, len, "CiiD", &header, &cmd, &key, data, data_len);
 
 	if (rc < 0) {
@@ -805,9 +807,9 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 		return -ENOBUFS;
 	}
 
+	tid = SPINEL_HEADER_GET_TID(header);
 
-	if (
-	    ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
+	if ( ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
 	    ((spinel_expected_command(expected->cmd) == cmd) || !expected->validate_cmd) &&
 	    ((expected->key == key) || !expected->validate_key)) {
 

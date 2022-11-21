@@ -340,9 +340,9 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			      //bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
-	spinel_prop_key_t key = expected->key;
-	uint8_t header = expected->tid;
-	uint32_t cmd = expected->cmd;
+	//uint8_t header;
+	//uint32_t cmd;
+	//spinel_prop_key_t key;
 	uint8_t *data;
 	spinel_size_t data_len;
 	int rc;
@@ -375,11 +375,11 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			kfree_skb(skb);
 			break;
 		} else {
-			dev_dbg(rcp->otrcp.parent,
-				"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
-				"tid=%u(expected=%u), data=%p, data_len=%u\n",
-				cmd, spinel_expected_command(expected->cmd), key, expected->key,
-				SPINEL_HEADER_GET_TID(header), expected->tid, data, data_len);
+			//dev_dbg(rcp->otrcp.parent,
+			//	"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
+			//	"tid=%u(expected=%u), data=%p, data_len=%u\n",
+			//	cmd, otrcp_spinel_expected_command(expected_cmd), key, expected_key,
+			//	SPINEL_HEADER_GET_TID(header), expected_tid, data, data_len);
 		}
 		kfree_skb(skb);
 	}
