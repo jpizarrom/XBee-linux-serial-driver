@@ -274,9 +274,7 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 }
 
 static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				   spinel_prop_key_t key,
-				   bool validate_cmd, bool validate_key, bool validate_tid,
-				   const char *fmt, va_list args)
+				   spinel_prop_key_t key, bool validate_cmd, bool validate_key, bool validate_tid, const char *fmt, va_list args)
 {
 	int err;
 	uint8_t *recv_buffer;
@@ -320,9 +318,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 }
 
 static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				 spinel_prop_key_t key,
-				 bool validate_cmd, bool validate_key, bool validate_tid,
-				 const char *fmt, ...)
+				 spinel_prop_key_t key, bool validate_cmd, bool validate_key, bool validate_tid, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
@@ -534,7 +530,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, true, true, true, frame, frame_length,
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, true, false, true, frame, frame_length,
 			       channel, backoffs, retries, csmaca, headerupdate, aretx, skipaes,
 			       txdelay, txdelay_base);
 }
