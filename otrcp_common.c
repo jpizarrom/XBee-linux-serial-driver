@@ -1020,6 +1020,8 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
 		return rc;
 	}
+	
+	skb_queue_tail(&rcp->xmit_queue, skb);
 
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;

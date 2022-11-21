@@ -470,7 +470,7 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
-
+	skb_queue_head_init(&rcp->otrcp.xmit_queue);
 	skb_queue_head_init(&rcp->notify_queue);
 	skb_queue_head_init(&rcp->response_queue);
 	init_completion(&rcp->wait_response);

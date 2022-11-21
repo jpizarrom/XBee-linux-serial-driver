@@ -4,10 +4,12 @@
 #include "spinel.h"
 
 #include <linux/types.h>
+#include <linux/skbuff.h>
 
 #ifdef MODTEST_ENABLE
 #include "modtest.h"
 #endif
+
 
 enum {
 	OT_RADIO_CAPS_NONE = 0,		    ///< Radio supports no capability.
@@ -93,6 +95,8 @@ struct otrcp {
 	uint8_t prev_send[8192];
 	spinel_tid_t prev_tid;
 	spinel_prop_key_t prev_key;
+
+	struct sk_buff_head xmit_queue;
 };
 
 struct ieee802154_hw;
