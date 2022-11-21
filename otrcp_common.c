@@ -277,8 +277,8 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 }
 
 static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				   spinel_prop_key_t key, bool validate_cmd, bool validate_key,
-				   bool validate_tid, const char *fmt, va_list args)
+				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
+				   const char *fmt, va_list args)
 {
 	int err;
 	uint8_t *recv_buffer;
@@ -286,11 +286,8 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
-	struct otrcp_received_data_verify expected = {
-		tid,	      otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET),
-		key,	      validate_tid,
-		validate_cmd, validate_key,
-	};
+
+	expected->tid = tid;
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -310,7 +307,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
+	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -331,10 +328,17 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 {
 	va_list args;
 	int rc;
+
+	struct otrcp_received_data_verify expected = {
+		0,	      otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET),
+		key,	      validate_tid,
+		validate_cmd, validate_key,
+	};
+	
+
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, validate_cmd, validate_key,
-				     validate_tid, fmt, args);
+	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, &expected, fmt, args);
 	va_end(args);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
