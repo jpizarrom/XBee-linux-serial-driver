@@ -84,7 +84,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, ...)                                           \
+#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, verify_cmd, verify_tid, verify_key, ...)                                           \
 	uint8_t *buffer;                                                                           \
 	size_t buflen;                                                                             \
 	int rc;                                                                                    \
@@ -93,7 +93,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), \
-				   true, true, true, \
+				   verify_cmd, verify_tid, verify_key, \
 		       		spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	if (rc >= 0) {                                                                             \
@@ -104,7 +104,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	return rc;
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	SPINEL_SET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
+	SPINEL_SET_PROP_IMPL_X(prop, rcp, simple_return, true, true, true, __VA_ARGS__)
 
 #define SPINEL_RESET_IMPL_X(rcp, postproc, ...)                                                    \
 	uint8_t *buffer;                                                                           \
@@ -534,7 +534,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, frame, frame_length,
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, true, true, true, frame, frame_length,
 			       channel, backoffs, retries, csmaca, headerupdate, aretx, skipaes,
 			       txdelay, txdelay_base);
 }
