@@ -92,7 +92,9 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), spinel_data_format_str_##prop, \
+				   CONCATENATE(SPINEL_PROP_, prop), \
+				   true, true, true, \
+		       		spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -318,7 +320,9 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 }
 
 static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				 spinel_prop_key_t key, const char *fmt, ...)
+				 spinel_prop_key_t key,
+				   bool verify_cmd, bool verify_key, bool verify_tid,
+				 const char *fmt, ...)
 {
 	va_list args;
 	int rc;
