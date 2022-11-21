@@ -336,13 +336,8 @@ end:
 static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *received,
 			      struct completion *completion, struct sk_buff_head *queue,
 			      struct otrcp_received_data_verify *expected)
-			      //spinel_tid_t expected_tid, uint32_t expected_cmd, spinel_prop_key_t expected_key,
-			      //bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
-	//uint8_t header;
-	//uint32_t cmd;
-	//spinel_prop_key_t key;
 	uint8_t *data;
 	spinel_size_t data_len;
 	int rc;
@@ -374,12 +369,6 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			*received = data_len;
 			kfree_skb(skb);
 			break;
-		} else {
-			//dev_dbg(rcp->otrcp.parent,
-			//	"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
-			//	"tid=%u(expected=%u), data=%p, data_len=%u\n",
-			//	cmd, otrcp_spinel_expected_command(expected_cmd), key, expected_key,
-			//	SPINEL_HEADER_GET_TID(header), expected_tid, data, data_len);
 		}
 		kfree_skb(skb);
 	}
@@ -398,28 +387,18 @@ end:
 
 static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
 		struct otrcp_received_data_verify *expected)
-				       //spinel_prop_key_t expected_key, uint32_t expected_cmd, 
-				       //spinel_tid_t expected_tid, bool validate_cmd, bool validate_key,
-				       //bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response,
 				  &rcp->response_queue, expected);
-				  //expected_tid, expected_cmd, expected_key, validate_cmd,
-				  //validate_key, validate_tid);
 }
 
 static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t *received,
 				     struct otrcp_received_data_verify *expected)
-				     //spinel_prop_key_t expected_key, uint32_t expected_cmd, 
-				     //spinel_tid_t expected_tid, bool validate_cmd, bool validate_key,
-				     //bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_notify, &rcp->notify_queue,
 				  expected);
-				  //expected_tid, expected_cmd, expected_key, validate_cmd, validate_key,
-				  //validate_tid);
 }
 
 static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
