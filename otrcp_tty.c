@@ -335,23 +335,18 @@ end:
 
 static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *received,
 			      struct completion *completion, struct sk_buff_head *queue,
-			      uint32_t sent_cmd, spinel_prop_key_t sent_key, spinel_tid_t sent_tid,
-			      bool validate_cmd, bool validate_key, bool validate_tid)
+			      struct otrcp_received_data_verify *expected)
+			      //spinel_tid_t expected_tid, uint32_t expected_cmd, spinel_prop_key_t expected_key,
+			      //bool validate_cmd, bool validate_key, bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
-	spinel_prop_key_t key = sent_key;
-	uint8_t header = sent_tid;
-	uint32_t cmd = sent_cmd;
+	spinel_prop_key_t key = expected->key;
+	uint8_t header = expected->tid;
+	uint32_t cmd = expected->cmd;
 	uint8_t *data;
 	spinel_size_t data_len;
 	int rc;
 	struct sk_buff *skb;
-
-	struct otrcp_received_data_verify expected = {
-		sent_tid, sent_cmd, sent_key,
-		validate_tid, validate_cmd, validate_key,
-	};
-
 
 	*received = 0;
 
@@ -363,7 +358,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	if (rc <= 0) {
 		dev_dbg(rcp->otrcp.parent,
 			"%d = %s(ctx=%p, buf=%p, len=%lu, sent_cmd=%u, sent_key=%u, sent_tid=%u)\n",
-			rc, __func__, ctx, buf, len, sent_cmd, sent_key, sent_tid);
+			rc, __func__, ctx, buf, len, expected->cmd, expected->key, expected->tid);
 		if (rc == 0) {
 			pr_debug("******************* TIMEOUT *******************\n");
 			rc = -ETIMEDOUT;
@@ -373,7 +368,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
 		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len,
-						  &data, &data_len, &expected);
+						  &data, &data_len, expected);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
@@ -383,8 +378,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			dev_dbg(rcp->otrcp.parent,
 				"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
 				"tid=%u(expected=%u), data=%p, data_len=%u\n",
-				cmd, spinel_expected_command(sent_cmd), key, sent_key,
-				SPINEL_HEADER_GET_TID(header), sent_tid, data, data_len);
+				cmd, spinel_expected_command(expected->cmd), key, expected->key,
+				SPINEL_HEADER_GET_TID(header), expected->tid, data, data_len);
 		}
 		kfree_skb(skb);
 	}
@@ -402,25 +397,29 @@ end:
 }
 
 static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
-				       uint32_t sent_cmd, spinel_prop_key_t sent_key,
-				       spinel_tid_t sent_tid, bool validate_cmd, bool validate_key,
-				       bool validate_tid)
+		struct otrcp_received_data_verify *expected)
+				       //spinel_prop_key_t expected_key, uint32_t expected_cmd, 
+				       //spinel_tid_t expected_tid, bool validate_cmd, bool validate_key,
+				       //bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response,
-				  &rcp->response_queue, sent_cmd, sent_key, sent_tid, validate_cmd,
-				  validate_key, validate_tid);
+				  &rcp->response_queue, expected);
+				  //expected_tid, expected_cmd, expected_key, validate_cmd,
+				  //validate_key, validate_tid);
 }
 
 static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t *received,
-				     uint32_t sent_cmd, spinel_prop_key_t sent_key,
-				     spinel_tid_t sent_tid, bool validate_cmd, bool validate_key,
-				     bool validate_tid)
+				     struct otrcp_received_data_verify *expected)
+				     //spinel_prop_key_t expected_key, uint32_t expected_cmd, 
+				     //spinel_tid_t expected_tid, bool validate_cmd, bool validate_key,
+				     //bool validate_tid)
 {
 	struct ttyrcp *rcp = ctx;
 	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_notify, &rcp->notify_queue,
-				  sent_cmd, sent_key, sent_tid, validate_cmd, validate_key,
-				  validate_tid);
+				  expected);
+				  //expected_tid, expected_cmd, expected_key, validate_cmd, validate_key,
+				  //validate_tid);
 }
 
 static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)

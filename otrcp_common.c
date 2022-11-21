@@ -228,6 +228,11 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
+	struct otrcp_received_data_verify expected = {
+		tid, SPINEL_CMD_PROP_VALUE_SET, key,
+		true, true, true,
+	};
+
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
 		return -ENOMEM;
@@ -245,8 +250,9 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->wait_response(rcp, buffer, length, &received_bytes, SPINEL_CMD_PROP_VALUE_SET,
-				 key, tid, true, true, true);
+	err = rcp->wait_response(rcp, buffer, length, &received_bytes, &expected);
+			         //tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
+				 //true, true, true);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
 			length, key, tid);
@@ -281,6 +287,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	struct otrcp_received_data_verify expected = {
+		tid, SPINEL_CMD_PROP_VALUE_SET, key,
+		validate_tid, validate_cmd, validate_key,
+	};
+
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -300,9 +311,9 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return err;
 	}
 
-	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
-				 SPINEL_CMD_PROP_VALUE_SET, key, tid, validate_cmd, validate_key,
-				 validate_tid);
+	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
+				 //tid, otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key,
+				 //validate_cmd, validate_key, validate_tid);
 	if (err < 0) {
 		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
@@ -340,6 +351,10 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
+	struct otrcp_received_data_verify expected = {
+		0, SPINEL_CMD_RESET, 0,
+		false, false, true,
+	};
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -352,8 +367,9 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_RESET, 0, 0);
 	}
 	if (err >= 0) {
-		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
-				       SPINEL_CMD_RESET, 0, 0, false, true, false);
+		err = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
+				       //otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0,
+				       //false, false, true);
 	}
 
 	// end:
@@ -788,6 +804,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 	if (len < *data_len) {
 		return -ENOBUFS;
 	}
+
 
 	if (
 	    ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
