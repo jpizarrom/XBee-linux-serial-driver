@@ -81,6 +81,8 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
 	return rc;
 
+bool isnull(void * ptr) { return !(ptr); }
+
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
@@ -91,6 +93,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
+	if (!isnull(expected)) { \
 	(expected)->key = CONCATENATE(SPINEL_PROP_, prop); \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
@@ -99,6 +102,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 		rc = postproc(rcp, buffer, rc);                                                    \
 	}                                                                                          \
 	kfree(buffer);                                                                             \
+	} \
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
 	return rc;
 
