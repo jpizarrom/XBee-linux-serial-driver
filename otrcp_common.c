@@ -777,6 +777,22 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 		}
 		return kSpinelReceiveUnknown;
 	} else if (tid == rcp->tid) {
+		struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
+		pr_debug("xmit skb %p\n", skb);
+		/*
+		do {
+			if (!skb)
+				break;
+
+			spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
+			if (tid == sent_tid) {
+				pr_debug("ieee802154_xmit_complete\n");
+				skb_pull(skb, sizeof(spinel_tid_t));
+			       	ieee802154_xmit_complete(rcp->hw, skb, false);
+			}
+		} while ((skb = skb_queue_next(&rcp->xmit_queue, skb)));
+		*/
+
 		return kSpinelReceiveResponse;
 	}
 
@@ -1031,6 +1047,8 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
 	*tid_ptr = 0;
+
+	pr_debug("queue_tail xmit %p\n", skb);
 	
 	skb_queue_tail(&rcp->xmit_queue, skb);
 
