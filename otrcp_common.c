@@ -809,7 +809,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 
 	tid = SPINEL_HEADER_GET_TID(header);
 
-	if ( ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
+	if (((expected->tid == tid) || !expected->validate_tid) &&
 	    ((otrcp_spinel_expected_command(expected->cmd) == cmd) || !expected->validate_cmd) &&
 	    ((expected->key == key) || !expected->validate_key)) {
 
