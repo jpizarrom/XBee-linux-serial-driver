@@ -110,8 +110,8 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count);
 void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count);
-int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, uint8_t *header,
-				 uint32_t *cmd, spinel_prop_key_t *key, bool validate_cmd,
+int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, spinel_tid_t sent_tid,
+				 uint32_t sent_cmd, spinel_prop_key_t sent_key, bool validate_cmd,
 				 bool validate_key, bool validate_tid, uint8_t **data,
 				 spinel_size_t *data_len);
 static inline uint32_t spinel_expected_command(uint32_t cmd)
