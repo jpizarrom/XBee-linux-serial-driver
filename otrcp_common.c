@@ -780,14 +780,14 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 				 spinel_size_t *data_len,
 				 struct otrcp_received_data_verify *expected)
 {
-	uint8_t header;
+	uint8_t hdr;
 	uint32_t cmd;
 	spinel_prop_key_t key;
 	spinel_tid_t tid;
 
 	int rc;
 
-	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &header, &cmd, &key, data, data_len)) <
+	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, data_len)) <
 	    0) {
 		return rc;
 	}
@@ -796,7 +796,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 		return -ENOBUFS;
 	}
 
-	tid = SPINEL_HEADER_GET_TID(header);
+	tid = SPINEL_HEADER_GET_TID(hdr);
 
 	if (((expected->tid == tid) || !expected->validate_tid) &&
 	    ((expected->cmd == cmd) || !expected->validate_cmd) &&
@@ -808,7 +808,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len, ui
 			"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
 			"tid=%u(expected=%u), data=%p, data_len=%u\n",
 			cmd, otrcp_spinel_expected_command(expected->cmd), key, expected->key,
-			SPINEL_HEADER_GET_TID(header), expected->tid, data, *data_len);
+			SPINEL_HEADER_GET_TID(hdr), expected->tid, data, *data_len);
 		rc = -EINVAL;
 	}
 
