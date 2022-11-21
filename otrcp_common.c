@@ -328,7 +328,7 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	int rc;
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, true, true, true, fmt, args);
+	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, validate_cmd, validate_key, validate_tid, fmt, args);
 	va_end(args);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
