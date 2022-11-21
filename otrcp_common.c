@@ -810,7 +810,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 	tid = SPINEL_HEADER_GET_TID(header);
 
 	if ( ((SPINEL_HEADER_GET_TID(expected->tid) == SPINEL_HEADER_GET_TID(header)) || !expected->validate_tid) &&
-	    ((spinel_expected_command(expected->cmd) == cmd) || !expected->validate_cmd) &&
+	    ((otrcp_spinel_expected_command(expected->cmd) == cmd) || !expected->validate_cmd) &&
 	    ((expected->key == key) || !expected->validate_key)) {
 
 		rc = *data_len;
@@ -818,7 +818,7 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 		dev_dbg(rcp->parent,
 			"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
 			"tid=%u(expected=%u), data=%p, data_len=%u\n",
-			cmd, spinel_expected_command(expected->cmd), key, expected->key,
+			cmd, otrcp_spinel_expected_command(expected->cmd), key, expected->key,
 			SPINEL_HEADER_GET_TID(header), expected->tid, data, *data_len);
 		rc = -EINVAL;
 	}

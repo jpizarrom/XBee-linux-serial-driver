@@ -120,7 +120,7 @@ void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t cou
 
 int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected);
-static inline uint32_t spinel_expected_command(uint32_t cmd)
+static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
 {
 	switch (cmd) {
 	case SPINEL_CMD_PROP_VALUE_SET:
