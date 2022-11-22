@@ -645,28 +645,31 @@ static int otrcp_set_phy_chan(struct otrcp *rcp, u8 chan)
 	SPINEL_SET_PROP_IMPL(PHY_CHAN, rcp, chan);
 }
 
-static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
+typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
+typedef int (*s32_table_get_func)(struct otrcp *rcp, int8_t *val);
+
+static int otrcp_get_s32_table(struct otrcp *rcp, s32 *table, size_t *sz, s32_table_set_func set_table, s32_table_get_func get_table)
 {
 	int i, rc;
 
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
-		int8_t power;
+		int8_t value;
 
-		if ((rc = otrcp_set_phy_tx_power(rcp, i)) < 0)
+		if ((rc = set_table(rcp, i)) < 0)
 			continue;
 
-		if ((rc = otrcp_get_phy_tx_power(rcp, &power)) < 0)
+		if ((rc = get_table(rcp, &value)) < 0)
 			continue;
 
-		if (*sz == 0 || powers[(*sz - 1)] != (power * 100)) {
-			powers[*sz] = power * 100;
+		if (*sz == 0 || table[(*sz - 1)] != (value * 100)) {
+			table[*sz] = value * 100;
 			*sz += 1;
 		}
 	}
 
-	if ((rc = otrcp_set_phy_tx_power(rcp, 0)) < 0) {
+	if ((rc = set_table(rcp, 0)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
@@ -675,34 +678,14 @@ static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
 	return 0;
 }
 
+static int otrcp_get_tx_power_table(struct otrcp *rcp, s32 *powers, size_t *sz)
+{
+	return otrcp_get_s32_table(rcp, powers, sz, otrcp_set_phy_tx_power, otrcp_get_phy_tx_power);
+}
+
 static int otrcp_get_cca_ed_level_table(struct otrcp *rcp, s32 *ed_levels, size_t *sz)
 {
-	int i, rc;
-
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	*sz = 0;
-	for (i = S8_MIN; i < S8_MAX; i++) {
-		int8_t level;
-
-		if ((rc = otrcp_set_phy_cca_threshold(rcp, i)) < 0)
-			continue;
-
-		if ((rc = otrcp_get_phy_cca_threshold(rcp, &level)) < 0)
-			continue;
-
-		if (*sz == 0 || ed_levels[(*sz - 1)] != (level * 100)) {
-			ed_levels[*sz] = level * 100;
-			*sz += 1;
-		}
-	}
-
-	if ((rc = otrcp_set_phy_cca_threshold(rcp, 0)) < 0) {
-		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-		return rc;
-	}
-
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-	return 0;
+	return otrcp_get_s32_table(rcp, ed_levels, sz, otrcp_set_phy_cca_threshold, otrcp_get_phy_cca_threshold);
 }
 
 static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
