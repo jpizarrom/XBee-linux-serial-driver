@@ -94,7 +94,6 @@ bool isnull(void * ptr) { return !(ptr); }
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	if (!isnull(expected)) { \
-	(expected)->key = CONCATENATE(SPINEL_PROP_, prop); \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
 				   spinel_data_format_str_##prop, __VA_ARGS__);      \
@@ -298,6 +297,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
+	expected->key = key;
 	expected->tid = tid;
 	expected->cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET);
 
@@ -316,6 +316,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 
 	if (err < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+		return err;
+	}
+
+	if (!expected) {
+		kfree(recv_buffer);
 		return err;
 	}
 
