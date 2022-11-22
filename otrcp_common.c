@@ -224,7 +224,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
 	struct otrcp_received_data_verify expected = {
-		tid,  otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET), key, true, true,
+		0,  0, 0, true, true,
 		true,
 	};
 
@@ -250,6 +250,13 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		goto exit;
 	}
 
+	//if (!expected) {
+	//	goto exit;
+	//}
+
+	expected.key = key;
+	expected.tid = tid;
+	expected.cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET);
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
 	} else {
