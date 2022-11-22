@@ -95,7 +95,7 @@ static const bool isnull(const void * ptr) { return !(ptr); }
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
-				   spinel_data_format_str_##prop, __VA_ARGS__);      \
+				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);      \
 	if (!isnull(expected)) { \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -290,7 +290,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 				   const char *fmt, va_list args)
 {
-	int err;
+	int rc;
 	uint8_t *recv_buffer;
 	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
@@ -305,27 +305,26 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	rcp->tid = tid;
 
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	err = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args);
-	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	
+	if ((rc = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args)) < 0) {
+		goto exit;
 	}
 
-	if (err < 0) {
+	if ((rc = rcp->send(rcp, buffer, rc, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-		return err;
+		goto exit;
 	}
 
 	if (!expected) {
-		kfree(recv_buffer);
-		return err;
+		goto exit;
 	}
 
 	expected->key = key;
 	expected->tid = tid;
 	expected->cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET);
-	err = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
-	if (err < 0) {
-		dev_dbg(rcp->parent, "%s err=%d\n", __func__, err);
+	rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
+	if (rc < 0) {
+		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
 		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
 			       true);
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
@@ -333,9 +332,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	} else {
 		memcpy(buffer, recv_buffer, recv_buflen);
 	}
+
+exit:
 	kfree(recv_buffer);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-	return err;
+	return rc;
 }
 
 static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
