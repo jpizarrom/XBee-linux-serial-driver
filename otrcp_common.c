@@ -81,6 +81,8 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
 	return rc;
 
+static const bool isnull(const void * ptr) { return !(ptr); }
+
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, __VA_ARGS__)
 
@@ -91,7 +93,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
-	if (expected) { \
+	if (!isnull(expected)) { \
 	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
 				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
 				   spinel_data_format_str_##prop, __VA_ARGS__);      \
@@ -553,13 +555,13 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	struct otrcp_received_data_verify expected = {
-		0,	      0,
-		0,	      false,
-		false, false,
-	};
-
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, &expected,
+	struct otrcp_received_data_verify *expected = NULL;
+	//{
+	//	0,	      0,
+	//	0,	      false,
+	//	false, false,
+	//};
+	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, expected,
 			       frame, frame_length, channel, backoffs, retries, csmaca,
 			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
