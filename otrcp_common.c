@@ -79,7 +79,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_command(((struct otrcp *)rcp), buffer, buflen, SPINEL_CMD_PROP_VALUE_GET,\
 				   CONCATENATE(SPINEL_PROP_, prop), expected,  \
-				   NULL, 0);	   \
+				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);      \
 	if (!isnull(expected)) { \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc, spinel_data_format_str_##prop, __VA_ARGS__); \
@@ -253,9 +253,14 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint8_t *buffer, size_t len
 
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = spinel_reset_command(buffer, length, 0, 0, 0, fmt, args);
-	} else {
+	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		rcp->tid = tid;
 		rc = spinel_prop_command(buffer, length, cmd, key, tid, fmt, args);
+	} else if (cmd == SPINEL_CMD_PROP_VALUE_GET) {
+		rcp->tid = tid;
+		rc = spinel_prop_command(buffer, length, cmd, key, tid, NULL, 0);
+	} else {
+		return -EINVAL;
 	}
 
 	if (rc < 0) {
