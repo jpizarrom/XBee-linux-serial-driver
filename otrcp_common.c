@@ -555,11 +555,6 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				uint32_t txdelay_base)
 {
 	struct otrcp_received_data_verify *expected = NULL;
-	//{
-	//	0,	      0,
-	//	0,	      false,
-	//	false, false,
-	//};
 	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, extract_stream_raw_response, expected,
 			       frame, frame_length, channel, backoffs, retries, csmaca,
 			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
@@ -783,8 +778,6 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 		return kSpinelReceiveUnknown;
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
-
-	pr_debug("tid %x\n", tid);
 
 	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
