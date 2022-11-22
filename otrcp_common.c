@@ -779,30 +779,37 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
 
+	pr_debug("tid %x\n", tid);
+
 	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			return kSpinelReceiveNotification;
 		}
 		return kSpinelReceiveUnknown;
-	} else if (tid == rcp->tid) {
-		struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
-		pr_debug("xmit skb %p\n", skb);
-		/*
-		do {
-			if (!skb)
-				break;
+	} else {
+		if (tid == rcp->tid) {
+			return kSpinelReceiveResponse;
+		}
+		else {
+#if 0
+			struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
+			/*
+			do {
+				if (!skb)
+					break;
 
-			spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
-			if (tid == sent_tid) {
-				pr_debug("ieee802154_xmit_complete\n");
-				skb_pull(skb, sizeof(spinel_tid_t));
-			       	ieee802154_xmit_complete(rcp->hw, skb, false);
-			}
-		} while ((skb = skb_queue_next(&rcp->xmit_queue, skb)));
-		*/
-
-		return kSpinelReceiveResponse;
+				spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
+				if (tid == sent_tid) {
+					pr_debug("ieee802154_xmit_complete\n");
+					skb_pull(skb, sizeof(spinel_tid_t));
+					ieee802154_xmit_complete(rcp->hw, skb, false);
+				}
+			} while ((skb = skb_queue_next(&rcp->xmit_queue, skb)));
+			*/
+#endif
+			return kSpinelReceiveUnknown;
+		}
 	}
 
 	return kSpinelReceiveUnknown;
