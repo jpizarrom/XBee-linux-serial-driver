@@ -260,7 +260,7 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 
 	expected->key = key;
 	expected->tid = tid;
-	expected->cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_GET);
+	expected->cmd = otrcp_spinel_expected_command(cmd);
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
 	} else {
