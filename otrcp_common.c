@@ -72,20 +72,11 @@ int simple_return(void *ctx, uint8_t *buf, size_t len, const char *fmt, va_list 
 	return len;
 }
 
-#define SPINEL_GET_PROP_IMPL_X(prop, rcp, expected, postproc, ctx, ...)                                           \
-	uint8_t *buffer;                                                                           \
-	size_t buflen;                                                                             \
-	int rc;                                                                                    \
-	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
-	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
-	buflen = rcp->spinel_max_frame_size;                                                       \
-	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_PROP_VALUE_GET,\
+#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                                           \
+	return otrcp_spinel_command(((struct otrcp *)rcp), cmd,\
 				   CONCATENATE(SPINEL_PROP_, prop), expected,  \
 				   postproc, ctx, \
-				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);      \
-	kfree(buffer);                                                                             \
-	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
-	return rc;
+				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);
 
 static const bool isnull(const void * ptr) { return !(ptr); }
 
@@ -99,31 +90,15 @@ static int post_unpack(void *ctx, uint8_t *buf, size_t len, const char* fmt, va_
 		true, \
 	}; \
 \
-	SPINEL_GET_PROP_IMPL_X(prop, rcp, &expected, post_unpack, NULL, __VA_ARGS__)
-
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, expected, postproc, ctx, ...) \
-	uint8_t *buffer;                                                                           \
-	size_t buflen;                                                                             \
-	int rc;                                                                                    \
-	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
-	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
-	buflen = rcp->spinel_max_frame_size;                                                       \
-	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_PROP_VALUE_SET,\
-				   CONCATENATE(SPINEL_PROP_, prop), expected,  \
-				   postproc, ctx, \
-				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);      \
-	kfree(buffer);                                                                             \
-	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
-	return rc;
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_unpack, NULL, __VA_ARGS__)
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = { \
-		0,	      0, \
-		0,	      true, \
+		0, 0, 0,	      true, \
 		true, true, \
 	}; \
 	\
-	SPINEL_SET_PROP_IMPL_X(prop, rcp, &expected, simple_return, NULL, __VA_ARGS__)
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL, __VA_ARGS__)
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command,
 			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
@@ -222,18 +197,6 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	// pr_debug("end %s:%d\n", __func__, __LINE__);
 	return (out - start) / datasize;
 }
-
-#if 0
-#define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, expected, ...) \
-	if (!isnull(expected)) { \
-	if (rc >= 0) {                                                                             \
-		rc = postproc(rcp, buffer, rc);                                                    \
-	}                                                                                          \
-	kfree(buffer);                                                                             \
-	} \
-	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
-	return rc;
-#endif
 
 static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
@@ -496,7 +459,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t fram
 				uint32_t txdelay_base)
 {
 	struct otrcp_received_data_verify *expected = NULL;
-	SPINEL_SET_PROP_IMPL_X(STREAM_RAW, rcp, expected, extract_stream_raw_response, rcp,
+	SPINEL_PROP_IMPL_V(STREAM_RAW, rcp, SPINEL_CMD_PROP_VALUE_SET, expected, extract_stream_raw_response, rcp,
 			       frame, frame_length, channel, backoffs, retries, csmaca,
 			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
