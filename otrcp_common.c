@@ -51,9 +51,11 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), &expected, spinel_data_format_str_##prop, \
-				   buffer, &buflen);                                               \
+				   CONCATENATE(SPINEL_PROP_, prop), &expected, \
+				   NULL, 0); \
 	if (rc >= 0) {                                                                             \
+		rc = spinel_datatype_unpack_in_place(buffer, rc, spinel_data_format_str_##prop,   \
+				   buffer, &buflen);                                               \
 		rc = spinel_data_array_unpack(data, len, buffer, rc, fmt, datasize);               \
 	}                                                                                          \
 	kfree(buffer);                                                                             \
@@ -81,9 +83,11 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), &expected, spinel_data_format_str_##prop, \
-				   __VA_ARGS__);                                                   \
+				   CONCATENATE(SPINEL_PROP_, prop), &expected,  \
+				   NULL, 0);	   \
 	if (rc >= 0) {                                                                             \
+		rc = spinel_datatype_unpack_in_place(buffer, rc, spinel_data_format_str_##prop,   \
+				   __VA_ARGS__); \
 		rc = postproc(rcp, buffer, rc);                                                    \
 	}                                                                                          \
 	kfree(buffer);                                                                             \
@@ -276,7 +280,6 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		memcpy(buffer, recv_buffer, recv_buflen);
 	}
 
-	rc = spinel_datatype_vunpack_in_place(buffer, rc, fmt, args);
 exit:
 	kfree(recv_buffer);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
