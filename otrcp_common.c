@@ -136,7 +136,9 @@ static const bool isnull(const void * ptr) { return !(ptr); }
 
 #define SPINEL_RESET_IMPL(rcp, ...) SPINEL_RESET_IMPL_X(rcp, simple_return, __VA_ARGS__)
 
-static int spinel_reset_command(uint8_t *buffer, size_t length, const char *format, va_list args)
+static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command,
+			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
+			       va_list args)
 {
 	int packed;
 
@@ -293,6 +295,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 				   const char *fmt, va_list args)
 {
+	int cmd = SPINEL_CMD_PROP_VALUE_SET;
 	int rc;
 	uint8_t *recv_buffer;
 	size_t recv_buflen = rcp->spinel_max_frame_size;
@@ -307,13 +310,11 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	recv_buflen = rcp->spinel_max_frame_size;
 	rcp->tid = tid;
 
-	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	
-	if ((rc = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_SET, key, tid, fmt, args)) < 0) {
+	if ((rc = spinel_prop_command(buffer, length, cmd, key, tid, fmt, args)) < 0) {
 		goto exit;
 	}
 
-	if ((rc = rcp->send(rcp, buffer, rc, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid)) < 0) {
+	if ((rc = rcp->send(rcp, buffer, rc, &sent_bytes, cmd, key, tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
@@ -324,7 +325,7 @@ static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 
 	expected->key = key;
 	expected->tid = tid;
-	expected->cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET);
+	expected->cmd = otrcp_spinel_expected_command(cmd);
 	rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
@@ -375,7 +376,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	}
 	recv_buflen = rcp->spinel_max_frame_size;
 
-	if ((rc = spinel_reset_command(buffer, length, fmt, args)) < 0) {
+	if ((rc = spinel_reset_command(buffer, length, 0, 0, 0, fmt, args)) < 0) {
 		goto exit;
 	}
 
