@@ -127,6 +127,8 @@ int otrcp_validate_received_data(struct otrcp *rcp, uint8_t *buf, size_t len,
 static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
 {
 	switch (cmd) {
+	case SPINEL_CMD_PROP_VALUE_GET:
+		return SPINEL_CMD_PROP_VALUE_IS;
 	case SPINEL_CMD_PROP_VALUE_SET:
 		return SPINEL_CMD_PROP_VALUE_IS;
 	case SPINEL_CMD_PROP_VALUE_INSERT:

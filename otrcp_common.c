@@ -232,11 +232,6 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
-	struct otrcp_received_data_verify expectedx = {
-		0,  0, 0, true, true,
-		true,
-	};
-
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
 		return -ENOMEM;
@@ -263,13 +258,13 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		goto exit;
 	}
 
-	expectedx.key = key;
-	expectedx.tid = tid;
-	expectedx.cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_SET);
+	expected->key = key;
+	expected->tid = tid;
+	expected->cmd = otrcp_spinel_expected_command(SPINEL_CMD_PROP_VALUE_GET);
 	if (cmd == SPINEL_CMD_RESET) {
-		rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, &expectedx);
+		rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
 	} else {
-		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expectedx);
+		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, expected);
 	}
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
