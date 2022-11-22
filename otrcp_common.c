@@ -65,40 +65,31 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
 	return rc;
 
-typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, const char *fmt, va_list args);
-
-int simple_return(void *ctx, uint8_t *buf, size_t len, const char *fmt, va_list args)
-{
-	return len;
-}
-
-#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                                           \
+#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, postproc, ctx, ...)                                           \
+	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, }; \
 	return otrcp_spinel_command(((struct otrcp *)rcp), cmd,\
 				   CONCATENATE(SPINEL_PROP_, prop), expected,  \
 				   postproc, ctx, \
 				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);
+
+#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, post_unpack, NULL, __VA_ARGS__)
+
+#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, simple_return, NULL, __VA_ARGS__)
+
+typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, const char *fmt, va_list args);
+
+static int simple_return(void *ctx, uint8_t *buf, size_t len, const char *fmt, va_list args)
+{
+	return len;
+}
 
 static const bool isnull(const void * ptr) { return !(ptr); }
 
 static int post_unpack(void *ctx, uint8_t *buf, size_t len, const char* fmt, va_list args) {
 	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
 }
-
-#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	struct otrcp_received_data_verify expected = { \
-		0,  0, 0, true, true, \
-		true, \
-	}; \
-\
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_unpack, NULL, __VA_ARGS__)
-
-#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	struct otrcp_received_data_verify expected = { \
-		0, 0, 0,	      true, \
-		true, true, \
-	}; \
-	\
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL, __VA_ARGS__)
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command,
 			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
