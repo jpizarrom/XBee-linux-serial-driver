@@ -375,6 +375,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 		return -ENOMEM;
 	}
 	recv_buflen = rcp->spinel_max_frame_size;
+	rcp->tid = (cmd == SPINEL_CMD_PROP_VALUE_SET) ? tid : rcp->tid;
 
 	if ((rc = spinel_reset_command(buffer, length, 0, 0, 0, fmt, args)) < 0) {
 		goto exit;
