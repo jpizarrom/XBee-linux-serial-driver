@@ -51,7 +51,7 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), NULL, spinel_data_format_str_##prop, \
+				   CONCATENATE(SPINEL_PROP_, prop), &expected, spinel_data_format_str_##prop, \
 				   buffer, &buflen);                                               \
 	if (rc >= 0) {                                                                             \
 		rc = spinel_data_array_unpack(data, len, buffer, rc, fmt, datasize);               \
@@ -81,7 +81,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = (rcp)->spinel_max_frame_size;                                                     \
 	rc = otrcp_spinel_prop_get(((struct otrcp *)rcp), buffer, buflen,                          \
-				   CONCATENATE(SPINEL_PROP_, prop), NULL, spinel_data_format_str_##prop, \
+				   CONCATENATE(SPINEL_PROP_, prop), &expected, spinel_data_format_str_##prop, \
 				   __VA_ARGS__);                                                   \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -259,9 +259,9 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		goto exit;
 	}
 
-	//if (!expected) {
-	//	goto exit;
-	//}
+	if (!expected) {
+		goto exit;
+	}
 
 	expectedx.key = key;
 	expectedx.tid = tid;
