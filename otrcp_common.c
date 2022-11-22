@@ -93,7 +93,7 @@ static const bool isnull(const void * ptr) { return !(ptr); }
 	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
 	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
 	buflen = rcp->spinel_max_frame_size;                                                       \
-	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen,                          \
+	rc = otrcp_spinel_prop_set(((struct otrcp *)rcp), buffer, buflen, SPINEL_CMD_PROP_VALUE_SET,                         \
 				   CONCATENATE(SPINEL_PROP_, prop), expected,    \
 				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);      \
 	if (!isnull(expected)) { \
@@ -125,7 +125,7 @@ static const bool isnull(const void * ptr) { return !(ptr); }
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);                                  \
 	buflen = rcp->spinel_max_frame_size;                                                       \
 	rc = otrcp_spinel_reset(                                                                   \
-		((struct otrcp *)rcp), buffer, buflen, 0, &expected, spinel_data_format_str_RESET,               \
+		((struct otrcp *)rcp), buffer, buflen, SPINEL_CMD_RESET, 0, &expected, spinel_data_format_str_RESET,               \
 		SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET, __VA_ARGS__);          \
 	if (rc >= 0) {                                                                             \
 		rc = postproc(rcp, buffer, rc);                                                    \
@@ -291,11 +291,10 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	return rc;
 }
 
-static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
+static int otrcp_spinel_prop_set_v(struct otrcp *rcp, uint8_t *buffer, size_t length, uint32_t cmd,
 				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 				   const char *fmt, va_list args)
 {
-	int cmd = SPINEL_CMD_PROP_VALUE_SET;
 	int rc;
 	uint8_t *recv_buffer;
 	size_t recv_buflen = rcp->spinel_max_frame_size;
@@ -353,7 +352,7 @@ exit:
 	return rc;
 }
 
-static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length,
+static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t length, uint32_t cmd,
 				 spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 				 const char *fmt, ...)
 {
@@ -362,17 +361,16 @@ static int otrcp_spinel_prop_set(struct otrcp *rcp, uint8_t *buffer, size_t leng
 
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, key, expected, fmt, args);
+	rc = otrcp_spinel_prop_set_v(rcp, buffer, length, cmd, key, expected, fmt, args);
 	va_end(args);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
-static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
+static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t length, uint32_t cmd,
 				   spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 				   const char *fmt, va_list args)
 {
-	int cmd = SPINEL_CMD_RESET;
 	int rc;
 	uint8_t *recv_buffer;
 	size_t recv_buflen = rcp->spinel_max_frame_size;
@@ -430,7 +428,7 @@ exit:
 	return rc;
 }
 
-static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,
+static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length, uint32_t cmd,
 			      spinel_prop_key_t key, struct otrcp_received_data_verify *expected,
 			      const char *fmt, ...)
 {
@@ -438,7 +436,7 @@ static int otrcp_spinel_reset(struct otrcp *rcp, uint8_t *buffer, size_t length,
 	int rc;
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_reset_v(rcp, buffer, length, key, expected, fmt, args);
+	rc = otrcp_spinel_reset_v(rcp, buffer, length, cmd, key, expected, fmt, args);
 	va_end(args);
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
