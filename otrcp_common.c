@@ -82,9 +82,7 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 				   NULL, 0);	   \
 	if (!isnull(expected)) { \
 	if (rc >= 0) {                                                                             \
-		rc = spinel_datatype_unpack_in_place(buffer, rc, spinel_data_format_str_##prop,   \
-				   __VA_ARGS__); \
-		rc = postproc(rcp, buffer, rc);                                                    \
+		rc = postproc(rcp, buffer, rc, spinel_data_format_str_##prop, __VA_ARGS__); \
 	}                                                                                          \
 	kfree(buffer);                                                                             \
 	} \
@@ -93,13 +91,22 @@ int simple_return(struct otrcp *rcp, uint8_t *buf, size_t len)
 
 static const bool isnull(const void * ptr) { return !(ptr); }
 
+static int post_unpack(struct otrcp *rcp, uint8_t *buf, size_t len, const char* fmt, ...) {
+	va_list args;
+	int rc;
+	va_start(args, fmt);
+	rc = spinel_datatype_vunpack_in_place(buf, len, fmt, args);
+	va_end(args);
+	return rc;
+}
+
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = { \
 		0,  0, 0, true, true, \
 		true, \
 	}; \
 \
-	SPINEL_GET_PROP_IMPL_X(prop, rcp, simple_return, &expected, __VA_ARGS__)
+	SPINEL_GET_PROP_IMPL_X(prop, rcp, post_unpack, &expected, __VA_ARGS__)
 
 #define SPINEL_SET_PROP_IMPL_X(prop, rcp, postproc, expected, ...) \
 	uint8_t *buffer;                                                                           \
