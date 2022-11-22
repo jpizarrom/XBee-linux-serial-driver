@@ -212,12 +212,13 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	return (out - start) / datasize;
 }
 
-static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length,
-				   spinel_prop_key_t key, const char *fmt, va_list args)
+static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t length, uint32_t cmd,
+				   spinel_prop_key_t key,
+				   const char *fmt, va_list args)
 {
-	int err;
+	int rc;
 	uint8_t *recv_buffer;
-	size_t recv_buflen;
+	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
@@ -232,28 +233,43 @@ static int otrcp_spinel_prop_get_v(struct otrcp *rcp, uint8_t *buffer, size_t le
 		return -ENOMEM;
 	}
 	recv_buflen = rcp->spinel_max_frame_size;
-	rcp->tid = tid;
 
-	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	err = spinel_prop_command(buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, tid, NULL, 0);
-	if (err >= 0) {
-		err = rcp->send(rcp, buffer, err, &sent_bytes, SPINEL_CMD_PROP_VALUE_SET, key, tid);
+	if (cmd == SPINEL_CMD_RESET) {
+		rc = spinel_reset_command(buffer, length, 0, 0, 0, fmt, args);
+	} else {
+		rcp->tid = tid;
+		rc = spinel_prop_command(buffer, length, cmd, key, tid, NULL, 0);
 	}
-	if (err < 0) {
+
+	if (rc < 0) {
+		goto exit;
+	}
+
+	if ((rc = rcp->send(rcp, buffer, rc, &sent_bytes, cmd, key, tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-		return err;
+		goto exit;
 	}
 
-	err = rcp->wait_response(rcp, buffer, length, &received_bytes, &expected);
-	if (err < 0) {
-		dev_dbg(rcp->parent, "%s buf=%p, len=%lu, key=%u, tid=%u\n", __func__, buffer,
-			length, key, tid);
-		return err;
+	if (cmd == SPINEL_CMD_RESET) {
+		rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
+	} else {
+		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
 	}
-	err = spinel_datatype_vunpack_in_place(buffer, err, fmt, args);
+	if (rc < 0) {
+		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
+		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, sent_bytes,
+			       true);
+		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
+			       received_bytes, true);
+	} else {
+		memcpy(buffer, recv_buffer, recv_buflen);
+	}
+
+	rc = spinel_datatype_vunpack_in_place(buffer, rc, fmt, args);
+exit:
 	kfree(recv_buffer);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
-	return err;
+	return rc;
 }
 
 static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t length,
@@ -263,7 +279,7 @@ static int otrcp_spinel_prop_get(struct otrcp *rcp, uint8_t *buffer, size_t leng
 	int rc;
 	// dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	va_start(args, fmt);
-	rc = otrcp_spinel_prop_get_v(rcp, buffer, length, key, fmt, args);
+	rc = otrcp_spinel_prop_get_v(rcp, buffer, length, SPINEL_CMD_PROP_VALUE_GET, key, fmt, args);
 	va_end(args);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
