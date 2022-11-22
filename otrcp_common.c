@@ -368,7 +368,7 @@ static int otrcp_spinel_reset_v(struct otrcp *rcp, uint8_t *buffer, size_t lengt
 	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
-	spinel_tid_t tid = 0;
+	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
 	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
