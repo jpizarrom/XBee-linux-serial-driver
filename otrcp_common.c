@@ -53,6 +53,16 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, }; \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL, __VA_ARGS__)
 
+typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args);
+typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
+typedef int (*s32_table_get_func)(struct otrcp *rcp, int8_t *val);
+
+struct data_len {
+	void* data;
+	size_t len;
+};
+
+
 static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
 				    const char *fmt, size_t datasize)
 {
@@ -82,11 +92,6 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	return (out - start) / datasize;
 }
 
-struct data_len {
-	void* data;
-	size_t len;
-};
-
 static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
 	struct data_len *out = ctx;
 	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t));
@@ -97,14 +102,10 @@ static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t c
 	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
 
-typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args);
-
 static int simple_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args)
 {
 	return len;
 }
-
-static const bool isnull(const void * ptr) { return !(ptr); }
 
 static int post_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
 	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
@@ -528,9 +529,6 @@ static int otrcp_set_phy_chan(struct otrcp *rcp, u8 chan)
 {
 	SPINEL_SET_PROP_IMPL(PHY_CHAN, rcp, chan);
 }
-
-typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
-typedef int (*s32_table_get_func)(struct otrcp *rcp, int8_t *val);
 
 static int otrcp_get_s32_table(struct otrcp *rcp, s32 *table, size_t *sz, s32_table_set_func set_table, s32_table_get_func get_table)
 {
