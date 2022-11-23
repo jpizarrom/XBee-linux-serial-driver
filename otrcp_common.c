@@ -38,32 +38,6 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_UINT32_S     // TxDelay
 			   SPINEL_DATATYPE_UINT32_S))   // TxDelayBaseTime
 
-#define SPINEL_PROP_ARRAY_EXTRACT(prop, data, len, fmt, datasize)                                  \
-	uint8_t *buffer;                                                                           \
-	size_t buflen;                                                                             \
-	int rc;                                                                                    \
-\
-	struct otrcp_received_data_verify expected = { \
-		0,  0, 0, true, true, \
-		true, \
-	}; \
-	/*dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);*/                             \
-	buffer = kmalloc((rcp)->spinel_max_frame_size, GFP_KERNEL);                                \
-	buflen = (rcp)->spinel_max_frame_size;                                                     \
-	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_PROP_VALUE_GET,\
-				   CONCATENATE(SPINEL_PROP_, prop), &expected, \
-				   NULL, 0); \
-	if (rc >= 0) {                                                                             \
-		rc = spinel_datatype_unpack_in_place(buffer, rc, spinel_data_format_str_##prop,   \
-				   buffer, &buflen);                                               \
-		rc = spinel_data_array_unpack(data, len, buffer, rc, fmt, datasize);               \
-	}                                                                                          \
-	kfree(buffer);                                                                             \
-	if (rc < 0) {                                                                              \
-		dev_err(rcp->parent, "%s: spinel_data_unpack() failed: %d\n", __func__, rc);       \
-	}                                                                                          \
-	/*dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);*/                               \
-	return rc;
 
 #define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                                           \
 	return otrcp_spinel_command(((struct otrcp *)rcp), cmd,\
@@ -78,6 +52,73 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, }; \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL, __VA_ARGS__)
+
+static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
+				    const char *fmt, size_t datasize)
+{
+	int rc;
+	int remains = out_len;
+	void *start = out;
+
+	// pr_debug("start %s:%d\n", __func__, __LINE__);
+	while (len > 0) {
+		if (remains <= 0) {
+			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
+			return -1;
+		}
+
+		if ((rc = spinel_datatype_unpack(data, len, fmt, out)) < 0) {
+			pr_debug("%s: %d rc=%d\n", __func__, __LINE__, rc);
+			return rc;
+		}
+
+		data += rc;
+		out += datasize;
+		len -= rc;
+		remains -= datasize;
+	}
+
+	// pr_debug("end %s:%d\n", __func__, __LINE__);
+	return (out - start) / datasize;
+}
+
+static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capacity, const char* elemfmt, size_t datasize, const char* fmt, va_list args) {
+	size_t buflen = capacity;
+	uint8_t *buffer;
+	int rc;
+
+	pr_debug("post_array_unpack\n");
+	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
+
+	buffer = kmalloc(capacity, GFP_KERNEL);
+	if (!buffer) {
+		return -ENOMEM;
+	}
+
+	pr_debug("spinel_datatype_unpack_in_place\n");
+	memcpy(buffer, data, len);
+
+	rc = spinel_datatype_unpack_in_place(buffer, len, fmt, buffer, &buflen);
+	print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, buflen, true);
+
+	pr_debug("spinel_data_array_unpack\n");
+
+	rc = spinel_data_array_unpack(data, len, buffer, rc, elemfmt, datasize);
+	print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, rc, true);
+
+	kfree(buffer);
+
+exit:
+	return rc;
+}
+
+static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
+	return post_array_unpack(ctx, buf, len, capacity, SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t), fmt, args);
+}
+
+static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
+	return post_array_unpack(ctx, buf, len, capacity, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t), fmt, args);
+}
 
 typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args);
 
@@ -159,35 +200,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 	// pr_debug("end %s:%d\n", __func__, __LINE__);
 	return offset;
-}
-
-static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
-				    const char *fmt, size_t datasize)
-{
-	int rc;
-	int remains = out_len;
-	void *start = out;
-
-	// pr_debug("start %s:%d\n", __func__, __LINE__);
-	while (len > 0) {
-		if (remains <= 0) {
-			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
-			return -1;
-		}
-
-		if ((rc = spinel_datatype_unpack(data, len, fmt, out)) < 0) {
-			pr_debug("%s: %d rc=%d\n", __func__, __LINE__, rc);
-			return rc;
-		}
-
-		data += rc;
-		out += datasize;
-		len -= rc;
-		remains -= datasize;
-	}
-
-	// pr_debug("end %s:%d\n", __func__, __LINE__);
-	return (out - start) / datasize;
 }
 
 static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
