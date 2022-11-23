@@ -43,12 +43,12 @@ enum spinel_received_data_type {
 };
 
 struct otrcp_received_data_verify {
-	spinel_tid_t tid;
-	uint32_t cmd;
-	spinel_prop_key_t key;
 	bool validate_tid;
 	bool validate_cmd;
 	bool validate_key;
+	spinel_tid_t tid;
+	uint32_t cmd;
+	spinel_prop_key_t key;
 };
 
 struct otrcp {
@@ -78,7 +78,6 @@ struct otrcp {
 	size_t cca_ed_levels_size;
 
 	size_t spinel_max_frame_size;
-	uint16_t scan_period;
 
 	uint8_t phy_chan_supported[32];
 	size_t phy_chan_supported_size;
@@ -92,10 +91,6 @@ struct otrcp {
 
 	int (*wait_notify)(void *ctx, uint8_t *buf, size_t len, size_t *received,
 					struct otrcp_received_data_verify *expected);
-
-	uint8_t prev_send[8192];
-	spinel_tid_t prev_tid;
-	spinel_prop_key_t prev_key;
 
 	struct sk_buff_head xmit_queue;
 };

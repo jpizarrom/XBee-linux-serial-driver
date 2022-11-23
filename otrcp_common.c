@@ -24,14 +24,14 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		0, 0, 0, true, true, true,                                                         \
+		true, true, true,                                                         \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, postproc_unpack, NULL, \
 			   __VA_ARGS__)
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		0, 0, 0, true, true, true,                                                         \
+		true, true, true,                                                         \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, postproc_return, NULL, \
 			   __VA_ARGS__)
@@ -310,7 +310,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	size_t buflen;
 	int rc;
 	struct otrcp_received_data_verify expected = {
-		0, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, false, false, true,
+		false, false, true, 0, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0,
 	};
 	dev_dbg(rcp->parent, "start %s:%dn", __func__, __LINE__);
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
@@ -464,7 +464,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, uint8_t *
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	struct otrcp_received_data_verify expected = {
-		0, 0, 0, true, true, true,
+		true, true, true,
 	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
 	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
@@ -475,7 +475,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 					size_t chan_len)
 {
 	struct otrcp_received_data_verify expected = {
-		0, 0, 0, true, true, true,
+		true, true, true,
 	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
 	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
