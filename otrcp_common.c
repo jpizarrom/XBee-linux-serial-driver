@@ -87,8 +87,8 @@ static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capaci
 	uint8_t *buffer;
 	int rc;
 
-	pr_debug("post_array_unpack\n");
-	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
+	pr_debug("post_array_unpack %p %d\n", data, len);
+	print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
 
 	buffer = kmalloc(capacity, GFP_KERNEL);
 	if (!buffer) {
@@ -101,6 +101,7 @@ static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capaci
 	rc = spinel_datatype_unpack_in_place(buffer, len, fmt, buffer, &buflen);
 	if (rc < 0)
 		goto exit;
+	pr_debug("spinel_datatype_unpack_in_place %p %d\n", buffer, rc);
 	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, (buflen > 16) ? 16 : buflen, true);
 
 	pr_debug("spinel_data_array_unpack\n");
@@ -851,6 +852,10 @@ int otrcp_start(struct ieee802154_hw *hw)
 	if ((rc = otrcp_get_caps(rcp, rcp->caps, rcp->caps_size)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
+	}
+
+	for(rc = 0; rc<rcp->caps_size; rc++) {
+		pr_debug("%d\n", rcp->caps[rc]);
 	}
 
 	if (otrcp_has_caps(rcp, SPINEL_CAP_RCP_API_VERSION)) {
