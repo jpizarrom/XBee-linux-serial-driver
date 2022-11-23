@@ -79,7 +79,7 @@ struct otrcp {
 
 	size_t spinel_max_frame_size;
 
-	uint8_t phy_chan_supported[32];
+	uint8_t phy_chan_supported[kChannelMaskBufferSize];
 	size_t phy_chan_supported_size;
 
 	uint8_t hwaddr[8];
