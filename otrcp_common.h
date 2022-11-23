@@ -84,7 +84,7 @@ struct otrcp {
 
 	uint8_t hwaddr[8];
 
-	int (*send)(void *ctx, uint8_t *buf, size_t len, size_t *sent_bytes, uint32_t cmd,
+	int (*send)(void *ctx, const uint8_t *buf, size_t len, size_t *sent_bytes, uint32_t cmd,
 		    spinel_prop_key_t key, spinel_tid_t tid);
 	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received,
 					struct otrcp_received_data_verify *expected);

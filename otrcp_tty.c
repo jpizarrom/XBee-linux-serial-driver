@@ -297,7 +297,7 @@ static int hdlc_frame_decode(struct hdlc_frame *frame, const uint8_t *data, uint
 	return decoder.length;
 }
 
-static int ttyrcp_spinel_send(void *ctx, uint8_t *buf, size_t len, size_t *sent, uint32_t cmd,
+static int ttyrcp_spinel_send(void *ctx, const uint8_t *buf, size_t len, size_t *sent, uint32_t cmd,
 			      spinel_prop_key_t key, spinel_tid_t tid)
 {
 	struct ttyrcp *rcp = ctx;
