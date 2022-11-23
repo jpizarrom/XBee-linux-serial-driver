@@ -87,33 +87,14 @@ struct data_len {
 	size_t len;
 };
 
-static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capacity, const char* elemfmt, size_t datasize, const char* fmt, va_list args) {
-	size_t buflen = capacity;
-	uint8_t *buffer;
-	int rc;
-	struct data_len *datalen = ctx;
-
-	pr_debug("post_array_unpack %p %d\n", data, len);
-	print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
-
-	rc = spinel_data_array_unpack(datalen->data, datalen->len, data, len, elemfmt, datasize);
-	pr_debug("spinel_data_array_unpack %d\n", rc);
-
-	if (rc < 0)
-		goto exit;
-	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, (rc > 16) ? 16 : rc, true);
-
-exit:
-	kfree(buffer);
-	return rc;
-}
-
 static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
-	return post_array_unpack(ctx, buf, len, capacity, SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t), fmt, args);
+	struct data_len *out = ctx;
+	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t));
 }
 
 static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
-	return post_array_unpack(ctx, buf, len, capacity, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t), fmt, args);
+	struct data_len *out = ctx;
+	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
 
 typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args);
@@ -326,7 +307,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 {
 	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, };
 	struct data_len datalen = { phy_chan_supported, chan_len };
-	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_uint8, rcp, phy_chan_supported, chan_len);
+	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_uint8, &datalen, phy_chan_supported, chan_len);
 }
 
 static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
