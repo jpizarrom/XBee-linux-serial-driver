@@ -581,6 +581,7 @@ static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, st
 	len -= unpacked;
 
 	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
+		pr_debug("TRANSMIT_SEC\n");
 		unpacked = spinel_datatype_unpack_in_place( buf, len,
 			SPINEL_DATATYPE_STRUCT_S(	 // MAC-data
 				SPINEL_DATATYPE_UINT8_S	 // Security key index
@@ -610,9 +611,8 @@ exit:
 	return rc;
 }
 
-static int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len)
+static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, size_t len)
 {
-	struct otrcp *rcp = ctx;
 	int unpacked;
 	spinel_status_t status;
 	bool framePending = false;
@@ -671,6 +671,8 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	uint32_t cmd;
 	spinel_prop_key_t key;
 	spinel_tid_t tid;
+	uint8_t *data = NULL;
+	spinel_size_t len = 0;
 
 	if ((rc = spinel_datatype_unpack(buf, count, "C", &header)) < 0) {
 		return kSpinelReceiveUnknown;
@@ -680,32 +682,49 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	pr_debug("%s:%d\n", __func__, __LINE__);
 
 	if (tid == 0) {
-		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
+		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
+		pr_debug("header=%x, cmd=%d, key=%d, data=%p, len=%u\n", header, cmd, key, data, len);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			pr_debug("%s:%d\n", __func__, __LINE__);
-			return kSpinelReceiveNotification;
+
+			if (key == SPINEL_PROP_STREAM_RAW) {
+				uint8_t chan;
+				int8_t lqi;
+				struct sk_buff *skb = alloc_skb(8192, GFP_KERNEL);
+				pr_debug("============== RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
+			       	rc = ParseRadioFrame(rcp, buf, count, skb, &chan, &lqi);
+				pr_debug("============== END RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
+				kfree_skb(skb);
+
+				return kSpinelReceiveDone;
+			} else {
+				return kSpinelReceiveNotification;
+			}
 		}
 		pr_debug("%s:%d\n", __func__, __LINE__);
 		return kSpinelReceiveUnknown;
 	} else {
 		struct sk_buff *skb;
+		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
+		pr_debug("header=%x, cmd=%d, key=%d, data=%p, len=%u\n", header, cmd, key, data, len);
 
-		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
-			spinel_tid_t *psent_tid = (spinel_tid_t *)(skb->data);
-			skb_pull(skb, sizeof(spinel_tid_t));
-			if (tid == *psent_tid) {
-				//print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
-				//	       skb->data, skb->len, true);
-				ieee802154_xmit_complete(rcp->hw, skb, false);
-				pr_debug("xmit_complete %d\n", tid);
-				return kSpinelReceiveDone;
-			} else {
-				print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
-					       skb->data, skb->len, true);
-				ieee802154_xmit_hw_error(rcp->hw, skb);
-				pr_debug("xmit_hw_error %d\n", tid);
-				return kSpinelReceiveDone;
-			}
+			while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
+				spinel_tid_t *psent_tid = (spinel_tid_t *)(skb->data);
+				skb_pull(skb, sizeof(spinel_tid_t));
+				if (tid == *psent_tid) {
+					//print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
+					//	       skb->data, skb->len, true);
+					extract_stream_raw_response(rcp, data, len);
+					ieee802154_xmit_complete(rcp->hw, skb, false);
+					pr_debug("xmit_complete %d\n", tid);
+					return kSpinelReceiveDone;
+				} else {
+					print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
+						       skb->data, skb->len, true);
+					ieee802154_xmit_hw_error(rcp->hw, skb);
+					pr_debug("xmit_hw_error %d\n", tid);
+					return kSpinelReceiveDone;
+				}
 		}
 
 		if (tid == rcp->tid) {
