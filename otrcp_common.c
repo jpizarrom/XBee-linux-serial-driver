@@ -63,7 +63,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	while (len > 0) {
 		if (remains <= 0) {
-			pr_debug("%s: %d shotrage \n", __func__, __LINE__);
+			pr_debug("%s: %d shortage \n", __func__, __LINE__);
 			return -1;
 		}
 
@@ -105,7 +105,7 @@ static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capaci
 
 	pr_debug("spinel_data_array_unpack\n");
 
-	rc = spinel_data_array_unpack(data, len, buffer, rc, elemfmt, datasize);
+	rc = spinel_data_array_unpack(data, capacity, buffer, rc, elemfmt, datasize);
 	if (rc < 0)
 		goto exit;
 	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, (rc > 16) ? 16 : rc, true);
