@@ -53,7 +53,7 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, }; \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL, __VA_ARGS__)
 
-typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args);
+typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char *fmt, va_list args);
 typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
 typedef int (*s32_table_get_func)(struct otrcp *rcp, int8_t *val);
 
@@ -91,22 +91,22 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	return (out - start) / datasize;
 }
 
-static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
+static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char* fmt, va_list args) {
 	struct data_len *out = ctx;
 	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t));
 }
 
-static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
+static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char* fmt, va_list args) {
 	struct data_len *out = ctx;
 	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
 }
 
-static int simple_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char *fmt, va_list args)
+static int simple_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char *fmt, va_list args)
 {
 	return len;
 }
 
-static int post_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, const char* fmt, va_list args) {
+static int post_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char* fmt, va_list args) {
 	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
 }
 
@@ -242,7 +242,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else if (postproc) {
-		rc = postproc(ctx, recv_buffer, rc, recv_buflen, fmt, args);
+		rc = postproc(ctx, recv_buffer, rc, recv_buflen, tid, fmt, args);
 	}
 
 exit:
@@ -418,12 +418,19 @@ int extract_stream_raw_response(void *ctx, uint8_t *buf, size_t len, size_t capa
 	return len;
 }
 
-static int otrcp_set_stream_raw(struct otrcp *rcp, uint8_t *frame, uint16_t frame_length,
+int postproc_stream_raw_tid(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid, const char *fmt, va_list args)
+{
+	spinel_tid_t* ptid = ctx;
+	*ptid = tid;
+	return len;
+}
+
+static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, uint8_t *frame, uint16_t frame_length,
 				uint8_t channel, uint8_t backoffs, uint8_t retries, bool csmaca,
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
 				uint32_t txdelay_base)
 {
-	SPINEL_PROP_IMPL_V(STREAM_RAW, rcp, SPINEL_CMD_PROP_VALUE_SET, NULL, extract_stream_raw_response, rcp,
+	SPINEL_PROP_IMPL_V(STREAM_RAW, rcp, SPINEL_CMD_PROP_VALUE_SET, NULL, postproc_stream_raw_tid, ptid,
 			       frame, frame_length, channel, backoffs, retries, csmaca,
 			       headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
@@ -909,11 +916,11 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
-	spinel_tid_t *tid_ptr;
+	spinel_tid_t tid, *tid_ptr;
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
-	rc = otrcp_set_stream_raw(rcp, skb->data, skb->len, hw->phy->current_channel, 4, 15,
+	rc = otrcp_set_stream_raw(rcp, &tid, skb->data, skb->len, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
 				  0);
 
@@ -923,9 +930,9 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 
 	tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
-	*tid_ptr = 0;
+	*tid_ptr = tid;
 
-	pr_debug("queue_tail xmit %p\n", skb);
+	pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
 	
 	skb_queue_tail(&rcp->xmit_queue, skb);
 
