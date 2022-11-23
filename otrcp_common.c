@@ -664,11 +664,6 @@ int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len, size_
 	return len;
 }
 
-
-void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count)
-{
-}
-
 enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count)
 {

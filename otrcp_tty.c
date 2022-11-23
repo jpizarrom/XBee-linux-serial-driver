@@ -587,8 +587,6 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	switch (otrcp_spinel_receive_type(&rcp->otrcp, buf, count)) {
 	case kSpinelReceiveNotification:
-		otrcp_handle_notification(&rcp->otrcp, buf, count);
-
 		if (completion_done(&rcp->wait_notify)) {
 			return 0;
 		}
