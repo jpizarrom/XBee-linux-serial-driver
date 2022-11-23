@@ -60,7 +60,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	int remains = out_len;
 	void *start = out;
 
-	pr_debug("start %s:%d (%p, %lu, %p, %lu, %s, %lu)\n", __func__, __LINE__, out, out_len, data, len, fmt, datasize);
+	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	while (len > 0) {
 		if (remains <= 0) {
 			pr_debug("%s: %d shortage \n", __func__, __LINE__);
@@ -324,9 +324,9 @@ static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
 					size_t chan_len)
 {
-	return 0;
-	//SPINEL_PROP_ARRAY_EXTRACT(PHY_CHAN_SUPPORTED, phy_chan_supported, chan_len,
-	//			  SPINEL_DATATYPE_UINT8_S, sizeof(uint8_t));
+	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, };
+	struct data_len datalen = { phy_chan_supported, chan_len };
+	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_uint8, rcp, phy_chan_supported, chan_len);
 }
 
 static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
@@ -845,14 +845,6 @@ int otrcp_start(struct ieee802154_hw *hw)
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
-	rcp->caps_size = rc;
-
-	pr_debug("caps_size %d\n", rcp->caps_size);
-
-	for(rc=0; rc<rcp->caps_size; rc++) {
-		pr_debug("caps[%d] = %d\n", rc, rcp->caps[rc]);
-	}
-
 
 	if (otrcp_has_caps(rcp, SPINEL_CAP_RCP_API_VERSION)) {
 		if ((rc = otrcp_get_rcp_api_version(rcp, &rcp->rcp_api_version)) < 0)
@@ -879,7 +871,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
-/*
+
 	if ((rc = otrcp_check_rcp_supported(rcp)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
@@ -896,7 +888,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 	for (i = 0; i < rcp->phy_chan_supported_size; i++) {
 		hw->phy->supported.channels[0] |= BIT(rcp->phy_chan_supported[i]);
 	}
-*/
+
 	hw->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
 	hw->phy->supported.cca_opts = 0;
 	hw->phy->supported.lbt = false;
