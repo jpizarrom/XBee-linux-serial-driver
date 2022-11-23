@@ -60,7 +60,7 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	int remains = out_len;
 	void *start = out;
 
-	// pr_debug("start %s:%d\n", __func__, __LINE__);
+	pr_debug("start %s:%d (%p, %lu, %p, %lu, %s, %lu)\n", __func__, __LINE__, out, out_len, data, len, fmt, datasize);
 	while (len > 0) {
 		if (remains <= 0) {
 			pr_debug("%s: %d shortage \n", __func__, __LINE__);
@@ -82,35 +82,26 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 	return (out - start) / datasize;
 }
 
+struct data_len {
+	void* data;
+	size_t len;
+};
+
 static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capacity, const char* elemfmt, size_t datasize, const char* fmt, va_list args) {
 	size_t buflen = capacity;
 	uint8_t *buffer;
 	int rc;
+	struct data_len *datalen = ctx;
 
 	pr_debug("post_array_unpack %p %d\n", data, len);
 	print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
 
-	buffer = kmalloc(capacity, GFP_KERNEL);
-	if (!buffer) {
-		return -ENOMEM;
-	}
+	rc = spinel_data_array_unpack(datalen->data, datalen->len, data, len, elemfmt, datasize);
+	pr_debug("spinel_data_array_unpack %d\n", rc);
 
-	pr_debug("spinel_datatype_unpack_in_place\n");
-	memcpy(buffer, data, len);
-
-	rc = spinel_datatype_unpack_in_place(buffer, len, fmt, buffer, &buflen);
-	if (rc < 0)
-		goto exit;
-	pr_debug("spinel_datatype_unpack_in_place %p %d\n", buffer, rc);
-	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, (buflen > 16) ? 16 : buflen, true);
-
-	pr_debug("spinel_data_array_unpack\n");
-
-	rc = spinel_data_array_unpack(data, capacity, buffer, rc, elemfmt, datasize);
 	if (rc < 0)
 		goto exit;
 	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, (rc > 16) ? 16 : rc, true);
-
 
 exit:
 	kfree(buffer);
@@ -270,7 +261,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else {
-		postproc(ctx, recv_buffer, rc, recv_buflen, fmt, args);
+		rc = postproc(ctx, recv_buffer, rc, recv_buflen, fmt, args);
 	}
 
 exit:
@@ -326,7 +317,8 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, };
-	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_packed_int, rcp, caps, caps_len);
+	struct data_len datalen = { caps, sizeof(uint32_t)*caps_len };
+	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_packed_int, &datalen, caps, caps_len);
 }
 
 static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
@@ -853,10 +845,14 @@ int otrcp_start(struct ieee802154_hw *hw)
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
+	rcp->caps_size = rc;
 
-	for(rc = 0; rc<rcp->caps_size; rc++) {
-		pr_debug("%d\n", rcp->caps[rc]);
+	pr_debug("caps_size %d\n", rcp->caps_size);
+
+	for(rc=0; rc<rcp->caps_size; rc++) {
+		pr_debug("caps[%d] = %d\n", rc, rcp->caps[rc]);
 	}
+
 
 	if (otrcp_has_caps(rcp, SPINEL_CAP_RCP_API_VERSION)) {
 		if ((rc = otrcp_get_rcp_api_version(rcp, &rcp->rcp_api_version)) < 0)
