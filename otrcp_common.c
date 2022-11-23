@@ -610,8 +610,7 @@ exit:
 	return rc;
 }
 
-int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
-				const char *fmt, va_list args)
+static int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len)
 {
 	struct otrcp *rcp = ctx;
 	int unpacked;
@@ -703,7 +702,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			} else {
 				print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
-				ieee802154_xmit_complete(rcp->hw, skb, false);
+				ieee802154_xmit_hw_error(rcp->hw, skb);
 				pr_debug("xmit_hw_error %d\n", tid);
 				return kSpinelReceiveDone;
 			}
