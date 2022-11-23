@@ -568,7 +568,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	// dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
 	//	count);
-	print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
+	// print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 
 	if (!tty->disc_data) {
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);

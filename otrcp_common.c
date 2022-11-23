@@ -107,6 +107,18 @@ static int postproc_data_array_unpack(void *out, size_t out_len, uint8_t *data, 
 	return (out - start) / datasize;
 }
 
+static int postproc_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+			 const char *fmt, va_list args)
+{
+	return len;
+}
+
+static int postproc_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+		       const char *fmt, va_list args)
+{
+	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
+}
+
 static int postproc_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity,
 					spinel_tid_t tid, const char *fmt, va_list args)
 {
@@ -121,18 +133,6 @@ static int postproc_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size
 	struct data_len *out = ctx;
 	return postproc_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S,
 					sizeof(uint8_t));
-}
-
-static int postproc_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-			 const char *fmt, va_list args)
-{
-	return len;
-}
-
-static int postproc_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-		       const char *fmt, va_list args)
-{
-	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
 }
 
 static int postproc_stream_raw_tid(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
@@ -700,8 +700,8 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			spinel_tid_t *psent_tid = (spinel_tid_t *)(skb->data);
 			skb_pull(skb, sizeof(spinel_tid_t));
 			if (tid == *psent_tid) {
-				print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
-					       skb->data, skb->len, true);
+				//print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
+				//	       skb->data, skb->len, true);
 				ieee802154_xmit_complete(rcp->hw, skb, false);
 				pr_debug("xmit_complete %d\n", tid);
 				return kSpinelReceiveDone;
@@ -972,7 +972,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 		return rc;
 	}
 
-	print_hex_dump(KERN_INFO, "push>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
+	//print_hex_dump(KERN_INFO, "push>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
 	tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
 	*tid_ptr = tid;
 
