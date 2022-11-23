@@ -167,7 +167,7 @@ static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command
 	return packed;
 }
 
-static int spinel_prop_command(const uint8_t *buffer, size_t length, uint32_t command,
+static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
 			       va_list args)
 {
@@ -217,8 +217,8 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
 	int rc;
-	const uint8_t *send_buffer;
-	const uint8_t *recv_buffer;
+	uint8_t *send_buffer;
+	uint8_t *recv_buffer;
 	size_t send_buflen = rcp->spinel_max_frame_size;
 	size_t recv_buflen = rcp->spinel_max_frame_size;
 	size_t sent_bytes = 0;
@@ -325,132 +325,6 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	return rc;
 }
 
-static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
-			   uint8_t *channel, int8_t *lqi)
-{
-	int rc = 0;
-	uint16_t flags = 0;
-	int8_t noiseFloor = -128;
-	spinel_size_t size = 8192; // OT_RADIO_FRAME_MAX_SIZE;
-	unsigned int receiveError = 0;
-	spinel_ssize_t unpacked;
-	int8_t rssi = 0;
-	uint64_t timestamp = 0;
-	uint32_t ackFrameCounter;
-	uint8_t ackKeyId;
-
-	uint8_t *work = kmalloc(8192, GFP_KERNEL);
-
-	unpacked = spinel_datatype_unpack_in_place(buf, len,
-		SPINEL_DATATYPE_DATA_WLEN_S		// Frame
-		SPINEL_DATATYPE_INT8_S			// RSSI
-		SPINEL_DATATYPE_INT8_S			// Noise Floor
-		SPINEL_DATATYPE_UINT16_S		// Flags
-		SPINEL_DATATYPE_STRUCT_S(		// PHY-data
-			SPINEL_DATATYPE_UINT8_S		// 802.15.4 channel
-			SPINEL_DATATYPE_UINT8_S		// 802.15.4 LQI
-			SPINEL_DATATYPE_UINT64_S	// Timestamp (us).
-		) SPINEL_DATATYPE_STRUCT_S(		// Vendor-data
-			SPINEL_DATATYPE_UINT_PACKED_S	// Receive error
-		),
-		work, &size, &rssi, &noiseFloor, &flags,
-		channel, lqi, &timestamp, &receiveError);
-
-	memcpy(skb_put(skb, size), work, size);
-
-	rc = unpacked;
-	if (unpacked < 0) {
-		goto exit;
-	}
-
-	buf += unpacked;
-	len -= unpacked;
-
-	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
-		unpacked = spinel_datatype_unpack_in_place( buf, len,
-			SPINEL_DATATYPE_STRUCT_S(	 // MAC-data
-				SPINEL_DATATYPE_UINT8_S	 // Security key index
-				SPINEL_DATATYPE_UINT32_S // Security frame counter
-			),
-			&ackKeyId, &ackFrameCounter);
-
-		if (unpacked < 0) {
-			rc = unpacked;
-			goto exit;
-		}
-
-		rc += unpacked;
-	}
-
-	pr_debug("Channel %u", *channel);
-	pr_debug("LQI %u", *lqi);
-	pr_debug("data size %d", size);
-	pr_debug("RSSI %d", rssi);
-	pr_debug("noiseFloor %d", noiseFloor);
-	pr_debug("flags %x", flags);
-	pr_debug("Timestamp %llu", timestamp);
-	pr_debug("AckKeyId %u", ackKeyId);
-	pr_debug("AckFrameCounter %u", ackFrameCounter);
-
-exit:
-	return rc;
-}
-
-int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
-				const char *fmt, va_list args)
-{
-	struct otrcp *rcp = ctx;
-	int unpacked;
-	spinel_status_t status;
-	bool framePending = false;
-	bool headerUpdated = false;
-	int8_t lqi;
-	uint8_t channel;
-	struct sk_buff *skb;
-
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
-
-	dev_dbg(rcp->parent, "status=%d %d\n", status, unpacked);
-
-	if (unpacked < 0)
-		return -1;
-
-	buf += unpacked;
-	len -= unpacked;
-
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &framePending);
-	if (unpacked < 0)
-		return -1;
-
-	dev_dbg(rcp->parent, "framePending=%d %d\n", framePending, unpacked);
-
-	buf += unpacked;
-	len -= unpacked;
-
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &headerUpdated);
-	if (unpacked < 0)
-		return -1;
-
-	dev_dbg(rcp->parent, "headerUpdated=%d\n", headerUpdated);
-
-	buf += unpacked;
-	len -= unpacked;
-
-	skb = alloc_skb(8192, GFP_KERNEL);
-
-	unpacked = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
-
-	kfree_skb(skb);
-
-	buf += unpacked;
-	len -= unpacked;
-
-	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
-	return len;
-}
-
-
 static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uint8_t *frame,
 				uint16_t frame_length, uint8_t channel, uint8_t backoffs,
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
@@ -471,7 +345,7 @@ static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 			   postproc_array_unpack_packed_int, &datalen, caps, caps_len);
 }
 
-static int otrcp_get_phy_chan_supported(struct otrcp *rcp, const uint8_t *phy_chan_supported,
+static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
 					size_t chan_len)
 {
 	struct otrcp_received_data_verify expected = {
@@ -664,6 +538,132 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
+
+static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
+			   uint8_t *channel, int8_t *lqi)
+{
+	int rc = 0;
+	uint16_t flags = 0;
+	int8_t noiseFloor = -128;
+	spinel_size_t size = 8192; // OT_RADIO_FRAME_MAX_SIZE;
+	unsigned int receiveError = 0;
+	spinel_ssize_t unpacked;
+	int8_t rssi = 0;
+	uint64_t timestamp = 0;
+	uint32_t ackFrameCounter;
+	uint8_t ackKeyId;
+
+	uint8_t *work = kmalloc(8192, GFP_KERNEL);
+
+	unpacked = spinel_datatype_unpack_in_place(buf, len,
+		SPINEL_DATATYPE_DATA_WLEN_S		// Frame
+		SPINEL_DATATYPE_INT8_S			// RSSI
+		SPINEL_DATATYPE_INT8_S			// Noise Floor
+		SPINEL_DATATYPE_UINT16_S		// Flags
+		SPINEL_DATATYPE_STRUCT_S(		// PHY-data
+			SPINEL_DATATYPE_UINT8_S		// 802.15.4 channel
+			SPINEL_DATATYPE_UINT8_S		// 802.15.4 LQI
+			SPINEL_DATATYPE_UINT64_S	// Timestamp (us).
+		) SPINEL_DATATYPE_STRUCT_S(		// Vendor-data
+			SPINEL_DATATYPE_UINT_PACKED_S	// Receive error
+		),
+		work, &size, &rssi, &noiseFloor, &flags,
+		channel, lqi, &timestamp, &receiveError);
+
+	memcpy(skb_put(skb, size), work, size);
+
+	rc = unpacked;
+	if (unpacked < 0) {
+		goto exit;
+	}
+
+	buf += unpacked;
+	len -= unpacked;
+
+	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
+		unpacked = spinel_datatype_unpack_in_place( buf, len,
+			SPINEL_DATATYPE_STRUCT_S(	 // MAC-data
+				SPINEL_DATATYPE_UINT8_S	 // Security key index
+				SPINEL_DATATYPE_UINT32_S // Security frame counter
+			),
+			&ackKeyId, &ackFrameCounter);
+
+		if (unpacked < 0) {
+			rc = unpacked;
+			goto exit;
+		}
+
+		rc += unpacked;
+	}
+
+	pr_debug("Channel %u", *channel);
+	pr_debug("LQI %u", *lqi);
+	pr_debug("data size %d", size);
+	pr_debug("RSSI %d", rssi);
+	pr_debug("noiseFloor %d", noiseFloor);
+	pr_debug("flags %x", flags);
+	pr_debug("Timestamp %llu", timestamp);
+	pr_debug("AckKeyId %u", ackKeyId);
+	pr_debug("AckFrameCounter %u", ackFrameCounter);
+
+exit:
+	return rc;
+}
+
+int extract_stream_raw_response(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
+				const char *fmt, va_list args)
+{
+	struct otrcp *rcp = ctx;
+	int unpacked;
+	spinel_status_t status;
+	bool framePending = false;
+	bool headerUpdated = false;
+	int8_t lqi;
+	uint8_t channel;
+	struct sk_buff *skb;
+
+	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
+
+	dev_dbg(rcp->parent, "status=%d %d\n", status, unpacked);
+
+	if (unpacked < 0)
+		return -1;
+
+	buf += unpacked;
+	len -= unpacked;
+
+	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &framePending);
+	if (unpacked < 0)
+		return -1;
+
+	dev_dbg(rcp->parent, "framePending=%d %d\n", framePending, unpacked);
+
+	buf += unpacked;
+	len -= unpacked;
+
+	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &headerUpdated);
+	if (unpacked < 0)
+		return -1;
+
+	dev_dbg(rcp->parent, "headerUpdated=%d\n", headerUpdated);
+
+	buf += unpacked;
+	len -= unpacked;
+
+	skb = alloc_skb(8192, GFP_KERNEL);
+
+	unpacked = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
+
+	kfree_skb(skb);
+
+	buf += unpacked;
+	len -= unpacked;
+
+	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
+	return len;
+}
+
 
 void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count)
 {
