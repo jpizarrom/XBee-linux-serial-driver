@@ -310,7 +310,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	size_t buflen;
 	int rc;
 	struct otrcp_received_data_verify expected = {
-		false, false, true, 0, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0,
+		false, false, true, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0,
 	};
 	dev_dbg(rcp->parent, "start %s:%dn", __func__, __LINE__);
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);

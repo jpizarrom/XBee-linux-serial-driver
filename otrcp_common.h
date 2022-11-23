@@ -43,11 +43,11 @@ enum spinel_received_data_type {
 };
 
 struct otrcp_received_data_verify {
-	bool validate_tid;
 	bool validate_cmd;
+	bool validate_tid;
 	bool validate_key;
-	spinel_tid_t tid;
 	uint32_t cmd;
+	spinel_tid_t tid;
 	spinel_prop_key_t key;
 };
 
