@@ -16,6 +16,26 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 	ieee802154_xmit_error(hw, skb, 0xff);
 }
 
+#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                           \
+	return otrcp_spinel_command(((struct otrcp *)rcp), cmd,\
+				   CONCATENATE(SPINEL_PROP_, prop), expected, \
+				   postproc, ctx, \
+				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);
+
+#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
+	struct otrcp_received_data_verify expected = {                                             \
+		0, 0, 0, true, true, true,                                                         \
+	};                                                                                         \
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, postproc_unpack, NULL, \
+			   __VA_ARGS__)
+
+#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
+	struct otrcp_received_data_verify expected = {                                             \
+		0, 0, 0, true, true, true,                                                         \
+	};                                                                                         \
+	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, postproc_return, NULL, \
+			   __VA_ARGS__)
+
 #define FORMAT_STRING(prop, format)                                                                \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
 
@@ -50,26 +70,6 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_UINT32_S))   // TxDelayBaseTime
 
 
-#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                                           \
-	return otrcp_spinel_command(((struct otrcp *)rcp), cmd,\
-				   CONCATENATE(SPINEL_PROP_, prop), expected,  \
-				   postproc, ctx, \
-				   CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);
-
-#define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	struct otrcp_received_data_verify expected = {                                             \
-		0, 0, 0, true, true, true,                                                         \
-	};                                                                                         \
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_unpack, NULL,     \
-			   __VA_ARGS__)
-
-#define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	struct otrcp_received_data_verify expected = {                                             \
-		0, 0, 0, true, true, true,                                                         \
-	};                                                                                         \
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, simple_return, NULL,   \
-			   __VA_ARGS__)
-
 typedef int (*postproc_func)(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
 			     const char *fmt, va_list args);
 typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
@@ -80,18 +80,17 @@ struct data_len {
 	size_t len;
 };
 
-static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
+static int postproc_data_array_unpack(void *out, size_t out_len, uint8_t *data, size_t len,
 				    const char *fmt, size_t datasize)
 {
-	int rc;
 	int remains = out_len;
 	void *start = out;
+	int rc;
 
-	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	while (len > 0) {
 		if (remains <= 0) {
 			pr_debug("%s: %d shortage \n", __func__, __LINE__);
-			return -1;
+			return -ENOBUFS;
 		}
 
 		if ((rc = spinel_datatype_unpack(data, len, fmt, out)) < 0) {
@@ -105,36 +104,43 @@ static int spinel_data_array_unpack(void *out, size_t out_len, uint8_t *data, si
 		remains -= datasize;
 	}
 
-	// pr_debug("end %s:%d\n", __func__, __LINE__);
 	return (out - start) / datasize;
 }
 
-static int post_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity,
+static int postproc_array_unpack_packed_int(void *ctx, uint8_t *buf, size_t len, size_t capacity,
 					spinel_tid_t tid, const char *fmt, va_list args)
 {
 	struct data_len *out = ctx;
-	return spinel_data_array_unpack(out->data, out->len, buf, len,
+	return postproc_data_array_unpack(out->data, out->len, buf, len,
 					SPINEL_DATATYPE_UINT_PACKED_S, sizeof(uint32_t));
 }
 
-static int post_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity,
+static int postproc_array_unpack_uint8(void *ctx, uint8_t *buf, size_t len, size_t capacity,
 				   spinel_tid_t tid, const char *fmt, va_list args)
 {
 	struct data_len *out = ctx;
-	return spinel_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S,
+	return postproc_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S,
 					sizeof(uint8_t));
 }
 
-static int simple_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+static int postproc_return(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
 			 const char *fmt, va_list args)
 {
 	return len;
 }
 
-static int post_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+static int postproc_unpack(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
 		       const char *fmt, va_list args)
 {
 	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
+}
+
+static int postproc_stream_raw_tid(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+			    const char *fmt, va_list args)
+{
+	spinel_tid_t *ptid = ctx;
+	*ptid = tid;
+	return len;
 }
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command,
@@ -310,7 +316,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
 	buflen = rcp->spinel_max_frame_size;
 	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
-				  simple_return, NULL, spinel_data_format_str_RESET,
+				  postproc_return, NULL, spinel_data_format_str_RESET,
 				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				  reset);
 
@@ -444,13 +450,6 @@ int extract_stream_raw_response(void *ctx, uint8_t *buf, size_t len, size_t capa
 	return len;
 }
 
-int postproc_stream_raw_tid(void *ctx, uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-			    const char *fmt, va_list args)
-{
-	spinel_tid_t *ptid = ctx;
-	*ptid = tid;
-	return len;
-}
 
 static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, uint8_t *frame,
 				uint16_t frame_length, uint8_t channel, uint8_t backoffs,
@@ -469,7 +468,7 @@ static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
 	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
-			   post_array_unpack_packed_int, &datalen, caps, caps_len);
+			   postproc_array_unpack_packed_int, &datalen, caps, caps_len);
 }
 
 static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
@@ -480,7 +479,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
 	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
-			   post_array_unpack_uint8, &datalen, phy_chan_supported, chan_len);
+			   postproc_array_unpack_uint8, &datalen, phy_chan_supported, chan_len);
 }
 
 static int otrcp_get_phy_rssi(struct otrcp *rcp, uint8_t *rssi)
