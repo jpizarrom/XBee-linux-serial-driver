@@ -99,16 +99,20 @@ static int post_array_unpack(void *ctx, uint8_t *data, size_t len, size_t capaci
 	memcpy(buffer, data, len);
 
 	rc = spinel_datatype_unpack_in_place(buffer, len, fmt, buffer, &buflen);
-	print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, buflen, true);
+	if (rc < 0)
+		goto exit;
+	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, buffer, (buflen > 16) ? 16 : buflen, true);
 
 	pr_debug("spinel_data_array_unpack\n");
 
 	rc = spinel_data_array_unpack(data, len, buffer, rc, elemfmt, datasize);
-	print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, rc, true);
+	if (rc < 0)
+		goto exit;
+	//print_hex_dump(KERN_INFO, "buf>>: ", DUMP_PREFIX_NONE, 16, 1, data, (rc > 16) ? 16 : rc, true);
 
-	kfree(buffer);
 
 exit:
+	kfree(buffer);
 	return rc;
 }
 
@@ -320,9 +324,8 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
-	return 0;
-	//SPINEL_PROP_ARRAY_EXTRACT(CAPS, caps, caps_len, SPINEL_DATATYPE_UINT_PACKED_S,
-	//			  sizeof(uint32_t));
+	struct otrcp_received_data_verify expected = { 0,  0, 0, true, true, true, };
+	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, post_array_unpack_packed_int, rcp, caps, caps_len);
 }
 
 static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
@@ -844,7 +847,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
 	}
-/*
+
 	if ((rc = otrcp_get_caps(rcp, rcp->caps, rcp->caps_size)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
@@ -854,7 +857,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 		if ((rc = otrcp_get_rcp_api_version(rcp, &rcp->rcp_api_version)) < 0)
 			return rc;
 	}
-*/
+
 	if ((rc = otrcp_get_radio_caps(rcp, &rcp->radio_caps)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		return rc;
