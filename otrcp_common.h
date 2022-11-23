@@ -37,8 +37,9 @@ enum {
 
 enum spinel_received_data_type {
 	kSpinelReceiveUnknown = 0,
-	kSpinelReceiveResponse = 1,
-	kSpinelReceiveNotification = 2,
+	kSpinelReceiveDone = 1,
+	kSpinelReceiveResponse = 2,
+	kSpinelReceiveNotification = 3,
 };
 
 struct otrcp_received_data_verify {

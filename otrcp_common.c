@@ -5,6 +5,18 @@
 #include <linux/skbuff.h>
 #include <net/mac802154.h>
 
+static void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
+			   int reason)
+{
+	ieee802154_wake_queue(hw);
+	dev_kfree_skb_any(skb);
+}
+
+static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	ieee802154_xmit_error(hw, skb, 0xff);
+}
+
 #define FORMAT_STRING(prop, format)                                                                \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
 
@@ -660,11 +672,16 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 		pr_debug("%s:%d\n", __func__, __LINE__);
 		return kSpinelReceiveUnknown;
 	} else {
-		struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
-		if (skb) {
-			pr_debug("%p\n", skb);
-			//spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
-			pr_debug("sent_tid %x\n", *skb->data);
+		struct sk_buff *skb;
+
+		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
+			spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
+			if (tid == sent_tid) {
+				ieee802154_xmit_complete(rcp->hw, skb, false);
+				return kSpinelReceiveDone;
+			} else {
+			       //ieee802154_xmit_hw_error(rcp->hw, skb);
+			}
 		}
 
 		if (tid == rcp->tid) {
@@ -672,22 +689,6 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			return kSpinelReceiveResponse;
 		}
 		else {
-#if 0
-			struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
-			/*
-			do {
-				if (!skb)
-					break;
-
-				spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
-				if (tid == sent_tid) {
-					pr_debug("ieee802154_xmit_complete\n");
-					skb_pull(skb, sizeof(spinel_tid_t));
-					ieee802154_xmit_complete(rcp->hw, skb, false);
-				}
-			} while ((skb = skb_queue_next(&rcp->xmit_queue, skb)));
-			*/
-#endif
 			return kSpinelReceiveUnknown;
 		}
 	}

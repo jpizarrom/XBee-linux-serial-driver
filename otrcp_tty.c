@@ -613,6 +613,8 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 		complete_all(&rcp->wait_response);
 		break;
+	case kSpinelReceiveDone:
+		break;
 	default:
 		kfree_skb(skb);
 		dev_dbg(rcp->otrcp.parent,
