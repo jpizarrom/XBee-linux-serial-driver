@@ -649,14 +649,26 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
 
+	pr_debug("%s:%d\n", __func__, __LINE__);
+
 	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "Cii", &header, &cmd, &key);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
+			pr_debug("%s:%d\n", __func__, __LINE__);
 			return kSpinelReceiveNotification;
 		}
+		pr_debug("%s:%d\n", __func__, __LINE__);
 		return kSpinelReceiveUnknown;
 	} else {
+		struct sk_buff *skb = skb_peek(&rcp->xmit_queue);
+		if (skb) {
+			pr_debug("%p\n", skb);
+			//spinel_tid_t sent_tid = *((spinel_tid_t*)(skb->data));
+			pr_debug("sent_tid %x\n", *skb->data);
+		}
+
 		if (tid == rcp->tid) {
+			pr_debug("%s:%d\n", __func__, __LINE__);
 			return kSpinelReceiveResponse;
 		}
 		else {
@@ -680,6 +692,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 		}
 	}
 
+	pr_debug("%s:%d\n", __func__, __LINE__);
 	return kSpinelReceiveUnknown;
 }
 
