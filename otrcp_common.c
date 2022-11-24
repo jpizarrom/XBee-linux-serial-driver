@@ -692,7 +692,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 				int8_t lqi;
 				struct sk_buff *skb = alloc_skb(8192, GFP_KERNEL);
 				pr_debug("============== RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
-			       	rc = ParseRadioFrame(rcp, buf, count, skb, &chan, &lqi);
+			       	rc = ParseRadioFrame(rcp, data, len, skb, &chan, &lqi);
 				pr_debug("============== END RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
 				kfree_skb(skb);
 
