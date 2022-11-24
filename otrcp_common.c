@@ -242,7 +242,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 		rc = spinel_prop_command(send_buffer, send_buflen, cmd, key, tid, fmt, args);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_GET) {
 		rcp->tid = tid;
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, key, tid, NULL, 0);
+		rc = spinel_prop_command(send_buffer, send_buflen, cmd, key, tid, NULL, args);
 	} else {
 		rc = -EINVAL;
 	}
