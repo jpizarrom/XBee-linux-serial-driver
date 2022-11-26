@@ -457,7 +457,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.hw = hw;
 	rcp->otrcp.parent = tty->dev;
 	rcp->otrcp.rcp_api_version = 1;
-	rcp->otrcp.spinel_max_frame_size = 8192;
 	rcp->otrcp.phy_chan_supported_size = sizeof(rcp->otrcp.phy_chan_supported);
 	rcp->otrcp.caps_size = sizeof(rcp->otrcp.caps);
 	rcp->otrcp.tid = 0xFF;

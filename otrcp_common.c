@@ -80,6 +80,10 @@ struct data_len {
 	size_t len;
 };
 
+static uint spinel_max_frame_size = 8192;
+
+module_param(spinel_max_frame_size, uint, S_IRUGO);
+
 static int postproc_data_array_unpack(void *out, size_t out_len, const uint8_t *data, size_t len,
 				    const char *fmt, size_t datasize)
 {
@@ -219,17 +223,17 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	int rc;
 	uint8_t *send_buffer;
 	uint8_t *recv_buffer;
-	size_t send_buflen = rcp->spinel_max_frame_size;
-	size_t recv_buflen = rcp->spinel_max_frame_size;
+	size_t send_buflen = spinel_max_frame_size;
+	size_t recv_buflen = spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
-	recv_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
+	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
 		return -ENOMEM;
 	}
-	send_buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
+	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
 		kfree(recv_buffer);
 		return -ENOMEM;
@@ -313,8 +317,9 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 		false, false, true, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0,
 	};
 	dev_dbg(rcp->parent, "start %s:%dn", __func__, __LINE__);
-	buffer = kmalloc(rcp->spinel_max_frame_size, GFP_KERNEL);
-	buflen = rcp->spinel_max_frame_size;
+	buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
+	buflen = spinel_max_frame_size;
+	pr_debug("spinel_max_frame_size =%u\n", spinel_max_frame_size);
 	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
 				  postproc_return, NULL, spinel_data_format_str_RESET,
 				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
@@ -545,7 +550,7 @@ static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, st
 	int rc = 0;
 	uint16_t flags = 0;
 	int8_t noiseFloor = -128;
-	spinel_size_t size = 8192; // OT_RADIO_FRAME_MAX_SIZE;
+	spinel_size_t size = spinel_max_frame_size; // OT_RADIO_FRAME_MAX_SIZE;
 	unsigned int receiveError = 0;
 	spinel_ssize_t unpacked;
 	int8_t rssi = 0;
@@ -553,7 +558,7 @@ static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, st
 	uint32_t ackFrameCounter;
 	uint8_t ackKeyId;
 
-	uint8_t *work = kmalloc(8192, GFP_KERNEL);
+	uint8_t *work = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 
 	unpacked = spinel_datatype_unpack_in_place(buf, len,
 		SPINEL_DATATYPE_DATA_WLEN_S		// Frame
@@ -650,7 +655,7 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	buf += unpacked;
 	len -= unpacked;
 
-	skb = alloc_skb(8192, GFP_KERNEL);
+	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
 
 	unpacked = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
 
@@ -690,7 +695,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			if (key == SPINEL_PROP_STREAM_RAW) {
 				uint8_t chan;
 				int8_t lqi;
-				struct sk_buff *skb = alloc_skb(8192, GFP_KERNEL);
+				struct sk_buff *skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
 				pr_debug("============== RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
 				print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       data, len, true);

@@ -77,8 +77,6 @@ struct otrcp {
 	int32_t cca_ed_levels[U8_MAX];
 	size_t cca_ed_levels_size;
 
-	size_t spinel_max_frame_size;
-
 	uint8_t phy_chan_supported[kChannelMaskBufferSize];
 	size_t phy_chan_supported_size;
 
