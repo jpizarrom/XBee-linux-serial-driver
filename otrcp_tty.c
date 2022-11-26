@@ -235,11 +235,7 @@ static int hdlc_frame_decode_byte(struct hdlc_frame *frame, uint8_t byte,
 			if (decode->length > 0) {
 				error = -EINVAL;
 
-				if ((decode->length >= kFcsSize)
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-				    && (frame->fcs == kGoodFcs)
-#endif
-				) {
+				if ((decode->length >= kFcsSize) && (frame->fcs == kGoodFcs)) {
 					// Remove the FCS from the frame.
 					hdlc_frame_undo_last_writes(frame, kFcsSize);
 					error = 0;
