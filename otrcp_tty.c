@@ -349,14 +349,14 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
 			rc, __func__,
 			(completion == &rcp->wait_response) ? "response" : "notification", buf, len,
-			expected->cmd, expected->key, expected->tid, expected->validate_cmd,
-			expected->validate_key, expected->validate_tid);
+			expected->cmd, expected->key, expected->tid, expected->verify_cmd,
+			expected->verify_key, expected->verify_tid);
 
 		return (rc == 0) ? -ETIMEDOUT : rc;
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_validate_received_data(&rcp->otrcp, skb->data, skb->len, &data,
+		rc = otrcp_verify_received_data(&rcp->otrcp, skb->data, skb->len, &data,
 						  &data_len, expected);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);

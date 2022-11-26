@@ -42,9 +42,9 @@ enum spinel_received_data_type {
 };
 
 struct otrcp_received_data_verify {
-	bool validate_cmd;
-	bool validate_tid;
-	bool validate_key;
+	bool verify_cmd;
+	bool verify_tid;
+	bool verify_key;
 	uint32_t cmd;
 	spinel_tid_t tid;
 	spinel_prop_key_t key;
@@ -112,7 +112,7 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 
 int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count);
-int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len,
+int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len,
 				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected);
 static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
 {

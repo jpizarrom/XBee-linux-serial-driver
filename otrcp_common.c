@@ -84,6 +84,26 @@ static uint spinel_max_frame_size = 8192;
 
 module_param(spinel_max_frame_size, uint, S_IRUGO);
 
+static int postproc_return(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+			 const char *fmt, va_list args)
+{
+	return len;
+}
+
+static int postproc_unpack(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+		       const char *fmt, va_list args)
+{
+	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
+}
+
+static int postproc_stream_raw_tid(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
+			    const char *fmt, va_list args)
+{
+	spinel_tid_t *ptid = ctx;
+	*ptid = tid;
+	return len;
+}
+
 static int postproc_data_array_unpack(void *out, size_t out_len, const uint8_t *data, size_t len,
 				    const char *fmt, size_t datasize)
 {
@@ -111,18 +131,6 @@ static int postproc_data_array_unpack(void *out, size_t out_len, const uint8_t *
 	return (out - start) / datasize;
 }
 
-static int postproc_return(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-			 const char *fmt, va_list args)
-{
-	return len;
-}
-
-static int postproc_unpack(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-		       const char *fmt, va_list args)
-{
-	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
-}
-
 static int postproc_array_unpack_packed_int(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
 					spinel_tid_t tid, const char *fmt, va_list args)
 {
@@ -137,14 +145,6 @@ static int postproc_array_unpack_uint8(void *ctx, const uint8_t *buf, size_t len
 	struct data_len *out = ctx;
 	return postproc_data_array_unpack(out->data, out->len, buf, len, SPINEL_DATATYPE_UINT8_S,
 					sizeof(uint8_t));
-}
-
-static int postproc_stream_raw_tid(void *ctx, const uint8_t *buf, size_t len, size_t capacity, spinel_tid_t tid,
-			    const char *fmt, va_list args)
-{
-	spinel_tid_t *ptid = ctx;
-	*ptid = tid;
-	return len;
 }
 
 static int spinel_reset_command(uint8_t *buffer, size_t length, uint32_t command,
@@ -751,7 +751,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 	return -1;
 }
 
-int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t **data,
+int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t **data,
 				 spinel_size_t *data_len,
 				 struct otrcp_received_data_verify *expected)
 {
@@ -772,9 +772,9 @@ int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t l
 
 	tid = SPINEL_HEADER_GET_TID(hdr);
 
-	if (((expected->tid == tid) || !expected->validate_tid) &&
-	    ((expected->cmd == cmd) || !expected->validate_cmd) &&
-	    ((expected->key == key) || !expected->validate_key)) {
+	if (((expected->tid == tid) || !expected->verify_tid) &&
+	    ((expected->cmd == cmd) || !expected->verify_cmd) &&
+	    ((expected->key == key) || !expected->verify_key)) {
 
 		rc = *data_len;
 	} else {
