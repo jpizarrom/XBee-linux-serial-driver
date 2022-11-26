@@ -50,8 +50,6 @@ struct ttyrcp {
 
 	struct sk_buff_head response_queue;
 	struct sk_buff_head notify_queue;
-
-	uint8_t hdlc_lite_buf[SPINEL_FRAME_MAX_SIZE * 2 + 4];
 };
 
 static void hdlc_frame_update_fcs(struct hdlc_frame *frame, uint8_t byte)
@@ -293,8 +291,14 @@ static int ttyrcp_spinel_send(void *ctx, const uint8_t *buf, size_t len, size_t 
 			      spinel_prop_key_t key, spinel_tid_t tid)
 {
 	struct ttyrcp *rcp = ctx;
-	struct hdlc_frame frm = {rcp->hdlc_lite_buf, sizeof(rcp->hdlc_lite_buf), 0};
+	uint8_t *hdlc_buf;
+	struct hdlc_frame frm;
 	int rc;
+
+	hdlc_buf = kmalloc(SPINEL_FRAME_MAX_SIZE * 2 + 4, GFP_KERNEL);
+	frm.ptr = hdlc_buf;
+	frm.remaining = SPINEL_FRAME_MAX_SIZE * 2 + 4;
+	frm.fcs = 0;
 
 	*sent = 0;
 	// dev_dbg(rcp->parent, "%s buf=%p, len=%lu, cmd=%u, key=%u, tid=%u\n", __func__, buf, len,
@@ -309,13 +313,14 @@ static int ttyrcp_spinel_send(void *ctx, const uint8_t *buf, size_t len, size_t 
 	if ((rc = hdlc_frame_end(&frm)) < 0)
 		goto end;
 
-	if ((rc = rcp->tty->ops->write(rcp->tty, rcp->hdlc_lite_buf,
-				       frm.ptr - rcp->hdlc_lite_buf)) < 0)
+	if ((rc = rcp->tty->ops->write(rcp->tty, hdlc_buf, frm.ptr - hdlc_buf)) < 0)
 		goto end;
 
 	*sent = rc;
+
 end:
 	// dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
+	kfree(hdlc_buf);
 	return rc;
 }
 
