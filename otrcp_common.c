@@ -692,8 +692,14 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 				int8_t lqi;
 				struct sk_buff *skb = alloc_skb(8192, GFP_KERNEL);
 				pr_debug("============== RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
+				print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1,
+					       data, len, true);
 			       	rc = ParseRadioFrame(rcp, data, len, skb, &chan, &lqi);
-				pr_debug("============== END RECEIVE STREAM_RAW %s:%d\n", __func__, __LINE__);
+				//skb_trim(skb, skb->len - 2);
+				print_hex_dump(KERN_INFO, "payl>>: ", DUMP_PREFIX_NONE, 16, 1,
+					       skb->data, skb->len, true);
+
+				pr_debug("============== END RECEIVE STREAM_RAW %s:%d %d\n", __func__, __LINE__, rc);
 				kfree_skb(skb);
 
 				return kSpinelReceiveDone;
@@ -940,7 +946,7 @@ int otrcp_start(struct ieee802154_hw *hw)
 	hw->phy->supported.min_frame_retries = 0;
 	hw->phy->supported.max_frame_retries = 16;
 	hw->phy->cca.mode = NL802154_CCA_ENERGY;
-	hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_CSMA_PARAMS |
+	hw->flags = IEEE802154_HW_CSMA_PARAMS |
 		    IEEE802154_HW_FRAME_RETRIES | IEEE802154_HW_AFILT | IEEE802154_HW_PROMISCUOUS;
 	hw->phy->flags =
 		WPAN_PHY_FLAG_TXPOWER | WPAN_PHY_FLAG_CCA_ED_LEVEL | WPAN_PHY_FLAG_CCA_MODE;
