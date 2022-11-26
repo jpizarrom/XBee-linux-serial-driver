@@ -55,12 +55,13 @@ struct otrcp {
 	struct ieee802154_hw *hw;
 	struct device *parent;
 
+	struct sk_buff_head xmit_queue;
+	uint8_t tid;
+
 	uint8_t csma_min_be;
 	uint8_t csma_max_be;
 	uint8_t csma_retries;
 	int8_t max_frame_retries;
-
-	uint8_t tid;
 
 	uint8_t ncp_version[kVersionStringSize];
 	uint8_t protocol_version_major;
@@ -89,8 +90,6 @@ struct otrcp {
 
 	int (*wait_notify)(void *ctx, uint8_t *buf, size_t len, size_t *received,
 					struct otrcp_received_data_verify *expected);
-
-	struct sk_buff_head xmit_queue;
 };
 
 struct ieee802154_hw;
@@ -114,8 +113,6 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 
 enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count);
-void otrcp_handle_notification(struct otrcp *rcp, const uint8_t *buf, size_t count);
-
 int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len,
 				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected);
 static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
