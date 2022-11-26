@@ -668,7 +668,7 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	return len;
 }
 
-enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
+int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count)
 {
 	int rc;
@@ -680,7 +680,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 	spinel_size_t len = 0;
 
 	if ((rc = spinel_datatype_unpack(buf, count, "C", &header)) < 0) {
-		return kSpinelReceiveUnknown;
+		return -1;
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
 
@@ -714,7 +714,7 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			}
 		}
 		pr_debug("%s:%d\n", __func__, __LINE__);
-		return kSpinelReceiveUnknown;
+		return -1;
 	} else {
 		struct sk_buff *skb;
 		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
@@ -743,12 +743,12 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 			pr_debug("%s:%d\n", __func__, __LINE__);
 			return kSpinelReceiveResponse;
 		} else {
-			return kSpinelReceiveUnknown;
+			return -1;
 		}
 	}
 
 	pr_debug("%s:%d\n", __func__, __LINE__);
-	return kSpinelReceiveUnknown;
+	return -1;
 }
 
 int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t **data,

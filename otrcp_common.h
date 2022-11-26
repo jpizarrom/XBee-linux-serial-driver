@@ -36,10 +36,9 @@ enum {
 };
 
 enum spinel_received_data_type {
-	kSpinelReceiveUnknown = 0,
-	kSpinelReceiveDone = 1,
-	kSpinelReceiveResponse = 2,
-	kSpinelReceiveNotification = 3,
+	kSpinelReceiveDone = 0,
+	kSpinelReceiveResponse = 1,
+	kSpinelReceiveNotification = 2,
 };
 
 struct otrcp_received_data_verify {
@@ -111,7 +110,7 @@ int otrcp_ed(struct ieee802154_hw *hw, u8 *level);
 int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed);
 
-enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
+int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 							 size_t count);
 int otrcp_validate_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len,
 				 uint8_t **data, spinel_size_t *data_len, struct otrcp_received_data_verify *expected);
