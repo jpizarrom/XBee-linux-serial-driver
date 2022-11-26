@@ -3,10 +3,6 @@
 #include <linux/tty.h>
 #include <net/mac802154.h>
 
-#ifdef MODTEST_ENABLE
-#include "modtest.h"
-#endif
-
 #define N_IEEE802154_OTRCP 29
 
 enum {
