@@ -563,12 +563,11 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 {
 	struct hdlc_frame frm = {(uint8_t *)buf, count, 0};
 	struct ttyrcp *rcp = tty->disc_data;
-	struct sk_buff *skb;
 	int rc = 0;
 
 	// dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
 	//	count);
-	print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
+	//print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 
 	if (!tty->disc_data) {
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);
@@ -613,10 +612,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 	case kSpinelReceiveDone:
 		break;
 	default:
-		kfree_skb(skb);
-		dev_dbg(rcp->otrcp.parent,
-			"%s: ***************** not handled tid = %x, expected %x\n", __func__,
-			SPINEL_HEADER_GET_TID(skb->data[0]), rcp->otrcp.tid);
+		print_hex_dump_debug("unknown buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 		return 0;
 	}
 
