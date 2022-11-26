@@ -5,7 +5,7 @@
 
 #define N_IEEE802154_OTRCP 29
 
-enum {
+enum hdlc_byte_types {
 	kFlagXOn = 0x11,
 	kFlagXOff = 0x13,
 	kFlagSequence = 0x7e,
@@ -13,13 +13,12 @@ enum {
 	kFlagSpecial = 0xf8,
 };
 
-/**
- * FCS lookup table
- *
- */
-enum {
+enum hdlc_fcs {
 	kInitFcs = 0xffff,
 	kGoodFcs = 0xf0b8,
+};
+
+enum hdlc_size {
 	kFcsSize = 2,
 };
 
@@ -86,23 +85,16 @@ static void hdlc_frame_update_fcs(struct hdlc_frame *frame, uint8_t byte)
 
 static bool hdlc_frame_byte_needs_escape(uint8_t byte)
 {
-	bool rval;
-
 	switch (byte) {
 	case kFlagXOn:
 	case kFlagXOff:
 	case kEscapeSequence:
 	case kFlagSequence:
 	case kFlagSpecial:
-		rval = true;
-		break;
-
-	default:
-		rval = false;
-		break;
+		return true;
 	}
 
-	return rval;
+	return false;
 }
 
 static bool hdlc_frame_can_write(struct hdlc_frame *frame, uint16_t write_len)
@@ -165,18 +157,22 @@ static int hdlc_frame_encode_buffer(struct hdlc_frame *frame, const uint8_t *dat
 {
 	struct hdlc_frame old = *frame;
 	int rc = 0;
+	int count = 0;
 
 	while (len--) {
-
 		if ((rc = hdlc_frame_encode_byte(frame, *data++)) < 0)
 			goto exit;
+		count += rc;
 	}
 
 exit:
-	if (rc < 0)
+	if (rc < 0) {
 		*frame = old;
+		return rc;
+	}
 
-	return rc;
+
+	return count;
 }
 
 static int hdlc_frame_end(struct hdlc_frame *frame)
@@ -184,23 +180,32 @@ static int hdlc_frame_end(struct hdlc_frame *frame)
 	struct hdlc_frame old = *frame;
 	uint16_t fcs = frame->fcs;
 	int rc = 0;
+	int count = 0;
 
 	fcs ^= 0xffff;
 
 	if ((rc = hdlc_frame_encode_byte(frame, fcs & 0xff)) < 0)
 		goto exit;
 
+	count += rc;
+
 	if ((rc = hdlc_frame_encode_byte(frame, fcs >> 8)) < 0)
 		goto exit;
+
+	count += rc;
 
 	if ((rc = hdlc_frame_write_byte(frame, kFlagSequence)) < 0)
 		goto exit;
 
-exit:
-	if (rc < 0)
-		*frame = old;
+	count += rc;
 
-	return rc;
+exit:
+	if (rc < 0) {
+		*frame = old;
+		return rc;
+	}
+
+	return count;
 }
 
 static int hdlc_frame_decode_byte(struct hdlc_frame *frame, uint8_t byte,
@@ -295,14 +300,15 @@ static int ttyrcp_spinel_send(void *ctx, const uint8_t *buf, size_t len, size_t 
 	struct hdlc_frame frm;
 	int rc;
 
+	// dev_dbg(rcp->parent, "%s buf=%p, len=%lu, cmd=%u, key=%u, tid=%u\n", __func__, buf, len,
+	//	cmd, key, tid);
+	//
 	hdlc_buf = kmalloc(SPINEL_FRAME_MAX_SIZE * 2 + 4, GFP_KERNEL);
 	frm.ptr = hdlc_buf;
 	frm.remaining = SPINEL_FRAME_MAX_SIZE * 2 + 4;
 	frm.fcs = 0;
 
 	*sent = 0;
-	// dev_dbg(rcp->parent, "%s buf=%p, len=%lu, cmd=%u, key=%u, tid=%u\n", __func__, buf, len,
-	//	cmd, key, tid);
 
 	if ((rc = hdlc_frame_begin(&frm)) < 0)
 		goto end;
@@ -319,8 +325,9 @@ static int ttyrcp_spinel_send(void *ctx, const uint8_t *buf, size_t len, size_t 
 	*sent = rc;
 
 end:
-	// dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
 	kfree(hdlc_buf);
+
+	// dev_dbg(rcp->otrcp.parent, "end %s: %d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -329,16 +336,15 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			      struct otrcp_received_data_verify *expected)
 {
 	struct ttyrcp *rcp = ctx;
-	uint8_t *data;
-	spinel_size_t data_len;
 	struct sk_buff *skb;
 	int rc;
-
-	*received = 0;
 
 	// dev_dbg(rcp->otrcp.parent,
 	//	"%s(ctx=%p, buf=%p, len=%lu, expected_cmd=%u, expected_key=%u, expected_tid=%u)\n",
 	//__func__, 	ctx, buf, len, expected_cmd, expected_key, expected_tid);
+	
+	*received = 0;
+
 	reinit_completion(completion);
 	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
 	if (rc <= 0) {
@@ -349,12 +355,18 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 			expected->cmd, expected->key, expected->tid, expected->verify_cmd,
 			expected->verify_key, expected->verify_tid);
 
-		return (rc == 0) ? -ETIMEDOUT : rc;
+		if (rc)
+			return rc;
+
+		return -ETIMEDOUT;
 	}
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
-		rc = otrcp_verify_received_data(&rcp->otrcp, skb->data, skb->len, &data,
-						  &data_len, expected);
+		uint8_t *data;
+		spinel_size_t data_len;
+
+		rc = otrcp_verify_received_data(&rcp->otrcp, skb->data, skb->len, &data, &data_len,
+						expected);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
@@ -461,8 +473,6 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.wait_response = ttyrcp_spinel_wait_response;
 	rcp->otrcp.wait_notify = ttyrcp_spinel_wait_notify;
 
-	tty->receive_room = 65536;
-
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
 	skb_queue_head_init(&rcp->otrcp.xmit_queue);
@@ -474,12 +484,8 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	tty->disc_data = rcp;
 	rc = ieee802154_register_hw(hw);
 
-	if (rc < 0)
-		goto end;
-
-end:
 	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
-	return rc;
+	return 0;
 }
 
 static void ttyrcp_ldisc_close(struct tty_struct *tty)
@@ -492,7 +498,7 @@ static void ttyrcp_ldisc_close(struct tty_struct *tty)
 	tty_kref_put(tty);
 
 	if (!rcp) {
-		printk(KERN_WARNING "%s: rcp is not found\n", __func__);
+		printk(KERN_WARNING "%s: rcp is not set\n", __func__);
 		return;
 	}
 
@@ -503,41 +509,22 @@ static void ttyrcp_ldisc_close(struct tty_struct *tty)
 	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 }
 
-static int ttyrcp_ldisc_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
-			      unsigned long arg)
-{
-	dev_dbg(tty->dev, "%s(%p, %p, %u, %lu)\n", __func__, tty, file, cmd, arg);
-#if 0
-        struct ttyrcp *rcp = tty->disc_data;
-        unsigned int tmp;
-
-        /* First make sure we're connected. */
-        if (!xb || rcp->magic != XBEE802154_MAGIC)
-                return -EINVAL;
-
-        switch (cmd) {
-        case SIOCGIFNAME:
-                tmp = strlen(rcp->dev->name) + 1;
-                if (copy_to_user((void __user *)arg, rcp->dev->name, tmp))
-                        return -EFAULT;
-                return 0;
-        case SIOCSIFHWADDR:
-                return -EINVAL;
-#ifdef MODTEST_ENABLE
-        case 0x9999:
-                return modtest_ioctl(file, cmd, arg, xb);
-#endif
-        default:
-                return tty_mode_ioctl(tty, file, cmd, arg);
-        }
-#endif
-	return 0;
-}
-
 static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 {
+	struct ttyrcp *rcp = tty->disc_data;
+	struct sk_buff *skb;
+
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
-	ttyrcp_ldisc_close(tty);
+
+	complete_all(&rcp->wait_notify);
+	complete_all(&rcp->wait_response);
+	while ((skb = skb_dequeue(&rcp->notify_queue)) != NULL) {
+		kfree_skb(skb);
+	}
+	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
+		kfree_skb(skb);
+	}
+
 	dev_dbg(tty->dev, "end %s: %d\n", __func__, __LINE__);
 	return 0;
 }
@@ -563,7 +550,7 @@ static int ttyrcp_ldisc_receive_buf2(struct tty_struct *tty, const unsigned char
 
 	// dev_dbg(tty->dev, "%s(tty=%p, buf=%p, clfags=%p count=%u)\n", __func__, tty, buf, cflags,
 	//	count);
-	//print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
+	// print_hex_dump_debug("receive_buf2<<: ", DUMP_PREFIX_NONE, 16, 1, buf, count, true);
 
 	if (!tty->disc_data) {
 		dev_err(tty->dev, "%s(): record for tty is not found\n", __func__);
@@ -622,7 +609,6 @@ static struct tty_ldisc_ops ttyrcp_ldisc_ops = {
 	.name = "n_ieee802154_otrcp",
 	.open = ttyrcp_ldisc_open,
 	.close = ttyrcp_ldisc_close,
-	.ioctl = ttyrcp_ldisc_ioctl,
 	.hangup = ttyrcp_ldisc_hangup,
 	.receive_buf2 = ttyrcp_ldisc_receive_buf2,
 };
@@ -631,10 +617,11 @@ static struct tty_ldisc_ops ttyrcp_ldisc_ops = {
 
 static int __init ttyrcp_init(void)
 {
+	int rc;
 	pr_debug("%s\n", __func__);
-	if (tty_register_ldisc(&ttyrcp_ldisc_ops) != 0) {
-		printk(KERN_ERR "%s: line discipline register failed\n", __func__);
-		return -EINVAL;
+	if ((rc = tty_register_ldisc(&ttyrcp_ldisc_ops))) {
+		printk(KERN_ERR "%s: tty_register_ldisc: rc %d\n", __func__, rc);
+		return rc;
 	}
 
 	return 0;
