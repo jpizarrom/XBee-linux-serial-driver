@@ -698,9 +698,10 @@ enum spinel_received_data_type otrcp_spinel_receive_type(struct otrcp *rcp, cons
 				//skb_trim(skb, skb->len - 2);
 				print_hex_dump(KERN_INFO, "payl>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
+				ieee802154_rx_irqsafe(rcp->hw, skb, lqi);
 
 				pr_debug("============== END RECEIVE STREAM_RAW %s:%d %d\n", __func__, __LINE__, rc);
-				kfree_skb(skb);
+				//kfree_skb(skb);
 
 				return kSpinelReceiveDone;
 			} else {
