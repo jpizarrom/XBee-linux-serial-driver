@@ -262,7 +262,7 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 	}
 	expected.key = key;
 	expected.tid = tid;
-	expected.cmd = otrcp_spinel_expected_command(cmd);
+	expected.cmd = cmd;
 
 	memcpy(skb_put(skb, sizeof(struct otrcp_received_data_verify)), &expected, sizeof(struct otrcp_received_data_verify));
 	memcpy(skb_put(skb, rc), send_buffer, rc);
@@ -274,7 +274,7 @@ exit:
 }
 
 
-static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
+static int otrcp_spinel_command_v(struct otrcp *rcp,
        	struct sk_buff *skb,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
@@ -293,13 +293,14 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 	expected = *((struct otrcp_received_data_verify*)(skb->data));
 	skb_pull(skb, sizeof(struct otrcp_received_data_verify));
 
-	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, expected.key, expected.tid)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, expected.cmd, expected.key, expected.tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
 
 	if (expected.enabled) {
-		expected.cmd = otrcp_spinel_expected_command(cmd);
+		uint32_t cmd = expected.cmd;
+		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
 		if (cmd == SPINEL_CMD_RESET) {
 			rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
 					      &expected);
@@ -333,7 +334,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 
 	va_start(args, fmt);
 	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &skb, expected, postproc, ctx, fmt, args);
-	rc = otrcp_spinel_command_v(rcp, cmd, skb, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_command_v(rcp, skb, postproc, ctx, fmt, args);
 	va_end(args);
 
 	return rc;
