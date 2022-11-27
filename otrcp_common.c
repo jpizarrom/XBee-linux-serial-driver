@@ -384,9 +384,33 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
-	SPINEL_PROP_IMPL_V(STREAM_RAW, rcp, SPINEL_CMD_PROP_VALUE_SET, NULL,
-			   postproc_stream_raw_tid, ptid, frame, frame_length, channel, backoffs,
+	return otrcp_spinel_command(rcp, SPINEL_CMD_PROP_VALUE_SET, SPINEL_PROP_STREAM_RAW, NULL,
+				   postproc_stream_raw_tid, ptid, spinel_data_format_str_STREAM_RAW,
+			   frame, frame_length, channel, backoffs,
 			   retries, csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
+#if 0
+static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
+				struct otrcp_received_data_verify *expected, postproc_func postproc,
+				void *ctx, const char *fmt, ...)
+{
+	va_list args;
+	int rc;
+
+	struct sk_buff *skb;
+
+	va_start(args, fmt);
+	rc = otrcp_alloc_command_skb_v(rcp, cmd, key, &skb, postproc, ctx, fmt, args);
+	if (rc < 0) {
+		return rc;
+	}
+
+	otrcp_push_expected_info(skb, cmd, key, rc, expected);
+	rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
+	va_end(args);
+
+	return rc;
+}
+#endif
 }
 
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
