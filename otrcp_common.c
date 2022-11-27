@@ -274,8 +274,7 @@ exit:
 }
 
 
-static int otrcp_spinel_send_command_v(struct otrcp *rcp,
-       	struct sk_buff *skb,
+static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
 	int rc;
