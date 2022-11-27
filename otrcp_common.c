@@ -238,7 +238,6 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		goto exit;
 	}
 
-
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = spinel_reset_command(send_buffer, send_buflen, 0, 0, 0, fmt, args);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
@@ -255,8 +254,13 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		goto exit;
 	}
 
-	memcpy(skb_put(skb, rc), send_buffer, rc);
+	if (expected) {
+		expected->key = key;
+		expected->tid = tid;
+		expected->cmd = otrcp_spinel_expected_command(cmd);
+	}
 
+	memcpy(skb_put(skb, rc), send_buffer, rc);
 exit:
 	kfree(send_buffer);
 	*pskb = skb;
@@ -290,9 +294,6 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	}
 
 	if (expected) {
-		expected->key = key;
-		expected->tid = tid;
-		expected->cmd = otrcp_spinel_expected_command(cmd);
 		if (cmd == SPINEL_CMD_RESET) {
 			rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
 					      expected);
@@ -304,8 +305,6 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
-		//print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, send_buffer,
-		//	       sent_bytes, true);
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else if (postproc) {
@@ -313,9 +312,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	}
 
 exit:
-	//kfree(send_buffer);
 	kfree(recv_buffer);
-	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -326,8 +323,6 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 	va_list args;
 	int rc;
 
-	//uint8_t *buf;
-	//size_t buflen;
 	struct sk_buff *skb;
 	spinel_tid_t tid;
 
