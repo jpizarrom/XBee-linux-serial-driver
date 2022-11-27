@@ -262,7 +262,7 @@ exit:
 
 }
 
-static void otrcp_spinel_format_command_v_hoge(struct sk_buff *skb, uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
+static void otrcp_push_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
 						struct otrcp_received_data_verify *pexpected)
 
 {
@@ -346,8 +346,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 		return rc;
 	}
 
-	otrcp_spinel_format_command_v_hoge(skb, cmd, key, rc, expected);
-
+	otrcp_push_expected_info(skb, cmd, key, rc, expected);
 	rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
 	va_end(args);
 
