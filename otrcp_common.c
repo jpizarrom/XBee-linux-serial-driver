@@ -920,17 +920,13 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 					       skb->data, skb->len, true);
 				extract_stream_raw_response(rcp, data, len);
 				pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
-#if 0
 				ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
-#endif
 				return kSpinelReceiveDone;
 			} else {
 				print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
-#if 0
 				ieee802154_xmit_hw_error(rcp->hw, rcp->tx_skb);
 				pr_debug("xmit_hw_error %d\n", tid);
-#endif
 				return kSpinelReceiveDone;
 			}
 		}
