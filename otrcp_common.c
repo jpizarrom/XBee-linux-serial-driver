@@ -224,16 +224,10 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 	int rc;
 	uint8_t *send_buffer;
 	size_t send_buflen = spinel_max_frame_size;
-	//size_t sent_bytes = 0;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 
-	//recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
-	//if (!recv_buffer) {
-	//	return -ENOMEM;
-	//}
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
-		//kfree(recv_buffer);
 		return -ENOMEM;
 	}
 
