@@ -315,7 +315,7 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
 
 	if (expected.key == SPINEL_PROP_STREAM_RAW) {
-		skb_pull(skb, verify_size);
+		//skb_pull(skb, verify_size);
 		skb_queue_tail(&rcp->xmit_queue, skb);
 	}
 
@@ -852,9 +852,10 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 		pr_debug("header=%x, cmd=%d, key=%d, data=%p, len=%u\n", header, cmd, key, data, len);
 
 			while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
-				spinel_tid_t *psent_tid = (spinel_tid_t *)(skb->data);
-				skb_pull(skb, sizeof(spinel_tid_t));
-				if (tid == *psent_tid) {
+				struct otrcp_received_data_verify expected;
+				expected = *((struct otrcp_received_data_verify*)(skb->data));
+				skb_pull(skb, sizeof(struct otrcp_received_data_verify));
+				if (tid == expected.tid) {
 					//print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
 					//	       skb->data, skb->len, true);
 					extract_stream_raw_response(rcp, data, len);
