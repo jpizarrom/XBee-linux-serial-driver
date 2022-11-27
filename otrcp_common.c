@@ -217,7 +217,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 }
 
 static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
-					spinel_tid_t *ptid, uint8_t **pbuf, size_t *pbuflen,
+					spinel_tid_t *ptid,
 					struct sk_buff **pskb,
 				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
@@ -255,20 +255,11 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		goto exit;
 	}
 
-	pr_debug("command_len = %d\n", rc);
-	pr_debug("skb->len= %d data=%p\n", skb->len, skb->data);
-	{
-	uint8_t *ptr = skb_put(skb, rc);
-	pr_debug("skb->len= %d data=%p ptr=%p rc=%d\n", skb->len, skb->data, ptr, rc);
-	}
-
-	//memcpy(skb_push(skb, rc), send_buffer, rc);
+	memcpy(skb_put(skb, rc), send_buffer, rc);
 
 exit:
-	//kfree(send_buffer);
-	*pbuf = send_buffer;
+	kfree(send_buffer);
 	*pskb = skb;
-	*pbuflen = rc;
 	*ptid = tid;
 	return rc;
 
@@ -277,8 +268,6 @@ exit:
 
 static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
 	spinel_tid_t tid,
-	uint8_t *send_buffer,
-	size_t send_buflen,
        	struct sk_buff *skb,
 				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
@@ -295,7 +284,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	}
 	
 
-	if ((rc = rcp->send(rcp, send_buffer, send_buflen, &sent_bytes, cmd, key, tid)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, key, tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
@@ -315,8 +304,8 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
-		print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, send_buffer,
-			       sent_bytes, true);
+		//print_hex_dump(KERN_INFO, "send>>: ", DUMP_PREFIX_NONE, 16, 1, send_buffer,
+		//	       sent_bytes, true);
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else if (postproc) {
@@ -324,7 +313,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	}
 
 exit:
-	kfree(send_buffer);
+	//kfree(send_buffer);
 	kfree(recv_buffer);
 	// dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return rc;
@@ -337,14 +326,14 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 	va_list args;
 	int rc;
 
-	uint8_t *buf;
-	size_t buflen;
+	//uint8_t *buf;
+	//size_t buflen;
 	struct sk_buff *skb;
 	spinel_tid_t tid;
 
 	va_start(args, fmt);
-	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &tid, &buf, &buflen, &skb, expected, postproc, ctx, fmt, args);
-	rc = otrcp_spinel_command_v(rcp, cmd, key, tid, buf, buflen, skb, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &tid, &skb, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_command_v(rcp, cmd, key, tid, skb, expected, postproc, ctx, fmt, args);
 	va_end(args);
 
 	return rc;
