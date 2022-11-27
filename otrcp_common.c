@@ -253,7 +253,6 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	size_t send_buflen = spinel_max_frame_size;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	size_t offset;
-	size_t len;
 
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
@@ -275,49 +274,15 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	if (rc < 0) {
 		goto exit;
 	}
-	len = rc;
 
 	offset = skb->len;
 
 	pr_debug("offset =%lu len=%d\n", offset, rc);
 
-	/*
-	if (skb_headroom(skb) < sizeof(uint32_t)) {
-		rc = pskb_expand_head(skb, sizeof(uint32_t), 0, GFP_KERNEL);
-		if (rc < 0) {
-			return rc;
-		}
-	}*/
+	memcpy(skb_put(skb, rc), send_buffer, rc);
 
-
-	rc = otrcp_put_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
-	if (rc < 0) {
-		return rc;
-	}
-	{
-	uint8_t *buf;
-	buf = skb_put(skb, len);
-	if (!buf) {
-		return -ENOMEM;
-	}
-	memcpy(buf, send_buffer, len);
-	}
-
-	{
-	uint32_t *ptr = skb_push(skb, sizeof(uint32_t));
-	if (!ptr) {
-		return -ENOMEM;
-	}
-	*ptr = offset;
-	}
-
-	if (rc < 0) {
-		goto exit;
-	}
+	otrcp_put_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
 exit:
-	if (rc < 0) {
-		return rc;
-	}
 	kfree(send_buffer);
 	return tid;
 
@@ -333,7 +298,6 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	size_t received_bytes = 0;
 	struct otrcp_received_data_verify expected;
 	size_t verify_size = sizeof(struct otrcp_received_data_verify);
-	size_t offset = 0;
 
 	//pr_debug("%s %d\n", __func__, __LINE__);
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
@@ -341,36 +305,29 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		return -ENOMEM;
 	}
 
-	pr_debug("%s %d\n", __func__, __LINE__);
-	offset = *((uint32_t*)(skb->data));
-	skb_pull(skb, sizeof(uint32_t));
-	expected = *((struct otrcp_received_data_verify*)(skb->data+offset));
+	expected = *((struct otrcp_received_data_verify*)(skb->data + (skb->len-sizeof(struct otrcp_received_data_verify))));
+
+	pr_debug("offset=%d cmd=%lu, key=%d tid=%d verify_cmd=%d verify_key=%d verify_tid=%d enabled=%d\n", expected.offset, expected.cmd, expected.key, expected.tid, expected.verify_cmd, expected.verify_key, expected.verify_tid, expected.enabled);
 	//skb_pull(skb, sizeof(struct otrcp_received_data_verify));
-	
-	//pr_debug("offset=%lu, expected.offset=%lu expected.key=%d skb->len=%u\n", offset, expected.offset, expected.key, skb->len);
 
-
-	//pr_debug("%s %d %ld\n", __func__, __LINE__, skb->len - (verify_size + expected.offset));
-
-
-	//print_hex_dump(KERN_DEBUG, "send>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data + verify_size + expected.offset,
-	//		       skb->len - (verify_size + expected.offset), true);
-
-	if ((rc = rcp->send(rcp, skb->data + verify_size + expected.offset, skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data + expected.offset, skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
 
-	//pr_debug("%s %d\n", __func__, __LINE__);
-	skb_trim(skb, verify_size + expected.offset);
+	//skb_trim(skb, skb->len - expected.offset);
 
-	//pr_debug("%s %d\n", __func__, __LINE__);
+	//tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
+	//*tid_ptr = tid;
+
+	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
+
 	if (expected.key == SPINEL_PROP_STREAM_RAW) {
-		pr_debug("enqueu\n");
+		//skb_pull(skb, verify_size);
+		print_hex_dump(KERN_INFO, "enqu>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
 		skb_queue_tail(&rcp->xmit_queue, skb);
 	}
 
-	pr_debug("%s %d\n", __func__, __LINE__);
 	if (expected.enabled) {
 		uint32_t cmd = expected.cmd;
 		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
@@ -383,7 +340,6 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		}
 	}
 
-	//pr_debug("%s %d\n", __func__, __LINE__);
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
@@ -392,7 +348,6 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		rc = postproc(ctx, recv_buffer, rc, recv_buflen, expected.tid, fmt, args);
 	}
 
-	pr_debug("%s %d\n", __func__, __LINE__);
 exit:
 	kfree(recv_buffer);
 	return rc;
@@ -496,7 +451,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, struct sk
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
 	int rc;
-	
+
 	rc = otrcp_format_command_skb(rcp, SPINEL_CMD_PROP_VALUE_SET, SPINEL_PROP_STREAM_RAW, skb,
 				   postproc_stream_raw_tid, ptid, NULL,
 			   spinel_data_format_str_STREAM_RAW, skb->data, skb->len, channel, backoffs,
@@ -511,6 +466,9 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, struct sk
 			   retries, csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
 
 exit:
+	if (rc < 0) {
+		kfree_skb(skb);
+	}
 	return rc;
 }
 
@@ -934,16 +892,17 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 
 		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
 			//uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
-			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			struct otrcp_received_data_verify expected;
-			pr_debug("offset =%d\n", offset);
+			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			expected = *((struct otrcp_received_data_verify*)(skb->data+offset));
+			pr_debug("==== offset=%d cmd=%lu, key=%d tid=%d verify_cmd=%d verify_key=%d verify_tid=%d enabled=%d\n", expected.offset, expected.cmd, expected.key, expected.tid, expected.verify_cmd, expected.verify_key, expected.verify_tid, expected.enabled);
+			pr_debug("offset =%d\n", offset);
 			pr_debug("tx expected.tid=%d tid=%d\n", expected.tid, tid);
-			skb_trim(skb, skb->len - sizeof(struct otrcp_received_data_verify) );
+			skb_trim(skb, expected.offset);
 			if (tid == expected.tid) {
-				extract_stream_raw_response(rcp, data, len);
 				print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
+				extract_stream_raw_response(rcp, data, len);
 				ieee802154_xmit_complete(rcp->hw, skb, false);
 				pr_debug("xmit_complete %d\n", tid);
 				return kSpinelReceiveDone;
@@ -1168,7 +1127,6 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
 	print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
-	
 	rc = otrcp_set_stream_raw(rcp, &tid, skb, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
 				  0);
@@ -1178,13 +1136,9 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 		return rc;
 	}
 
-	if (skb_headroom(skb) < sizeof(struct otrcp_received_data_verify)) {
-		rc = pskb_expand_head(skb, sizeof(struct otrcp_received_data_verify), 10000, GFP_KERNEL);
-		if (rc < 0) {
-			return rc;
-		}
-
-	}
+	//print_hex_dump(KERN_INFO, "push>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
+	//tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
+	//*tid_ptr = tid;
 
 	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
 
