@@ -307,6 +307,18 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		goto exit;
 	}
 
+	skb_trim(skb, skb->len - expected.offset);
+
+	//tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
+	//*tid_ptr = tid;
+
+	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
+
+	if (expected.key == SPINEL_PROP_STREAM_RAW) {
+		skb_pull(skb, verify_size);
+		skb_queue_tail(&rcp->xmit_queue, skb);
+	}
+
 	if (expected.enabled) {
 		uint32_t cmd = expected.cmd;
 		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
@@ -1103,7 +1115,7 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct otrcp *rcp = hw->priv;
 	int rc = 0;
-	spinel_tid_t tid, *tid_ptr;
+	spinel_tid_t tid;//, *tid_ptr;
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
 
@@ -1117,12 +1129,12 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 
 	//print_hex_dump(KERN_INFO, "push>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
-	tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
-	*tid_ptr = tid;
+	//tid_ptr = (spinel_tid_t *)skb_push(skb, sizeof(spinel_tid_t));
+	//*tid_ptr = tid;
 
-	pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
+	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
 
-	skb_queue_tail(&rcp->xmit_queue, skb);
+	//skb_queue_tail(&rcp->xmit_queue, skb);
 
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
