@@ -223,6 +223,8 @@ static int otrcp_put_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_pro
 	struct otrcp_received_data_verify expected = { 0 };
 	int rc = 0;
 
+	pr_debug("otrcp_put_excepted_info offset=%d\n", offset);
+
 	if (pexpected) {
 		pexpected->enabled = true;
 	} else {
@@ -902,6 +904,8 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
 			//uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
 			pr_debug("skb->len=%d\n", skb->len);
+			print_hex_dump(KERN_INFO, "deq>>: ", DUMP_PREFIX_NONE, 16, 1,
+				       skb->data, skb->len, true);
 			struct otrcp_received_data_verify expected;
 			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			expected = *((struct otrcp_received_data_verify*)(skb->data+offset));
@@ -1142,6 +1146,9 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, skb);
 
+	rcp->tx_skb = skb;
+	//skb_queue_tail(&rcp->xmit_queue, skb);
+
 	print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
 	rc = otrcp_set_stream_raw(rcp, &tid, skb, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
@@ -1158,9 +1165,6 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	//pr_debug("queue_tail xmit %p tid=%x\n", skb, tid);
 
-	rcp->tx_skb = skb;
-
-	skb_queue_tail(&rcp->xmit_queue, skb);
 
 	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
