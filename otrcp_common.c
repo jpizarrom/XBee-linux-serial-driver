@@ -316,7 +316,6 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		 "enabled=%d\n",
 		 expected.offset, expected.cmd, expected.key, expected.tid, expected.verify_cmd,
 		 expected.verify_key, expected.verify_tid, expected.enabled);
-	// skb_pull(skb, sizeof(struct otrcp_received_data_verify));
 
 	if ((rc = rcp->send(rcp, skb->data + expected.offset,
 			    skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
