@@ -941,8 +941,6 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 					return kSpinelReceiveDone;
 				}
 			} else {
-				pr_debug("------------ not handled %s:%d\n", __func__, __LINE__);
-
 			       	if (tid == expected.tid) {
 				       	pr_debug("%s:%d\n", __func__, __LINE__);
 				       	return kSpinelReceiveResponse;
