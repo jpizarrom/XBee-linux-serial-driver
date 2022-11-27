@@ -171,7 +171,6 @@ exit:
 		return rc;
 	}
 
-
 	return count;
 }
 
@@ -341,7 +340,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	// dev_dbg(rcp->otrcp.parent,
 	//	"%s(ctx=%p, buf=%p, len=%lu, expected_cmd=%u, expected_key=%u, expected_tid=%u)\n",
 	//__func__, 	ctx, buf, len, expected_cmd, expected_key, expected_tid);
-	
+
 	*received = 0;
 
 	reinit_completion(completion);
@@ -369,7 +368,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
-			//kfree_skb(skb);
+			// kfree_skb(skb);
 			break;
 		}
 		kfree_skb(skb);
@@ -379,7 +378,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
 		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
 				     true);
-		//kfree_skb(skb);
+		// kfree_skb(skb);
 	}
 
 	return rc;
