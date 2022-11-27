@@ -218,6 +218,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
 					spinel_tid_t *ptid, uint8_t **pbuf, size_t *pbuflen,
+					struct sk_buff **pskb,
 				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
@@ -225,11 +226,18 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 	uint8_t *send_buffer;
 	size_t send_buflen = spinel_max_frame_size;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	struct sk_buff *skb;
 
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
 		return -ENOMEM;
 	}
+	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
+	if (!skb) {
+		rc = -ENOMEM;
+		goto exit;
+	}
+
 
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = spinel_reset_command(send_buffer, send_buflen, 0, 0, 0, fmt, args);
@@ -247,8 +255,12 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		goto exit;
 	}
 
+	//memcpy(skb_push(skb, rc), send_buffer, rc);
+
 exit:
+	//kfree(send_buffer);
 	*pbuf = send_buffer;
+	*pskb = skb;
 	*pbuflen = rc;
 	*ptid = tid;
 	return rc;
@@ -260,6 +272,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	spinel_tid_t tid,
 	uint8_t *send_buffer,
 	size_t send_buflen,
+       	struct sk_buff *skb,
 				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
@@ -319,11 +332,12 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 
 	uint8_t *buf;
 	size_t buflen;
+	struct sk_buff *skb;
 	spinel_tid_t tid;
 
 	va_start(args, fmt);
-	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &tid, &buf, &buflen, expected, postproc, ctx, fmt, args);
-	rc = otrcp_spinel_command_v(rcp, cmd, key, tid, buf, buflen, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &tid, &buf, &buflen, &skb, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_command_v(rcp, cmd, key, tid, buf, buflen, skb, expected, postproc, ctx, fmt, args);
 	va_end(args);
 
 	return rc;
