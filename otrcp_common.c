@@ -323,7 +323,9 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		goto exit;
 	}
 
-	if (expected.key == SPINEL_PROP_STREAM_RAW) {
+	//if (expected.key == SPINEL_PROP_STREAM_RAW) {
+	if (expected.cmd == SPINEL_CMD_PROP_VALUE_GET
+	    || expected.cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		skb_queue_tail(&rcp->xmit_queue, skb);
 	}
 
