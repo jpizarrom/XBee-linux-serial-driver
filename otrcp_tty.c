@@ -369,7 +369,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
-			kfree_skb(skb);
+			//kfree_skb(skb);
 			break;
 		}
 		kfree_skb(skb);
@@ -379,7 +379,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
 		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
 				     true);
-		kfree_skb(skb);
+		//kfree_skb(skb);
 	}
 
 	return rc;
