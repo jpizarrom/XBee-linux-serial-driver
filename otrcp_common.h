@@ -49,6 +49,7 @@ struct otrcp_received_data_verify {
 	spinel_tid_t tid;
 	spinel_prop_key_t key;
 	bool enabled;
+	size_t offset;
 };
 
 struct otrcp {

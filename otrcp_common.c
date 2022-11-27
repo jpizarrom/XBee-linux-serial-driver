@@ -216,7 +216,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	return offset;
 }
 
-static void otrcp_push_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid,
+static void otrcp_push_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_prop_key_t key, spinel_tid_t tid, size_t offset, size_t len,
 						struct otrcp_received_data_verify *pexpected)
 
 {
@@ -231,6 +231,7 @@ static void otrcp_push_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_p
 	pexpected->key = key;
 	pexpected->tid = tid;
 	pexpected->cmd = cmd;
+	pexpected->offset = offset;
 
 	memcpy(skb_push(skb, sizeof(struct otrcp_received_data_verify)), pexpected, sizeof(struct otrcp_received_data_verify));
 }
@@ -246,6 +247,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	uint8_t *send_buffer;
 	size_t send_buflen = spinel_max_frame_size;
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	size_t offset;
 
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
@@ -268,9 +270,13 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 		goto exit;
 	}
 
+	offset = skb->len;
+
+	pr_debug("offset =%lu len=%d\n", offset, rc);
+
 	memcpy(skb_put(skb, rc), send_buffer, rc);
 
-	otrcp_push_expected_info(skb, cmd, key, tid, pexpected);
+	otrcp_push_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
 exit:
 	kfree(send_buffer);
 	return tid;
