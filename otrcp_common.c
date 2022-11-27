@@ -296,7 +296,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 
 	tid = expected.tid;
 
-	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, expected.key, tid)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, expected.key, expected.tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
