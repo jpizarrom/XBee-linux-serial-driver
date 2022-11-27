@@ -888,6 +888,12 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 			} else {
 				return kSpinelReceiveNotification;
 			}
+		} else {
+			struct sk_buff *skb;
+			while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
+				pr_debug("%s:%d drop\n", __func__, __LINE__);
+			}
+
 		}
 		pr_debug("%s:%d\n", __func__, __LINE__);
 		return -1;
@@ -915,20 +921,34 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 			pr_debug("offset =%d\n", offset);
 			pr_debug("tx expected.tid=%d tid=%d\n", expected.tid, tid);
 			skb_trim(skb, expected.offset);
-			if (tid == expected.tid && skb->len == rcp->tx_skb->len &&
-			    memcmp(skb->data, rcp->tx_skb->data, skb->len) == 0) {
-				print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
-					       skb->data, skb->len, true);
-				extract_stream_raw_response(rcp, data, len);
-				pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
-				ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
-				return kSpinelReceiveDone;
+
+			if (expected.key == SPINEL_PROP_STREAM_RAW) {
+				if (tid == expected.tid && skb->len == rcp->tx_skb->len &&
+				    memcmp(skb->data, rcp->tx_skb->data, skb->len) == 0) {
+					print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
+						       skb->data, skb->len, true);
+					extract_stream_raw_response(rcp, data, len);
+					pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
+					ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
+					return kSpinelReceiveDone;
+				} else {
+					print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
+						       skb->data, skb->len, true);
+					ieee802154_xmit_hw_error(rcp->hw, rcp->tx_skb);
+					pr_debug("xmit_hw_error %d\n", tid);
+					return kSpinelReceiveDone;
+				}
 			} else {
-				print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
-					       skb->data, skb->len, true);
-				ieee802154_xmit_hw_error(rcp->hw, rcp->tx_skb);
-				pr_debug("xmit_hw_error %d\n", tid);
-				return kSpinelReceiveDone;
+				pr_debug("------------ not handled %s:%d\n", __func__, __LINE__);
+
+			       	if (tid == expected.tid) {
+				       	pr_debug("%s:%d\n", __func__, __LINE__);
+				       	return kSpinelReceiveResponse;
+			       	} else {
+					pr_debug("------------ not handled %s:%d\n", __func__, __LINE__);
+				       	pr_debug("%s:%d\n", __func__, __LINE__);
+					return kSpinelReceiveDone;
+			       	}
 			}
 		}
 
