@@ -454,11 +454,13 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, struct sk
 
 	struct sk_buff *skb;
 
-	skb = skb_clone(skb_orig, GFP_KERNEL);
+	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
 	if (!skb) {
 		return -ENOMEM;
 	}
 
+	memcpy(skb_put(skb, skb_orig->len), skb_orig->data, skb_orig->len);
+	
 	rc = otrcp_format_command_skb(rcp, SPINEL_CMD_PROP_VALUE_SET, SPINEL_PROP_STREAM_RAW, skb,
 				   postproc_stream_raw_tid, ptid, NULL,
 			   spinel_data_format_str_STREAM_RAW, skb->data, skb->len, channel, backoffs,
@@ -865,7 +867,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 
 	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
-		pr_debug("header=%x, cmd=%d, key=%d, data=%p, len=%u\n", header, cmd, key, data, len);
+		pr_debug("header=%x, cmd=%d, key=%d, tid=%d data=%p, len=%u\n", header, cmd, key, tid, data, len);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			pr_debug("%s:%d\n", __func__, __LINE__);
 
@@ -895,10 +897,11 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 	} else {
 		struct sk_buff *skb;
 		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
-		pr_debug("header=%x, cmd=%d, key=%d, data=%p, len=%u\n", header, cmd, key, data, len);
+		pr_debug("header=%x, cmd=%d, key=%d, tid=%d data=%p, len=%u\n", header, cmd, key, tid, data, len);
 
 		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
 			//uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
+			pr_debug("skb->len=%d\n", skb->len);
 			struct otrcp_received_data_verify expected;
 			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			expected = *((struct otrcp_received_data_verify*)(skb->data+offset));
@@ -912,14 +915,18 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf,
 				print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
 				extract_stream_raw_response(rcp, data, len);
-				pr_debug("xmit_complete %d %p\n", tid, skb);
+				pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
+#if 0
 				ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
+#endif
 				return kSpinelReceiveDone;
 			} else {
 				print_hex_dump(KERN_INFO, "fail>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
+#if 0
 				ieee802154_xmit_hw_error(rcp->hw, rcp->tx_skb);
 				pr_debug("xmit_hw_error %d\n", tid);
+#endif
 				return kSpinelReceiveDone;
 			}
 		}
