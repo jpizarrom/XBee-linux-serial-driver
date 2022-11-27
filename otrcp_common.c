@@ -216,7 +216,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	return offset;
 }
 
-static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
+static int otrcp_alloc_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
 					struct sk_buff **pskb,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
@@ -341,7 +341,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 	struct sk_buff *skb;
 
 	va_start(args, fmt);
-	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &skb, postproc, ctx, fmt, args);
+	rc = otrcp_alloc_command_skb_v(rcp, cmd, key, &skb, postproc, ctx, fmt, args);
 	if (rc < 0) {
 		return rc;
 	}
