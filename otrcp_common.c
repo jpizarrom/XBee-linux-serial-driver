@@ -293,7 +293,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp,
 	expected = *((struct otrcp_received_data_verify*)(skb->data));
 	skb_pull(skb, sizeof(struct otrcp_received_data_verify));
 
-	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, expected.cmd, expected.key, expected.tid)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
