@@ -56,6 +56,7 @@ struct otrcp {
 	struct ieee802154_hw *hw;
 	struct device *parent;
 
+	struct sk_buff *tx_skb;
 	struct sk_buff_head xmit_queue;
 	uint8_t tid;
 
