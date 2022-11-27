@@ -274,7 +274,7 @@ exit:
 }
 
 
-static int otrcp_spinel_command_v(struct otrcp *rcp,
+static int otrcp_spinel_send_command_v(struct otrcp *rcp,
        	struct sk_buff *skb,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
@@ -284,6 +284,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp,
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	struct otrcp_received_data_verify expected;
+	size_t verify_size = sizeof(struct otrcp_received_data_verify);
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
@@ -291,9 +292,9 @@ static int otrcp_spinel_command_v(struct otrcp *rcp,
 	}
 	
 	expected = *((struct otrcp_received_data_verify*)(skb->data));
-	skb_pull(skb, sizeof(struct otrcp_received_data_verify));
+	//skb_pull(skb, sizeof(struct otrcp_received_data_verify));
 
-	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data + verify_size , skb->len - verify_size, &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
@@ -334,7 +335,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 
 	va_start(args, fmt);
 	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &skb, expected, postproc, ctx, fmt, args);
-	rc = otrcp_spinel_command_v(rcp, skb, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
 	va_end(args);
 
 	return rc;
