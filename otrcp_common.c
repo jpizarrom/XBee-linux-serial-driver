@@ -299,6 +299,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 	}
 
 	if (expected.enabled) {
+		expected.cmd = otrcp_spinel_expected_command(cmd);
 		if (cmd == SPINEL_CMD_RESET) {
 			rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
 					      &expected);
