@@ -283,7 +283,6 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 	size_t recv_buflen = spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
-	spinel_tid_t tid;// = expected.enabled ? expected->tid : 0;
 	struct otrcp_received_data_verify expected;
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
@@ -293,8 +292,6 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 	
 	expected = *((struct otrcp_received_data_verify*)(skb->data));
 	skb_pull(skb, sizeof(struct otrcp_received_data_verify));
-
-	tid = expected.tid;
 
 	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, expected.key, expected.tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
@@ -316,7 +313,7 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd,
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else if (postproc) {
-		rc = postproc(ctx, recv_buffer, rc, recv_buflen, tid, fmt, args);
+		rc = postproc(ctx, recv_buffer, rc, recv_buflen, expected.tid, fmt, args);
 	}
 
 exit:
