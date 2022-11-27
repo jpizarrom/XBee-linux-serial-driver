@@ -255,6 +255,13 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		goto exit;
 	}
 
+	pr_debug("command_len = %d\n", rc);
+	pr_debug("skb->len= %d data=%p\n", skb->len, skb->data);
+	{
+	uint8_t *ptr = skb_put(skb, rc);
+	pr_debug("skb->len= %d data=%p ptr=%p rc=%d\n", skb->len, skb->data, ptr, rc);
+	}
+
 	//memcpy(skb_push(skb, rc), send_buffer, rc);
 
 exit:
