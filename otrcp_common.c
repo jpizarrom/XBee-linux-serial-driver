@@ -217,7 +217,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 }
 
 static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
-					spinel_tid_t *ptid,
 					struct sk_buff **pskb,
 				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
@@ -258,22 +257,24 @@ static int otrcp_spinel_format_command_v(struct otrcp *rcp, uint32_t cmd, spinel
 		expected->key = key;
 		expected->tid = tid;
 		expected->cmd = otrcp_spinel_expected_command(cmd);
+		expected->enabled = true;
 	}
 
+	{
+		struct otrcp_received_data_verify empty = { 0 };
+		memcpy(skb_put(skb, sizeof(struct otrcp_received_data_verify)), (expected ? expected : &empty), sizeof(struct otrcp_received_data_verify));
+	}
 	memcpy(skb_put(skb, rc), send_buffer, rc);
 exit:
 	kfree(send_buffer);
 	*pskb = skb;
-	*ptid = tid;
 	return rc;
 
 }
 
 
 static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
-	spinel_tid_t tid,
        	struct sk_buff *skb,
-				  struct otrcp_received_data_verify *expected,
 				  postproc_func postproc, void *ctx, const char *fmt, va_list args)
 {
 	int rc;
@@ -281,25 +282,29 @@ static int otrcp_spinel_command_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_k
 	size_t recv_buflen = spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
+	spinel_tid_t tid = 0;//expected ? expected->tid : 0;
+	struct otrcp_received_data_verify expected;
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
 		return -ENOMEM;
 	}
 	
+	expected = *((struct otrcp_received_data_verify*)(skb->data));
+	skb_pull(skb, sizeof(struct otrcp_received_data_verify));
 
 	if ((rc = rcp->send(rcp, skb->data, skb->len, &sent_bytes, cmd, key, tid)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
 
-	if (expected) {
+	if (expected.enabled) {
 		if (cmd == SPINEL_CMD_RESET) {
 			rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
-					      expected);
+					      &expected);
 		} else {
 			rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
-						expected);
+						&expected);
 		}
 	}
 
@@ -324,11 +329,10 @@ static int otrcp_spinel_command(struct otrcp *rcp, uint32_t cmd, spinel_prop_key
 	int rc;
 
 	struct sk_buff *skb;
-	spinel_tid_t tid;
 
 	va_start(args, fmt);
-	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &tid, &skb, expected, postproc, ctx, fmt, args);
-	rc = otrcp_spinel_command_v(rcp, cmd, key, tid, skb, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_format_command_v(rcp, cmd, key, &skb, expected, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_command_v(rcp, cmd, key, skb, postproc, ctx, fmt, args);
 	va_end(args);
 
 	return rc;
