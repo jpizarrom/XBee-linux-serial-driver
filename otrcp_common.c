@@ -393,24 +393,14 @@ static int otrcp_spinel_send_command(struct otrcp *rcp, struct sk_buff *skb, pos
 
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
-	const uint8_t *buffer;
-	size_t buflen;
-	int rc;
 	struct otrcp_received_data_verify expected = {
 		false, false, true, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0, 0, 0,
 	};
-	dev_dbg(rcp->parent, "start %s:%dn", __func__, __LINE__);
-	buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
-	buflen = spinel_max_frame_size;
-	pr_debug("spinel_max_frame_size =%u\n", spinel_max_frame_size);
-	rc = otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
+	return otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
 				  postproc_return, NULL, spinel_data_format_str_RESET,
 				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				  reset);
 
-	kfree(buffer);
-	/*dev_dbg(rcp->parent, "end %s:%dn", __func__, __LINE__);*/
-	return rc;
 }
 
 static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, struct sk_buff *skb_orig,
