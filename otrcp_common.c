@@ -238,7 +238,6 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	}
 
 	if (cmd == SPINEL_CMD_RESET) {
-		//rc = spinel_reset_command(send_buffer, send_buflen, 0, 0, 0, fmt, args);
 		rc = spinel_prop_command(send_buffer, send_buflen, cmd, 0, 0, NULL, 0);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		rcp->tid = tid;
