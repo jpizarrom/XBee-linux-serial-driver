@@ -332,13 +332,13 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	if (expected.enabled) {
 		uint32_t cmd = expected.cmd;
 		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
-		if (cmd == SPINEL_CMD_RESET) {
-			rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
-					      &expected);
-		} else {
+		//if (cmd == SPINEL_CMD_RESET) {
+		//	rc = rcp->wait_notify(rcp, recv_buffer, recv_buflen, &received_bytes,
+		//			      &expected);
+		//} else {
 			rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
 						&expected);
-		}
+		//}
 	}
 
 	if (rc < 0) {
