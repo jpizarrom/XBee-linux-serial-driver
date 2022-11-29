@@ -198,9 +198,8 @@ static int otrcp_put_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_pro
 
 {
 	struct otrcp_received_data_verify expected = {0};
-	int rc = 0;
 
-	pr_debug("otrcp_put_excepted_info offset=%d\n", offset);
+	pr_debug("otrcp_put_excepted_info offset=%lu\n", offset);
 
 	if (pexpected) {
 		pexpected->enabled = true;
@@ -306,7 +305,6 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	}
 
 	if (expected.enabled) {
-		uint32_t cmd = expected.cmd;
 		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
 		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
 						&expected);
@@ -391,18 +389,6 @@ static int otrcp_spinel_send_command(struct otrcp *rcp, struct sk_buff *skb, pos
  * SPINEL commands
  */
 
-static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
-{
-	struct otrcp_received_data_verify expected = {
-		false, false, true, otrcp_spinel_expected_command(SPINEL_CMD_RESET), 0, 0, 0, 0,
-	};
-	return otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
-				  postproc_return, NULL, spinel_data_format_str_RESET,
-				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
-				  reset);
-
-}
-
 static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, struct sk_buff *skb_orig,
 				uint8_t channel, uint8_t backoffs, uint8_t retries, bool csmaca,
 				bool headerupdate, bool aretx, bool skipaes, uint32_t txdelay,
@@ -438,6 +424,18 @@ exit:
 		kfree_skb(skb);
 	}
 	return rc;
+}
+
+static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
+{
+	struct otrcp_received_data_verify expected = {
+		false, false, true, SPINEL_CMD_RESET, 0, 0, 0, 0,
+	};
+	return otrcp_spinel_command(((struct otrcp *)rcp), SPINEL_CMD_RESET, 0, &expected,
+				  postproc_return, NULL, spinel_data_format_str_RESET,
+				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
+				  reset);
+
 }
 
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
@@ -872,10 +870,10 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 
 		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
 			// uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
-			pr_debug("skb->len=%d\n", skb->len);
 			struct otrcp_received_data_verify expected;
 			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			expected = *((struct otrcp_received_data_verify *)(skb->data + offset));
+			pr_debug("skb->len=%d\n", skb->len);
 			pr_debug("==== offset=%ld cmd=%u, key=%d tid=%u verify_cmd=%d "
 				 "verify_key=%d verify_tid=%d enabled=%d\n",
 				 expected.offset, expected.cmd, expected.key, expected.tid,
