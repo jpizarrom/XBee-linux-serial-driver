@@ -863,7 +863,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 
 	if (tid == 0) {
 		rc = spinel_datatype_unpack(buf, count, "CiiD", &header, &cmd, &key, &data, &len);
-		pr_debug("header=%x, cmd=%d, key=%d, tid=%d data=%p, len=%u\n", header, cmd, key,
+		pr_debug("*************** header=%x, cmd=%d, key=%d, tid=%d data=%p, len=%u\n", header, cmd, key,
 			 tid, data, len);
 		if (rc > 0 && cmd == SPINEL_CMD_PROP_VALUE_IS) {
 			pr_debug("%s:%d\n", __func__, __LINE__);
