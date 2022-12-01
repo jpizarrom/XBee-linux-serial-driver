@@ -264,7 +264,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	memcpy(skb_put(skb, rc), send_buffer, rc);
 
 	otrcp_put_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
-
+#if 0
 	if (skb) {
 		uint8_t header;
 		uint32_t expected_cmd;
@@ -298,7 +298,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 		pr_debug("===============          cmd=%u,          key=%d          tid=%u\n", cmd,
 			 key, tid);
 	}
-
+#endif
 exit:
 	kfree(send_buffer);
 	return tid;
