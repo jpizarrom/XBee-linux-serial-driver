@@ -44,9 +44,6 @@ struct otrcp_received_data_verify {
 	bool verify_cmd;
 	bool verify_tid;
 	bool verify_key;
-	uint32_t cmd;
-	spinel_tid_t tid;
-	spinel_prop_key_t key;
 	bool enabled;
 	size_t offset;
 };

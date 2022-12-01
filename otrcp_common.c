@@ -31,14 +31,14 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true, 0, 0, 0, 0, 0,                                                   \
+		true, true, true, 0, 0,                                                   \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, postproc_unpack, NULL, \
 			   __VA_ARGS__)
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true, 0, 0, 0, 0, 0,                                                   \
+		true, true, true, 0, 0,                                                   \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, postproc_return, NULL, \
 			   __VA_ARGS__)
@@ -215,9 +215,9 @@ static int otrcp_put_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_pro
 		pexpected = &expected;
 		pexpected->enabled = false;
 	}
-	pexpected->key = key;
-	pexpected->tid = tid;
-	pexpected->cmd = cmd;
+	//pexpected->key = key;
+	//pexpected->tid = tid;
+	//pexpected->cmd = cmd;
 	pexpected->offset = offset;
 
 	{
@@ -309,7 +309,7 @@ exit:
 	return tid;
 }
 
-static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
+static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb, uint32_t cmd,
 				       postproc_func postproc, void *ctx, const char *fmt,
 				       va_list args)
 {
@@ -332,10 +332,10 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 						      (skb->len -
 						       sizeof(struct otrcp_received_data_verify))));
 
-	pr_debug("offset=%ld cmd=%u, key=%d tid=%u verify_cmd=%d verify_key=%d verify_tid=%d "
-		 "enabled=%d\n",
-		 expected.offset, expected.cmd, expected.key, expected.tid, expected.verify_cmd,
-		 expected.verify_key, expected.verify_tid, expected.enabled);
+	//pr_debug("offset=%ld cmd=%u, key=%d tid=%u verify_cmd=%d verify_key=%d verify_tid=%d "
+	//	 "enabled=%d\n",
+	//	 expected.offset, expected.cmd, expected.key, expected.tid, expected.verify_cmd,
+	//	 expected.verify_key, expected.verify_tid, expected.enabled);
 
 	if ((rc = rcp->send(rcp, skb->data + expected.offset,
 			    skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
@@ -344,13 +344,13 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	}
 
 	//if (expected.key == SPINEL_PROP_STREAM_RAW) {
-	if (expected.cmd == SPINEL_CMD_PROP_VALUE_GET
-	    || expected.cmd == SPINEL_CMD_PROP_VALUE_SET) {
+	if (cmd == SPINEL_CMD_PROP_VALUE_GET
+	    || cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		skb_queue_tail(&rcp->xmit_queue, skb);
 	}
 
 	if (expected.enabled) {
-		expected.cmd = otrcp_spinel_expected_command(expected.cmd);
+		//expected.cmd = otrcp_spinel_expected_command(expected.cmd);
 		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes,
 						&expected);
 	}
@@ -360,7 +360,7 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		print_hex_dump(KERN_INFO, "recv>>: ", DUMP_PREFIX_NONE, 16, 1, recv_buffer,
 			       received_bytes, true);
 	} else if (postproc) {
-		rc = postproc(ctx, recv_buffer, rc, recv_buflen, expected.tid, fmt, args);
+		//rc = postproc(ctx, recv_buffer, rc, recv_buflen, expected.tid, fmt, args);
 	}
 
 exit:
@@ -382,7 +382,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t
 		goto exit;
 	}
 
-	rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
+	rc = otrcp_spinel_send_command_v(rcp, skb, cmd, postproc, ctx, fmt, args);
 
 exit:
 	va_end(args);
@@ -431,7 +431,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
 	struct otrcp_received_data_verify expected = {
-		false, false, true, SPINEL_CMD_RESET, 0, 0, 0, 0,
+		false, false, true, 0, 0,
 	};
 	struct sk_buff *skb;
 
@@ -449,7 +449,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true, 0, 0, 0, 0,
+		true, true, true, 0, 0,
 	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
 	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
@@ -460,7 +460,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 					size_t chan_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true, 0, 0, 0, 0,
+		true, true, true, 0, 0,
 	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
 	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
@@ -773,7 +773,7 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
 	return len;
 }
-
+#if 0
 int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t **data,
 			       spinel_size_t *data_len, struct otrcp_received_data_verify *expected)
 {
@@ -800,17 +800,17 @@ int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len
 
 		rc = *data_len;
 	} else {
-		dev_dbg(rcp->parent,
-			"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
-			"tid=%u(expected=%u), data=%p, data_len=%u\n",
-			cmd, otrcp_spinel_expected_command(expected->cmd), key, expected->key,
-			SPINEL_HEADER_GET_TID(hdr), expected->tid, data, *data_len);
+		//dev_dbg(rcp->parent,
+		//	"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
+		//	"tid=%u(expected=%u), data=%p, data_len=%u\n",
+		//	cmd, otrcp_spinel_expected_command(expected->cmd), key, expected->key,
+		//	SPINEL_HEADER_GET_TID(hdr), expected->tid, data, *data_len);
 		rc = -EINVAL;
 	}
 
 	return rc;
 }
-
+#endif
 int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count)
 {
 	int rc;
@@ -904,22 +904,22 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 			// uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
 			struct otrcp_received_data_verify expected;
 			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
-			expected = *((struct otrcp_received_data_verify *)(skb->data + offset));
+			//expected = *((struct otrcp_received_data_verify *)(skb->data + offset));
 			pr_debug("skb->len=%d\n", skb->len);
 			pr_debug("expected_cmd=%u, expected_key=%d expected_tid=%u\n",
 				 expected_cmd, expected_key, expected_tid);
-			pr_debug("expected.cmd=%u, expected.key=%d expected.tid=%u\n",
-				 expected.cmd, expected.key, expected.tid);
-			pr_debug("==== offset=%ld verify_cmd=%d, verify_key=%d verify_tid=%d enabled=%d\n",
-				 expected.offset,
-				 expected.verify_cmd, expected.verify_key, expected.verify_tid,
-				 expected.enabled);
+			//pr_debug("expected.cmd=%u, expected.key=%d expected.tid=%u\n",
+			//	 expected.cmd, expected.key, expected.tid);
+			//pr_debug("==== offset=%ld verify_cmd=%d, verify_key=%d verify_tid=%d enabled=%d\n",
+			//	 expected.offset,
+			//	 expected.verify_cmd, expected.verify_key, expected.verify_tid,
+			//	 expected.enabled);
 			pr_debug("offset =%d\n", offset);
-			pr_debug("tx expected.tid=%d tid=%d\n", expected.tid, tid);
+			pr_debug("tx expected_tid=%d tid=%d\n", expected_tid, tid);
 			skb_trim(skb, expected.offset);
 
-			if (expected.key == SPINEL_PROP_STREAM_RAW) {
-				if (tid == expected.tid && skb->len == rcp->tx_skb->len &&
+			if (expected_key == SPINEL_PROP_STREAM_RAW) {
+				if (tid == expected_tid && skb->len == rcp->tx_skb->len &&
 				    memcmp(skb->data, rcp->tx_skb->data, skb->len) == 0) {
 					print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16, 1,
 						       skb->data, skb->len, true);
@@ -935,7 +935,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 					return kSpinelReceiveDone;
 				}
 			} else {
-			       	if (tid == expected.tid) {
+			       	if (tid == expected_tid) {
 				       	pr_debug("%s:%d\n", __func__, __LINE__);
 				       	return kSpinelReceiveResponse;
 			       	} else {

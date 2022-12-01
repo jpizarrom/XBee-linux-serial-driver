@@ -346,12 +346,12 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	reinit_completion(completion);
 	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
 	if (rc <= 0) {
-		dev_dbg(rcp->otrcp.parent,
-			"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
-			rc, __func__,
-			(completion == &rcp->wait_response) ? "response" : "notification", buf, len,
-			expected->cmd, expected->key, expected->tid, expected->verify_cmd,
-			expected->verify_key, expected->verify_tid);
+		//dev_dbg(rcp->otrcp.parent,
+		//	"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
+		//	rc, __func__,
+		//	(completion == &rcp->wait_response) ? "response" : "notification", buf, len,
+		//	expected->cmd, expected->key, expected->tid, expected->verify_cmd,
+		//	expected->verify_key, expected->verify_tid);
 
 		if (rc)
 			return rc;
