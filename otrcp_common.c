@@ -910,7 +910,6 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 		}
 
 		while ((skb = skb_dequeue(&rcp->xmit_queue)) != NULL) {
-			// uint32_t *offset = skb_pull(skb, sizeof(uint32_t));
 			struct otrcp_received_data_verify expected;
 			uint32_t offset = skb->len - sizeof(struct otrcp_received_data_verify);
 			pr_debug("skb->len=%d\n", skb->len);
