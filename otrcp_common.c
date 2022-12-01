@@ -782,7 +782,7 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
 	return len;
 }
-#if 0
+
 int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len, uint8_t **data,
 			       spinel_size_t *data_len, struct otrcp_received_data_verify *expected)
 {
@@ -803,23 +803,23 @@ int otrcp_verify_received_data(struct otrcp *rcp, const uint8_t *buf, size_t len
 
 	tid = SPINEL_HEADER_GET_TID(hdr);
 
-	if (((expected->tid == tid) || !expected->verify_tid) &&
-	    ((expected->cmd == cmd) || !expected->verify_cmd) &&
-	    ((expected->key == key) || !expected->verify_key)) {
+//	if (((expected->tid == tid) || !expected->verify_tid) &&
+//	    ((expected->cmd == cmd) || !expected->verify_cmd) &&
+//	    ((expected->key == key) || !expected->verify_key)) {
 
 		rc = *data_len;
-	} else {
+//	} else {
 		//dev_dbg(rcp->parent,
 		//	"unpack cmd=%u(expected=%u), key=%u(expected=%u), "
 		//	"tid=%u(expected=%u), data=%p, data_len=%u\n",
 		//	cmd, otrcp_spinel_expected_command(expected->cmd), key, expected->key,
 		//	SPINEL_HEADER_GET_TID(hdr), expected->tid, data, *data_len);
-		rc = -EINVAL;
-	}
+//		rc = -EINVAL;
+//	}
 
 	return rc;
 }
-#endif
+
 int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count)
 {
 	int rc;
