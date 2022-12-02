@@ -226,11 +226,12 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 				      struct otrcp_received_data_verify *pexpected, const char *fmt,
 				      va_list args)
 {
-	int rc;
-	uint8_t *send_buffer;
-	size_t send_buflen = spinel_max_frame_size;
+	struct otrcp_received_data_verify expected = {0};
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
+	size_t send_buflen = spinel_max_frame_size;
+	uint8_t *send_buffer;
 	size_t offset;
+	int rc;
 
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!send_buffer) {
@@ -287,18 +288,15 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 					 &cmd)) < 0) {
 		return rc;
 	}
-	tid = SPINEL_HEADER_GET_TID(header);
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer) {
 		return -ENOMEM;
 	}
 
-	expected = *(
-		(struct otrcp_received_data_verify *)(skb->data +
-						      (skb->len -
-						       sizeof(struct otrcp_received_data_verify))));
+	tid = SPINEL_HEADER_GET_TID(header);
 
+	expected = *((struct otrcp_received_data_verify *)(skb->data + (skb->len - sizeof(struct otrcp_received_data_verify))));
 
 	if ((rc = rcp->send(rcp, skb->data + expected.offset,
 			    skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
