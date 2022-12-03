@@ -243,15 +243,15 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 				       postproc_func postproc, void *ctx, const char *fmt,
 				       va_list args)
 {
-	int rc;
-	uint8_t *recv_buffer;
 	size_t recv_buflen = spinel_max_frame_size;
-	size_t sent_bytes = 0;
-	size_t received_bytes = 0;
 	struct otrcp_received_data_verify info;
+	size_t received_bytes = 0;
+	size_t sent_bytes = 0;
+	uint8_t *recv_buffer;
+	spinel_tid_t tid;
 	uint8_t header;
 	uint32_t cmd;
-	spinel_tid_t tid;
+	int rc;
 
 	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 
@@ -458,7 +458,6 @@ static int otrcp_get_s32_table(struct otrcp *rcp, s32 *table, size_t *sz,
 {
 	int i, rc;
 
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	*sz = 0;
 	for (i = S8_MIN; i < S8_MAX; i++) {
 		int8_t value;
@@ -475,12 +474,9 @@ static int otrcp_get_s32_table(struct otrcp *rcp, s32 *table, size_t *sz,
 		}
 	}
 
-	if ((rc = set_table(rcp, 0)) < 0) {
-		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	if ((rc = set_table(rcp, 0)) < 0)
 		return rc;
-	}
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -498,14 +494,13 @@ static int otrcp_get_cca_ed_level_table(struct otrcp *rcp, s32 *ed_levels, size_
 static bool otrcp_has_caps(struct otrcp *rcp, uint32_t cap)
 {
 	int i;
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
+
 	for (i = 0; i < rcp->caps_size; i++) {
 		if (rcp->caps[i] == cap) {
-			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 			return true;
 		}
 	}
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+
 	return false;
 }
 
@@ -839,16 +834,18 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 int otrcp_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	int rc;
-	pr_debug("%s %d\n", __func__, channel);
-	rc = otrcp_set_phy_chan(hw->priv, channel);
+	if ((rc = otrcp_set_phy_chan(hw->priv, channel)) < 0)
+		return rc;
+
 	return 0;
 }
 
 int otrcp_set_tx_power(struct ieee802154_hw *hw, s32 power)
 {
 	int rc;
-	pr_debug("%s %d\n", __func__, power);
-	rc = otrcp_set_phy_tx_power(hw->priv, (s8)(power / 100));
+	if ((rc = otrcp_set_phy_tx_power(hw->priv, (s8)(power / 100))) < 0)
+		return rc;
+
 	return 0;
 }
 
@@ -861,8 +858,9 @@ int otrcp_set_cca_mode(struct ieee802154_hw *hw, const struct wpan_phy_cca *cca)
 int otrcp_set_cca_ed_level(struct ieee802154_hw *hw, s32 ed_level)
 {
 	int rc;
-	pr_debug("%s %d\n", __func__, ed_level);
-	rc = otrcp_set_phy_cca_threshold(hw->priv, (s8)(ed_level / 100));
+	if ((rc = otrcp_set_phy_cca_threshold(hw->priv, (s8)(ed_level / 100))) < 0)
+		return rc;
+
 	return 0;
 }
 
@@ -893,10 +891,10 @@ int otrcp_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
 	int rc;
 
-	pr_debug("%s(%p, %d)\n", __func__, hw, on);
-	rc = otrcp_set_mac_promiscuous_mode(hw->priv, on);
-	pr_debug("end %s:%d\n", __func__, __LINE__);
-	return rc;
+	if ((rc = otrcp_set_mac_promiscuous_mode(hw->priv, on)) < 0)
+		return rc;
+
+	return 0;
 }
 
 int otrcp_start(struct ieee802154_hw *hw)
@@ -1050,34 +1048,25 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 			   unsigned long changed)
 {
 	struct otrcp *rcp = hw->priv;
-	int rc = 0;
+	int rc;
 
-	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
-		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	if (changed & IEEE802154_AFILT_PANC_CHANGED)
 		return -ENOTSUPP;
-	}
 
 	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
-		if ((rc = otrcp_set_laddr(rcp, filt->ieee_addr)) < 0) {
-			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+		if ((rc = otrcp_set_laddr(rcp, filt->ieee_addr)) < 0)
 			return rc;
-		}
 	}
 
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
-		if ((rc = otrcp_set_saddr(rcp, filt->short_addr)) < 0) {
-			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+		if ((rc = otrcp_set_saddr(rcp, filt->short_addr)) < 0)
 			return rc;
-		}
 	}
 
 	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
-		if ((rc = otrcp_set_panid(rcp, le16_to_cpu(filt->pan_id))) < 0) {
-			dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+		if ((rc = otrcp_set_panid(rcp, le16_to_cpu(filt->pan_id))) < 0)
 			return rc;
-		}
 	}
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
