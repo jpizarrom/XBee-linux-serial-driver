@@ -258,7 +258,17 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 
 	memcpy(skb_put(skb, rc), send_buffer, rc);
 
-	otrcp_put_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
+	if (pexpected) {
+		expected = *pexpected;
+		expected.enabled = true;
+	} else {
+		expected.enabled = false;
+	}
+	expected.offset = offset;
+
+	memcpy(skb_put(skb, sizeof(expected)), &expected, sizeof(expected));
+
+	//otrcp_put_expected_info(skb, cmd, key, tid, offset, rc, pexpected);
 exit:
 	kfree(send_buffer);
 	return tid;
