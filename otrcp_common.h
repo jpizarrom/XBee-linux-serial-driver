@@ -27,7 +27,7 @@ enum {
 
 enum {
 	// kMaxSpinelFrame        = SpinelInterface::kMaxFrameSize,
-	kMaxWaitTime = 2000,	  ///< Max time to wait for response in milliseconds.
+	//kMaxWaitTime = 2000,	  ///< Max time to wait for response in milliseconds.
 	kVersionStringSize = 128, ///< Max size of version string.
 	kCapsBufferSize = 100,	  ///< Max buffer size used to store `SPINEL_PROP_CAPS` value.
 	kChannelMaskBufferSize =
@@ -84,9 +84,6 @@ struct otrcp {
 	int (*send)(void *ctx, const uint8_t *buf, size_t len, size_t *sent_bytes);
 	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received,
 			     struct otrcp_received_data_verify *expected);
-
-	int (*wait_notify)(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			   struct otrcp_received_data_verify *expected);
 };
 
 struct ieee802154_hw;
