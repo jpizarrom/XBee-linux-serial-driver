@@ -30,8 +30,8 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 			return -ENOMEM;                                                            \
 		}                                                                                  \
                                                                                                    \
-		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, (arg),        \
-					    expected, postproc, ctx, (fmt), __VA_ARGS__);          \
+		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, arg,        \
+					    expected, postproc, ctx, fmt, __VA_ARGS__);          \
 	} while (0);
 
 #define SPINEL_PROP_IMPL_V(prop, rcp, cmd, postproc, ctx, ...)                                     \
