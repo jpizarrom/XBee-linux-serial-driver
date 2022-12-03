@@ -16,7 +16,7 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 	ieee802154_xmit_error(hw, skb, 0xff);
 }
 
-#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                           \
+#define SPINEL_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, fmt, ...)                           \
 	struct sk_buff *skb;                                                                       \
                                                                                                    \
 	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                                        \
@@ -26,8 +26,11 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
                                                                                                    \
 	skb_reserve(skb, sizeof(struct otrcp_received_data_verify));                               \
 	return otrcp_spinel_command(((struct otrcp *)rcp), skb, cmd,                               \
-				    CONCATENATE(SPINEL_PROP_, prop), expected, postproc, ctx,      \
-				    CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__);
+				    (prop), expected, postproc, ctx,      \
+				    (fmt), __VA_ARGS__);
+
+#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                           \
+	SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, expected, postproc, ctx, CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__)\
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
