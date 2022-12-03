@@ -48,8 +48,6 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 #define FORMAT_STRING(prop, format)                                                                \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
 
-FORMAT_STRING(RESET, (SPINEL_DATATYPE_UINT_PACKED_S SPINEL_DATATYPE_UINT_PACKED_S));
-
 FORMAT_STRING(CAPS, (SPINEL_DATATYPE_DATA_S));
 FORMAT_STRING(HWADDR, (SPINEL_DATATYPE_EUI64_S));
 FORMAT_STRING(NCP_VERSION, (SPINEL_DATATYPE_UTF8_S));
@@ -114,14 +112,6 @@ static int postproc_unpack(void *ctx, const uint8_t *buf, size_t len, size_t cap
 			   spinel_tid_t tid, const char *fmt, va_list args)
 {
 	return spinel_datatype_vunpack_in_place(buf, len, fmt, args);
-}
-
-static int postproc_stream_raw_tid(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
-				   spinel_tid_t tid, const char *fmt, va_list args)
-{
-	spinel_tid_t *ptid = ctx;
-	*ptid = tid;
-	return len;
 }
 
 static int postproc_data_array_unpack(void *out, size_t out_len, const uint8_t *data, size_t len,
@@ -316,7 +306,7 @@ static int otrcp_spinel_send_receive(struct otrcp *rcp, struct sk_buff *skb, uin
  * SPINEL commands
  */
 
-static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uint8_t *frame,
+static int otrcp_set_stream_raw(struct otrcp *rcp, const uint8_t *frame,
 				size_t frame_len, uint8_t channel, uint8_t backoffs,
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
@@ -330,7 +320,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 	memcpy(skb_put(skb, frame_len), frame, frame_len);
 
 	return otrcp_spinel_send_receive(
-		rcp, skb, SPINEL_CMD_PROP_VALUE_SET, arg, NULL, postproc_stream_raw_tid, ptid,
+		rcp, skb, SPINEL_CMD_PROP_VALUE_SET, arg, NULL, postproc_return, NULL,
 		spinel_data_format_str_STREAM_RAW, frame, frame_len, channel, backoffs, retries,
 		csmaca, headerupdate, aretx, skipaes, txdelay, txdelay_base);
 }
@@ -349,7 +339,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 		return -ENOMEM;
 
 	return otrcp_spinel_send_receive(rcp, skb, SPINEL_CMD_RESET, arg, &expected,
-					 postproc_return, NULL, spinel_data_format_str_RESET,
+					 postproc_return, NULL, NULL,
 					 SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 					 reset);
 }
@@ -509,7 +499,6 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	uint32_t kRequiredRadioCaps = OT_RADIO_CAPS_ACK_TIMEOUT | OT_RADIO_CAPS_TRANSMIT_RETRIES |
 				      OT_RADIO_CAPS_CSMA_BACKOFF;
 
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	if (!otrcp_has_caps(rcp, SPINEL_CAP_MAC_RAW) &&
 	    !otrcp_has_caps(rcp, SPINEL_CAP_CONFIG_RADIO)) {
 		dev_err(rcp->parent, "%s: Radic co-processor function not supported\n", __func__);
@@ -543,7 +532,6 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 		return -ENOTSUPP;
 	}
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -658,13 +646,11 @@ int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, s
 	uint8_t hdr;
 	int rc;
 
-	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, &dlen)) < 0) {
+	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, &dlen)) < 0)
 		return rc;
-	}
 
-	if (len < dlen) {
+	if (len < dlen)
 		return -ENOBUFS;
-	}
 
 	*data_len = dlen;
 	return *data_len;
@@ -996,15 +982,13 @@ int otrcp_start(struct ieee802154_hw *hw)
 		return rc;
 	}
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
 void otrcp_stop(struct ieee802154_hw *hw)
 {
 	struct otrcp *rcp = hw->priv;
-	int rc = 0;
-	dev_dbg(rcp->parent, "%s %p\n", __func__, rcp);
+	int rc;
 
 	if ((rc = otrcp_set_enable(rcp, false)) < 0)
 		dev_dbg(rcp->parent, "%s %d\n", __func__, rc);
@@ -1013,34 +997,25 @@ void otrcp_stop(struct ieee802154_hw *hw)
 int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct otrcp *rcp = hw->priv;
-	spinel_tid_t tid;
 	int rc;
-
-	dev_dbg(rcp->parent, "%s %p\n", __func__, skb);
 
 	rcp->tx_skb = skb;
 
-	//pr_debug("orig_offset=%d\n", skb->len);
-	//print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
-	rc = otrcp_set_stream_raw(rcp, &tid, skb->data, skb->len, hw->phy->current_channel, 4, 15,
+	rc = otrcp_set_stream_raw(rcp, skb->data, skb->len, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
 				  0);
 
-	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
 int otrcp_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	struct otrcp *rcp = hw->priv;
-	int rc = 0;
+	int rc;
 
-	if ((rc = otrcp_get_phy_rssi(rcp, level)) < 0) {
-		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	if ((rc = otrcp_get_phy_rssi(rcp, level)) < 0)
 		return rc;
-	}
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
