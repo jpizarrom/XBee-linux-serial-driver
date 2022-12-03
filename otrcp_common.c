@@ -188,7 +188,19 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 	offset = rc;
 
-	rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+
+	if (command == SPINEL_CMD_RESET) {
+		tid = 0;
+		rc = spinel_datatype_pack(buffer+offset, length-offset, "C", key.reset);
+	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
+		//rcp->tid = tid;
+		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+	} else if (command == SPINEL_CMD_PROP_VALUE_GET) {
+		//rcp->tid = tid;
+		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+	} else {
+		rc = -EINVAL;
+	}
 
 	if (rc < 0) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
@@ -248,17 +260,16 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uin
 	expected.offset = skb->len;
 
 	if (cmd == SPINEL_CMD_RESET) {
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, 0, NULL, 0);
+		tid = 0;
+		fmt = NULL;
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		rcp->tid = tid;
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, fmt, args);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_GET) {
 		rcp->tid = tid;
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, NULL, args);
-	} else {
-		rc = -EINVAL;
+		fmt = NULL;
 	}
 
+	rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, fmt, args);
 	if (rc < 0) {
 		goto exit;
 	}
