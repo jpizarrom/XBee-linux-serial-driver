@@ -82,8 +82,7 @@ struct otrcp {
 	uint8_t hwaddr[8];
 
 	int (*send)(void *ctx, const uint8_t *buf, size_t len, size_t *sent_bytes);
-	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			     struct otrcp_received_data_verify *expected);
+	int (*wait_response)(void *ctx, uint8_t *buf, size_t len, size_t *received);
 };
 
 struct ieee802154_hw;

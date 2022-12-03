@@ -264,7 +264,7 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 	skb_queue_tail(&rcp->xmit_queue, skb);
 
 	if (info.enabled)
-		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &info);
+		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes);
 
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);

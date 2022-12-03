@@ -324,8 +324,7 @@ end:
 	return rc;
 }
 
-static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
-				       struct otrcp_received_data_verify *expected)
+static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received)
 {
 	struct ttyrcp *rcp = ctx;
 	struct sk_buff *skb;
