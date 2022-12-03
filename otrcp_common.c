@@ -260,10 +260,11 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uin
 	if (pexpected) {
 		expected = *pexpected;
 		expected.enabled = true;
+		expected.offset = skb->len;
 	} else {
 		expected.enabled = false;
+		expected.offset = skb->len;
 	}
-	expected.offset = skb->len;
 
 	if (cmd == SPINEL_CMD_RESET) {
 		tid = 0;
