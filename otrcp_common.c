@@ -275,9 +275,9 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 		goto exit;
 	}
 
-	if (cmd == SPINEL_CMD_PROP_VALUE_GET || cmd == SPINEL_CMD_PROP_VALUE_SET) {
+	//if (cmd == SPINEL_CMD_PROP_VALUE_GET || cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		skb_queue_tail(&rcp->xmit_queue, skb);
-	}
+	//}
 
 	if (expected.enabled)
 		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
@@ -779,6 +779,10 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 
 				return kSpinelReceiveDone;
 			} else {
+				//if (cmd = otrcp_spinel_expected_command(expected_cmd)) {
+					pr_debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n",  otrcp_spinel_expected_command(expected_cmd));
+					skb = skb_dequeue(&rcp->xmit_queue);
+				//}
 				return kSpinelReceiveNotification;
 			}
 		} else {
