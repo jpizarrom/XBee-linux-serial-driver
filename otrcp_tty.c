@@ -361,7 +361,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	while ((skb = skb_dequeue(queue)) != NULL) {
 		uint8_t *data;
-		spinel_size_t data_len;
+		size_t data_len;
 
 		rc = otrcp_unpack_received_data(skb->data, skb->len, &data, &data_len);
 		if (rc >= 0) {

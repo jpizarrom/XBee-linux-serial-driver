@@ -5,11 +5,6 @@
 #include <linux/skbuff.h>
 #include <net/mac802154.h>
 
-union spinel_cmdarg {
-	spinel_prop_key_t prop;
-	uint8_t reset;
-};
-
 static void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb, int reason)
 {
 	ieee802154_wake_queue(hw);
@@ -89,6 +84,11 @@ typedef int (*postproc_func)(void *ctx, const uint8_t *buf, size_t len, size_t c
 			     spinel_tid_t tid, const char *fmt, va_list args);
 typedef int (*s32_table_set_func)(struct otrcp *rcp, int8_t val);
 typedef int (*s32_table_get_func)(struct otrcp *rcp, int8_t *val);
+
+union spinel_cmdarg {
+	spinel_prop_key_t prop;
+	uint8_t reset;
+};
 
 struct data_len {
 	void *data;
@@ -311,12 +311,10 @@ static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t
 
 	rc = otrcp_format_command_skb_v(rcp, cmd, cmdfmt, key, skb, postproc, ctx, expected, fmt,
 					args);
-	if (rc < 0)
-		goto exit;
+	if (rc >= 0) {
+		rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
+	}
 
-	rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
-
-exit:
 	va_end(args);
 
 	if (rc < 0)
@@ -334,11 +332,8 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 				uint8_t retries, bool csmaca, bool headerupdate, bool aretx,
 				bool skipaes, uint32_t txdelay, uint32_t txdelay_base)
 {
-	int rc;
-
-	struct sk_buff *skb;
-
 	union spinel_cmdarg arg = {.prop = SPINEL_PROP_STREAM_RAW};
+	struct sk_buff *skb;
 
 	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
 	if (!skb)
@@ -346,15 +341,10 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 
 	memcpy(skb_put(skb, frame_len), frame, frame_len);
 
-	rc = otrcp_spinel_command(rcp, skb, SPINEL_CMD_PROP_VALUE_SET, "i", arg, NULL,
+	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_PROP_VALUE_SET, "i", arg, NULL,
 				  postproc_stream_raw_tid, ptid, spinel_data_format_str_STREAM_RAW,
 				  frame, frame_len, channel, backoffs, retries, csmaca,
 				  headerupdate, aretx, skipaes, txdelay, txdelay_base);
-
-	if (rc < 0)
-		kfree_skb(skb);
-
-	return rc;
 }
 
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
@@ -365,7 +355,6 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 		true,
 	};
 	union spinel_cmdarg arg = {.reset = reset};
-
 	struct sk_buff *skb;
 
 	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
@@ -700,23 +689,24 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	return len;
 }
 
-int otrcp_unpack_received_data(const uint8_t *buf, size_t len, const uint8_t **data,
-			       spinel_size_t *data_len)
+int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, size_t *data_len)
 {
 	uint8_t hdr;
 	uint32_t cmd;
 	spinel_prop_key_t key;
+	spinel_size_t dlen;
 
 	int rc;
 
-	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, data_len)) < 0) {
+	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, &dlen)) < 0) {
 		return rc;
 	}
 
-	if (len < *data_len) {
+	if (len < dlen) {
 		return -ENOBUFS;
 	}
 
+	*data_len = dlen;
 	return *data_len;
 }
 
