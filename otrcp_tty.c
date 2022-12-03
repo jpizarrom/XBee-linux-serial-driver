@@ -363,12 +363,11 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		uint8_t *data;
 		spinel_size_t data_len;
 
-		rc = otrcp_verify_received_data(&rcp->otrcp, skb->data, skb->len, &data, &data_len,
-						expected);
+		rc = otrcp_unpack_received_data(skb->data, skb->len, &data, &data_len);
 		if (rc >= 0) {
 			memcpy(buf, data, data_len);
 			*received = data_len;
-			// kfree_skb(skb);
+			kfree_skb(skb);
 			break;
 		}
 		kfree_skb(skb);
