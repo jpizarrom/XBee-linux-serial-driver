@@ -23,15 +23,14 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 
 #define SPINEL_IMPL_V(property, rcp, cmd, cmdfmt, expected, postproc, ctx, fmt, ...)               \
 	do {                                                                                       \
-		struct sk_buff *skb;                                                               \
+		struct sk_buff *skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                \
 		union spinel_cmdarg arg = {.prop = property};                                      \
                                                                                                    \
-		skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                                \
 		if (!skb) {                                                                        \
 			return -ENOMEM;                                                            \
 		}                                                                                  \
                                                                                                    \
-		return otrcp_spinel_command(((struct otrcp *)rcp), skb, cmd, cmdfmt, (arg),        \
+		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, (arg),        \
 					    expected, postproc, ctx, (fmt), __VA_ARGS__);          \
 	} while (0);
 
