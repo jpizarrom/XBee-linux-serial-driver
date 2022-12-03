@@ -729,8 +729,8 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 				return kSpinelReceiveDone;
 			} else {
 				// if (cmd = otrcp_spinel_expected_command(expected_cmd)) {
-				pr_debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n",
-					 otrcp_spinel_expected_command(expected_cmd));
+				//pr_debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n",
+				//	 otrcp_spinel_expected_command(expected_cmd));
 				skb = skb_dequeue(&rcp->xmit_queue);
 				//}
 				return kSpinelReceiveNotification;

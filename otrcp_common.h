@@ -111,19 +111,4 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count);
 int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, size_t *data_len);
 
-static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
-{
-	switch (cmd) {
-	case SPINEL_CMD_PROP_VALUE_GET:
-		return SPINEL_CMD_PROP_VALUE_IS;
-	case SPINEL_CMD_PROP_VALUE_SET:
-		return SPINEL_CMD_PROP_VALUE_IS;
-	case SPINEL_CMD_PROP_VALUE_INSERT:
-		return SPINEL_CMD_PROP_VALUE_INSERTED;
-	case SPINEL_CMD_PROP_VALUE_REMOVE:
-		return SPINEL_CMD_PROP_VALUE_REMOVED;
-	}
-	return 0;
-}
-
 #endif // RCP_COMMON_H__
