@@ -296,7 +296,7 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	tid = SPINEL_HEADER_GET_TID(header);
 
-	expected = *((struct otrcp_received_data_verify *)(skb->data + (skb->len - sizeof(struct otrcp_received_data_verify))));
+	expected = *((struct otrcp_received_data_verify *)(skb->data + (skb->len - verify_size)));
 
 	if ((rc = rcp->send(rcp, skb->data + expected.offset,
 			    skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
