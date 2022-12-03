@@ -7,6 +7,7 @@
 
 union spinel_cmdarg {
 	spinel_prop_key_t prop;
+	uint8_t reset;
 };
 
 static void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb, int reason)
@@ -163,8 +164,8 @@ static int postproc_array_unpack_uint8(void *ctx, const uint8_t *buf, size_t len
 					  sizeof(uint8_t));
 }
 
-static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
-			       spinel_prop_key_t key, spinel_tid_t tid, const char *format,
+static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command, const char *argfmt,
+			       union spinel_cmdarg key, spinel_tid_t tid, const char *format,
 			       va_list args)
 {
 	int packed;
@@ -173,7 +174,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	//  Pack the header, command and key
 	packed = spinel_datatype_pack(buffer, length, "Cii",
-				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key);
+				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key.prop);
 
 	if (packed < 0) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
@@ -233,13 +234,13 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uin
 	expected.offset = skb->len;
 
 	if (cmd == SPINEL_CMD_RESET) {
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, 0, 0, NULL, 0);
+		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, 0, NULL, 0);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		rcp->tid = tid;
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, key.prop, tid, fmt, args);
+		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, fmt, args);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_GET) {
 		rcp->tid = tid;
-		rc = spinel_prop_command(send_buffer, send_buflen, cmd, key.prop, tid, NULL, args);
+		rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, NULL, args);
 	} else {
 		rc = -EINVAL;
 	}
@@ -377,7 +378,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	struct otrcp_received_data_verify expected = {
 		false, false, true,
 	};
-	union spinel_cmdarg arg = { .prop = 0 };
+	union spinel_cmdarg arg = { .reset = reset };
 
 	struct sk_buff *skb;
 
