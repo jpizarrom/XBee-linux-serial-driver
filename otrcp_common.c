@@ -168,7 +168,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 			       va_list args)
 {
 	int rc;
-	uint16_t offset;
+	size_t offset;
 
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	//  Pack the header, command and key
