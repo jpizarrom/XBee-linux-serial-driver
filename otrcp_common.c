@@ -30,8 +30,8 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 			return -ENOMEM;                                                            \
 		}                                                                                  \
                                                                                                    \
-		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, arg,        \
-					    expected, postproc, ctx, fmt, __VA_ARGS__);          \
+		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, arg, expected, postproc, ctx,   \
+					    fmt, __VA_ARGS__);                                     \
 	} while (0);
 
 #define SPINEL_PROP_IMPL_V(prop, rcp, cmd, postproc, ctx, ...)                                     \
@@ -372,8 +372,8 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	if (!skb)
 		return -ENOMEM;
 
-	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, "C", arg,
-				    &expected, postproc_return, NULL, spinel_data_format_str_RESET,
+	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, "C", arg, &expected,
+				    postproc_return, NULL, spinel_data_format_str_RESET,
 				    SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				    reset);
 }
@@ -700,7 +700,8 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 	return len;
 }
 
-int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, spinel_size_t *data_len)
+int otrcp_unpack_received_data(const uint8_t *buf, size_t len, const uint8_t **data,
+			       spinel_size_t *data_len)
 {
 	uint8_t hdr;
 	uint32_t cmd;

@@ -109,9 +109,9 @@ int otrcp_set_hw_addr_filt(struct ieee802154_hw *hw, struct ieee802154_hw_addr_f
 			   unsigned long changed);
 
 int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t count);
-int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data,
+int otrcp_unpack_received_data(const uint8_t *buf, size_t len, const uint8_t **data,
 			       spinel_size_t *data_len);
-			       
+
 static inline uint32_t otrcp_spinel_expected_command(uint32_t cmd)
 {
 	switch (cmd) {
