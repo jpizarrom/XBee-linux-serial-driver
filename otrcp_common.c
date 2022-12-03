@@ -166,7 +166,7 @@ static int postproc_array_unpack_uint8(void *ctx, const uint8_t *buf, size_t len
 }
 
 static int otrcp_format_command(uint8_t *buf, size_t len, uint32_t cmd, union spinel_cmdarg cmdarg,
-			       spinel_tid_t tid, const char *format, va_list args)
+				spinel_tid_t tid, const char *format, va_list args)
 {
 	uint8_t *buf_begin = buf;
 	int rc;
@@ -180,9 +180,7 @@ static int otrcp_format_command(uint8_t *buf, size_t len, uint32_t cmd, union sp
 	buf += rc;
 	len -= rc;
 
-	if (cmd == SPINEL_CMD_RESET) {
-		rc = spinel_datatype_pack(buf, len, spinel_command_args_format[cmd], cmdarg.reset);
-	} else if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
+	if (cmd == SPINEL_CMD_PROP_VALUE_SET) {
 		rc = spinel_datatype_pack(buf, len, spinel_command_args_format[cmd], cmdarg.prop);
 		if (rc < 0)
 			return rc;
@@ -193,6 +191,8 @@ static int otrcp_format_command(uint8_t *buf, size_t len, uint32_t cmd, union sp
 		rc = spinel_datatype_vpack(buf, len, format, args);
 	} else if (cmd == SPINEL_CMD_PROP_VALUE_GET) {
 		rc = spinel_datatype_pack(buf, len, spinel_command_args_format[cmd], cmdarg.prop);
+	} else if (cmd == SPINEL_CMD_RESET) {
+		rc = spinel_datatype_pack(buf, len, spinel_command_args_format[cmd], cmdarg.reset);
 	} else {
 		rc = -EINVAL;
 	}
@@ -218,8 +218,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, union spi
 	uint8_t *send_buf;
 	int rc;
 
-	send_buf = kmalloc(spinel_max_frame_size, GFP_KERNEL);
-	if (!send_buf)
+	if (!(send_buf = kmalloc(spinel_max_frame_size, GFP_KERNEL)))
 		return -ENOMEM;
 
 	if (pexpected) {
@@ -231,8 +230,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, union spi
 		expected.offset = skb->len;
 	}
 
-	rc = otrcp_format_command(send_buf, send_buflen, cmd, cmdarg, tid, fmt, args);
-	if (rc < 0)
+	if ((rc = otrcp_format_command(send_buf, send_buflen, cmd, cmdarg, tid, fmt, args)) < 0)
 		goto exit;
 
 	memcpy(skb_put(skb, rc), send_buf, rc);
@@ -251,16 +249,15 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	size_t recv_buflen = spinel_max_frame_size;
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
-	struct otrcp_received_data_verify expected;
+	struct otrcp_received_data_verify info;
 	uint8_t header;
 	uint32_t cmd;
 	spinel_tid_t tid;
 
-	expected =
-		*((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(expected)));
+	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 
-	if ((rc = spinel_datatype_unpack(skb->data + expected.offset, skb->len - expected.offset,
-					 "Ci", &header, &cmd)) < 0)
+	if ((rc = spinel_datatype_unpack(skb->data + info.offset, skb->len - info.offset, "Ci",
+					 &header, &cmd)) < 0)
 		return rc;
 
 	tid = SPINEL_HEADER_GET_TID(header);
@@ -269,18 +266,16 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	if (!recv_buffer)
 		return -ENOMEM;
 
-	if ((rc = rcp->send(rcp, skb->data + expected.offset,
-			    skb->len - (sizeof(expected) + expected.offset), &sent_bytes)) < 0) {
+	if ((rc = rcp->send(rcp, skb->data + info.offset, skb->len - (sizeof(info) + info.offset),
+			    &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
 
-	//if (cmd == SPINEL_CMD_PROP_VALUE_GET || cmd == SPINEL_CMD_PROP_VALUE_SET) {
-		skb_queue_tail(&rcp->xmit_queue, skb);
-	//}
+	skb_queue_tail(&rcp->xmit_queue, skb);
 
-	if (expected.enabled)
-		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &expected);
+	if (info.enabled)
+		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes, &info);
 
 	if (rc < 0) {
 		dev_dbg(rcp->parent, "%s rc=%d\n", __func__, rc);
@@ -330,8 +325,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 	union spinel_cmdarg arg = {.prop = SPINEL_PROP_STREAM_RAW};
 	struct sk_buff *skb;
 
-	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
-	if (!skb)
+	if (!(skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL)))
 		return -ENOMEM;
 
 	memcpy(skb_put(skb, frame_len), frame, frame_len);
@@ -352,8 +346,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	union spinel_cmdarg arg = {.reset = reset};
 	struct sk_buff *skb;
 
-	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
-	if (!skb)
+	if (!(skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL)))
 		return -ENOMEM;
 
 	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, arg, &expected, postproc_return,
@@ -779,9 +772,10 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 
 				return kSpinelReceiveDone;
 			} else {
-				//if (cmd = otrcp_spinel_expected_command(expected_cmd)) {
-					pr_debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n",  otrcp_spinel_expected_command(expected_cmd));
-					skb = skb_dequeue(&rcp->xmit_queue);
+				// if (cmd = otrcp_spinel_expected_command(expected_cmd)) {
+				pr_debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n",
+					 otrcp_spinel_expected_command(expected_cmd));
+				skb = skb_dequeue(&rcp->xmit_queue);
 				//}
 				return kSpinelReceiveNotification;
 			}
