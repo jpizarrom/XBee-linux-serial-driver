@@ -171,7 +171,7 @@ static int otrcp_format_command(uint8_t *buf, size_t len, uint32_t cmd, union sp
 	uint8_t *buf_begin = buf;
 	int rc;
 
-	rc = spinel_datatype_pack(buf, len, "Ci", SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid,
+	rc = spinel_datatype_pack(buf, len, SPINEL_DATATYPE_COMMAND_S, SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid,
 				  cmd);
 
 	if (rc < 0)
@@ -256,7 +256,7 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 
-	if ((rc = spinel_datatype_unpack(skb->data + info.offset, skb->len - info.offset, "Ci",
+	if ((rc = spinel_datatype_unpack(skb->data + info.offset, skb->len - info.offset, SPINEL_DATATYPE_COMMAND_S,
 					 &header, &cmd)) < 0)
 		return rc;
 
@@ -553,10 +553,10 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 	return 0;
 }
 
-static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
+static int otrcp_parse_radio_frame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
 			   uint8_t *channel, int8_t *lqi)
 {
-	spinel_size_t size = spinel_max_frame_size; // OT_RADIO_FRAME_MAX_SIZE;
+	spinel_size_t size = spinel_max_frame_size;
 	const uint8_t *buf_begin = buf;
 	unsigned int receiveError = 0;
 	int8_t noiseFloor = -128;
@@ -584,13 +584,13 @@ static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, st
 		work, &size, &rssi, &noiseFloor, &flags,
 		channel, lqi, &timestamp, &receiveError);
 
-	memcpy(skb_put(skb, size), work, size);
-
 	if (rc < 0)
 		goto exit;
 
 	buf += rc;
 	len -= rc;
+
+	memcpy(skb_put(skb, size), work, size);
 
 	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
 		uint32_t ackFrameCounter;
@@ -614,53 +614,43 @@ exit:
 	return (buf-buf_begin);
 }
 
-static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, size_t len)
+static int otrcp_parse_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, size_t len)
 {
 	bool headerUpdated = false;
 	bool framePending = false;
 	spinel_status_t status;
 	struct sk_buff *skb;
 	uint8_t channel;
-	int unpacked;
 	int8_t lqi;
+	int rc;
 
-	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
+	rc = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
+	if (rc < 0)
+		return rc;
 
-	dev_dbg(rcp->parent, "status=%d %d\n", status, unpacked);
+	buf += rc;
+	len -= rc;
 
-	if (unpacked < 0)
-		return -1;
+	rc = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &framePending);
+	if (rc < 0)
+		return rc;
 
-	buf += unpacked;
-	len -= unpacked;
+	buf += rc;
+	len -= rc;
 
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &framePending);
-	if (unpacked < 0)
-		return -1;
+	rc = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &headerUpdated);
+	if (rc < 0)
+		return rc;
 
-	dev_dbg(rcp->parent, "framePending=%d %d\n", framePending, unpacked);
-
-	buf += unpacked;
-	len -= unpacked;
-
-	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_BOOL_S, &headerUpdated);
-	if (unpacked < 0)
-		return -1;
-
-	dev_dbg(rcp->parent, "headerUpdated=%d\n", headerUpdated);
-
-	buf += unpacked;
-	len -= unpacked;
+	buf += rc;
+	len -= rc;
 
 	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
-
-	unpacked = ParseRadioFrame(rcp, buf, len, skb, &channel, &lqi);
-
+	rc = otrcp_parse_radio_frame(rcp, buf, len, skb, &channel, &lqi);
 	kfree_skb(skb);
 
-	buf += unpacked;
-	len -= unpacked;
+	buf += rc;
+	len -= rc;
 
 	print_hex_dump(KERN_INFO, "raw_resp>>: ", DUMP_PREFIX_NONE, 16, 1, buf, len, true);
 	return len;
@@ -701,7 +691,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 	spinel_prop_key_t expected_key;
 	uint32_t offset = 0;
 
-	if ((rc = spinel_datatype_unpack(buf, count, "Ci", &header, &cmd)) < 0) {
+	if ((rc = spinel_datatype_unpack(buf, count, SPINEL_DATATYPE_COMMAND_S, &header, &cmd)) < 0) {
 		return -1;
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
@@ -715,7 +705,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 			offset = expected.offset;
 		}
 
-		if ((rc = spinel_datatype_unpack(skb->data + offset, skb->len - offset, "Ci",
+		if ((rc = spinel_datatype_unpack(skb->data + offset, skb->len - offset, SPINEL_DATATYPE_COMMAND_S,
 						 &header, &expected_cmd)) < 0) {
 			return -1;
 		}
@@ -723,7 +713,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 		if (expected_cmd == SPINEL_CMD_PROP_VALUE_GET ||
 		    expected_cmd == SPINEL_CMD_PROP_VALUE_SET) {
 			if ((rc = spinel_datatype_unpack(skb->data + offset, skb->len - offset,
-							 "Cii", &header, &expected_cmd,
+							SPINEL_DATATYPE_COMMAND_PROP_S, &header, &expected_cmd,
 							 &expected_key)) < 0) {
 				return -1;
 			}
@@ -749,7 +739,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 					 __LINE__);
 				print_hex_dump(KERN_INFO, "data>>: ", DUMP_PREFIX_NONE, 16, 1, data,
 					       len, true);
-				rc = ParseRadioFrame(rcp, data, len, skb, &chan, &lqi);
+				rc = otrcp_parse_radio_frame(rcp, data, len, skb, &chan, &lqi);
 				// skb_trim(skb, skb->len - 2);
 				print_hex_dump(KERN_INFO, "payl>>: ", DUMP_PREFIX_NONE, 16, 1,
 					       skb->data, skb->len, true);
@@ -803,7 +793,7 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 				    memcmp(skb->data, rcp->tx_skb->data, skb->len) == 0) {
 					print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16,
 						       1, skb->data, skb->len, true);
-					extract_stream_raw_response(rcp, data, len);
+					otrcp_parse_stream_raw_response(rcp, data, len);
 					pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
 					ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
 					return kSpinelReceiveDone;
@@ -1026,8 +1016,8 @@ void otrcp_stop(struct ieee802154_hw *hw)
 int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct otrcp *rcp = hw->priv;
-	int rc = 0;
 	spinel_tid_t tid;
+	int rc;
 
 	dev_dbg(rcp->parent, "%s %p\n", __func__, skb);
 
