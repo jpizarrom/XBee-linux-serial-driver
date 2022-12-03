@@ -189,7 +189,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	offset = rc;
 
 	if (command == SPINEL_CMD_RESET) {
-		tid = 0;
 		rc = spinel_datatype_pack(buffer+offset, length-offset, "C", key.reset);
 	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
 		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
