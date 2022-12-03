@@ -16,7 +16,7 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 	ieee802154_xmit_error(hw, skb, 0xff);
 }
 
-#define SPINEL_IMPL_V(property, rcp, cmd, cmdfmt, expected, postproc, ctx, fmt, ...)               \
+#define SPINEL_IMPL_V(property, rcp, cmd, expected, postproc, ctx, fmt, ...)               \
 	do {                                                                                       \
 		struct sk_buff *skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                \
 		union spinel_cmdarg arg = {.prop = property};                                      \
@@ -25,7 +25,7 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 			return -ENOMEM;                                                            \
 		}                                                                                  \
                                                                                                    \
-		return otrcp_spinel_command(rcp, skb, cmd, cmdfmt, arg, expected, postproc, ctx,   \
+		return otrcp_spinel_command(rcp, skb, cmd, arg, expected, postproc, ctx,   \
 					    fmt, __VA_ARGS__);                                     \
 	} while (0);
 
@@ -36,7 +36,7 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 			true,                                                                      \
 			true,                                                                      \
 		};                                                                                 \
-		SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, "i", &expected, postproc, \
+		SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, &expected, postproc, \
 			      ctx, CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__)        \
 	} while (0);
 
@@ -78,6 +78,13 @@ FORMAT_STRING(STREAM_RAW, (SPINEL_DATATYPE_DATA_WLEN_S  // Frame data
 			   SPINEL_DATATYPE_BOOL_S       // SkipAes
 			   SPINEL_DATATYPE_UINT32_S     // TxDelay
 			   SPINEL_DATATYPE_UINT32_S))   // TxDelayBaseTime
+
+static const char* spinel_command_arg_format[] = {
+	NULL, //SPINEL_CMD_NOOP = 0
+	SPINEL_DATATYPE_UINT8_S,       // SPINEL_CMD_RESET = 1
+	SPINEL_DATATYPE_UINT_PACKED_S, // SPINEL_CMD_PROP_VALUE_GET = 2,
+	SPINEL_DATATYPE_UINT_PACKED_S, // SPINEL_CMD_PROP_VALUE_SET = 3,
+};
 
 
 typedef int (*postproc_func)(void *ctx, const uint8_t *buf, size_t len, size_t capacity,
@@ -163,7 +170,7 @@ static int postproc_array_unpack_uint8(void *ctx, const uint8_t *buf, size_t len
 					  sizeof(uint8_t));
 }
 
-static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command, const char *argfmt,
+static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 			       union spinel_cmdarg key, spinel_tid_t tid, const char *format,
 			       va_list args)
 {
@@ -180,9 +187,9 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	length -= rc;
 
 	if (command == SPINEL_CMD_RESET) {
-		rc = spinel_datatype_pack(buffer, length, "C", key.reset);
+		rc = spinel_datatype_pack(buffer, length, spinel_command_arg_format[command], key.reset);
 	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
-		rc = spinel_datatype_pack(buffer, length, "i", key.prop);
+		rc = spinel_datatype_pack(buffer, length, spinel_command_arg_format[command], key.prop);
 		if (rc < 0)
 			return rc;
 
@@ -191,7 +198,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 		rc = spinel_datatype_vpack(buffer, length, format, args);
 	} else if (command == SPINEL_CMD_PROP_VALUE_GET) {
-		rc = spinel_datatype_pack(buffer, length, "i", key.prop);
+		rc = spinel_datatype_pack(buffer, length, spinel_command_arg_format[command], key.prop);
 	} else {
 		rc = -EINVAL;
 	}
@@ -206,7 +213,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	return (buffer - buffer_begin);
 }
 
-static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uint8_t *cmdfmt,
+static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd,
 				      union spinel_cmdarg key, struct sk_buff *skb,
 				      postproc_func postproc, void *ctx,
 				      struct otrcp_received_data_verify *pexpected, const char *fmt,
@@ -231,7 +238,7 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uin
 		expected.offset = skb->len;
 	}
 
-	rc = spinel_prop_command(send_buffer, send_buflen, cmd, cmdfmt, key, tid, fmt, args);
+	rc = spinel_prop_command(send_buffer, send_buflen, cmd, key, tid, fmt, args);
 	if (rc < 0)
 		goto exit;
 
@@ -296,7 +303,7 @@ exit:
 }
 
 static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t cmd,
-				const uint8_t *cmdfmt, union spinel_cmdarg key,
+				union spinel_cmdarg key,
 				struct otrcp_received_data_verify *expected, postproc_func postproc,
 				void *ctx, const char *fmt, ...)
 {
@@ -305,7 +312,7 @@ static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t
 
 	va_start(args, fmt);
 
-	rc = otrcp_format_command_skb_v(rcp, cmd, cmdfmt, key, skb, postproc, ctx, expected, fmt,
+	rc = otrcp_format_command_skb_v(rcp, cmd, key, skb, postproc, ctx, expected, fmt,
 					args);
 	if (rc >= 0) {
 		rc = otrcp_spinel_send_command_v(rcp, skb, postproc, ctx, fmt, args);
@@ -337,7 +344,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 
 	memcpy(skb_put(skb, frame_len), frame, frame_len);
 
-	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_PROP_VALUE_SET, "i", arg, NULL,
+	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_PROP_VALUE_SET, arg, NULL,
 				  postproc_stream_raw_tid, ptid, spinel_data_format_str_STREAM_RAW,
 				  frame, frame_len, channel, backoffs, retries, csmaca,
 				  headerupdate, aretx, skipaes, txdelay, txdelay_base);
@@ -357,7 +364,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	if (!skb)
 		return -ENOMEM;
 
-	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, "C", arg, &expected,
+	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, arg, &expected,
 				    postproc_return, NULL, spinel_data_format_str_RESET,
 				    SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				    reset);
