@@ -173,8 +173,8 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	//  Pack the header, command and key
-	packed = spinel_datatype_pack(buffer, length, "Cii",
-				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command, key.prop);
+	packed = spinel_datatype_pack(buffer, length, "Ci",
+				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command);
 
 	if (packed < 0) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
@@ -187,6 +187,20 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	}
 
 	offset = packed;
+
+	packed = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+
+	if (packed < 0) {
+		pr_debug("%s: %d\n", __func__, __LINE__);
+		return packed;
+	}
+
+	if (!(packed > 0 && packed <= sizeof(buffer))) {
+		pr_debug("%s: %d\n", __func__, __LINE__);
+		return -ENOBUFS;
+	}
+
+	offset += packed;
 
 	// Pack the data (if any)
 	if (format) {
