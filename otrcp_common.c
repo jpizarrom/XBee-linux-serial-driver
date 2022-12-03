@@ -36,33 +36,24 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 					    expected, postproc, ctx, (fmt), __VA_ARGS__);          \
 	} while (0);
 
-#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                           \
+#define SPINEL_PROP_IMPL_V(prop, rcp, cmd, postproc, ctx, ...)                           \
 	do {                                                                                       \
-		SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, "i", expected, postproc,  \
+		struct otrcp_received_data_verify expected = {                                     \
+			true,                                                                      \
+			true,                                                                      \
+			true,                                                                      \
+		};                                                                                 \
+		SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, "i", &expected, postproc,  \
 			      ctx, CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__)        \
 	} while (0);
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	do {                                                                                       \
-		struct otrcp_received_data_verify expected = {                                     \
-			true,                                                                      \
-			true,                                                                      \
-			true,                                                                      \
-		};                                                                                 \
-		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,                \
+		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET,                \
 				   postproc_unpack, NULL, __VA_ARGS__)                             \
-	} while (0);
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	do {                                                                                       \
-		struct otrcp_received_data_verify expected = {                                     \
-			true,                                                                      \
-			true,                                                                      \
-			true,                                                                      \
-		};                                                                                 \
-		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected,                \
+		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET,               \
 				   postproc_return, NULL, __VA_ARGS__)                             \
-	} while (0);
 
 #define FORMAT_STRING(prop, format)                                                                \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
@@ -401,26 +392,16 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
-	struct otrcp_received_data_verify expected = {
-		true,
-		true,
-		true,
-	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
-	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
+	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET,
 			   postproc_array_unpack_packed_int, &datalen, caps, caps_len);
 }
 
 static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_supported,
 					size_t chan_len)
 {
-	struct otrcp_received_data_verify expected = {
-		true,
-		true,
-		true,
-	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
-	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
+	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET,
 			   postproc_array_unpack_uint8, &datalen, phy_chan_supported, chan_len);
 }
 
