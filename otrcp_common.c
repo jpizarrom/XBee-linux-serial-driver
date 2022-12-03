@@ -1023,13 +1023,13 @@ int otrcp_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	rcp->tx_skb = skb;
 
-	pr_debug("orig_offset=%d\n", skb->len);
-	print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
+	//pr_debug("orig_offset=%d\n", skb->len);
+	//print_hex_dump(KERN_INFO, "xmit>>: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len, true);
 	rc = otrcp_set_stream_raw(rcp, &tid, skb->data, skb->len, hw->phy->current_channel, 4, 15,
 				  !!(hw->flags & IEEE802154_HW_CSMA_PARAMS), false, false, false, 0,
 				  0);
 
-	dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
+	//dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
