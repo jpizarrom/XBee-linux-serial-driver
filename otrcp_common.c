@@ -168,55 +168,55 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 			       union spinel_cmdarg key, spinel_tid_t tid, const char *format,
 			       va_list args)
 {
-	int packed;
+	int rc;
 	uint16_t offset;
 
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	//  Pack the header, command and key
-	packed = spinel_datatype_pack(buffer, length, "Ci",
+	rc = spinel_datatype_pack(buffer, length, "Ci",
 				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command);
 
-	if (packed < 0) {
+	if (rc < 0) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
-		return packed;
+		return rc;
 	}
 
-	if (!(packed > 0 && packed <= sizeof(buffer))) {
-		pr_debug("%s: %d\n", __func__, __LINE__);
-		return -ENOBUFS;
-	}
-
-	offset = packed;
-
-	packed = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
-
-	if (packed < 0) {
-		pr_debug("%s: %d\n", __func__, __LINE__);
-		return packed;
-	}
-
-	if (!(packed > 0 && packed <= sizeof(buffer))) {
+	if (!(rc > 0 && rc <= sizeof(buffer))) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
 		return -ENOBUFS;
 	}
 
-	offset += packed;
+	offset = rc;
+
+	rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+
+	if (rc < 0) {
+		pr_debug("%s: %d\n", __func__, __LINE__);
+		return rc;
+	}
+
+	if (!(rc > 0 && rc <= sizeof(buffer))) {
+		pr_debug("%s: %d\n", __func__, __LINE__);
+		return -ENOBUFS;
+	}
+
+	offset += rc;
 
 	// Pack the data (if any)
 	if (format) {
-		packed = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
+		rc = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
 
-		if (packed < 0) {
+		if (rc < 0) {
 			pr_debug("%s: %d\n", __func__, __LINE__);
-			return packed;
+			return rc;
 		}
 
-		if (!(packed > 0 && (packed + offset) <= length)) {
+		if (!(rc > 0 && (rc + offset) <= length)) {
 			pr_debug("%s: %d\n", __func__, __LINE__);
 			return -ENOBUFS;
 		}
 
-		offset += packed;
+		offset += rc;
 	}
 
 	pr_debug("end %s:%d\n", __func__, __LINE__);
