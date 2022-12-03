@@ -257,17 +257,13 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	size_t sent_bytes = 0;
 	size_t received_bytes = 0;
 	struct otrcp_received_data_verify expected;
-	size_t verify_size = sizeof(struct otrcp_received_data_verify);
 	uint8_t header;
 	uint32_t cmd;
 	spinel_tid_t tid;
-	size_t offset;
 
-	offset = skb->len - sizeof(struct otrcp_received_data_verify);
-	expected = *((struct otrcp_received_data_verify *)(skb->data + offset));
-	offset = expected.offset;
+	expected = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(expected)));
 
-	if ((rc = spinel_datatype_unpack(skb->data + offset, skb->len - offset, "Ci", &header,
+	if ((rc = spinel_datatype_unpack(skb->data + expected.offset, skb->len - expected.offset, "Ci", &header,
 					 &cmd)) < 0) {
 		return rc;
 	}
@@ -279,10 +275,10 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	tid = SPINEL_HEADER_GET_TID(header);
 
-	expected = *((struct otrcp_received_data_verify *)(skb->data + (skb->len - verify_size)));
+	expected = *((struct otrcp_received_data_verify *)(skb->data + (skb->len - sizeof(expected))));
 
 	if ((rc = rcp->send(rcp, skb->data + expected.offset,
-			    skb->len - (verify_size + expected.offset), &sent_bytes)) < 0) {
+			    skb->len - (sizeof(expected) + expected.offset), &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
