@@ -556,20 +556,20 @@ static int otrcp_check_rcp_supported(struct otrcp *rcp)
 static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, struct sk_buff *skb,
 			   uint8_t *channel, int8_t *lqi)
 {
-	int rc = 0;
-	uint16_t flags = 0;
-	int8_t noiseFloor = -128;
 	spinel_size_t size = spinel_max_frame_size; // OT_RADIO_FRAME_MAX_SIZE;
+	const uint8_t *buf_begin = buf;
 	unsigned int receiveError = 0;
-	spinel_ssize_t unpacked;
-	int8_t rssi = 0;
+	int8_t noiseFloor = -128;
 	uint64_t timestamp = 0;
-	uint32_t ackFrameCounter;
-	uint8_t ackKeyId;
+	uint16_t flags = 0;
+	int8_t rssi = 0;
+	uint8_t *work;
+	int rc = 0;
+       	
+	if (!(work = kmalloc(spinel_max_frame_size, GFP_KERNEL)))
+		return -ENOMEM;
 
-	uint8_t *work = kmalloc(spinel_max_frame_size, GFP_KERNEL);
-
-	unpacked = spinel_datatype_unpack_in_place(buf, len,
+	rc = spinel_datatype_unpack_in_place(buf, len,
 		SPINEL_DATATYPE_DATA_WLEN_S		// Frame
 		SPINEL_DATATYPE_INT8_S			// RSSI
 		SPINEL_DATATYPE_INT8_S			// Noise Floor
@@ -586,54 +586,43 @@ static int ParseRadioFrame(struct otrcp *rcp, const uint8_t *buf, size_t len, st
 
 	memcpy(skb_put(skb, size), work, size);
 
-	rc = unpacked;
-	if (unpacked < 0) {
+	if (rc < 0)
 		goto exit;
-	}
 
-	buf += unpacked;
-	len -= unpacked;
+	buf += rc;
+	len -= rc;
 
 	if (receiveError == 0 && (rcp->radio_caps & OT_RADIO_CAPS_TRANSMIT_SEC)) {
-		pr_debug("TRANSMIT_SEC\n");
-		unpacked = spinel_datatype_unpack_in_place( buf, len,
+		uint32_t ackFrameCounter;
+		uint8_t ackKeyId;
+		rc = spinel_datatype_unpack_in_place( buf, len,
 			SPINEL_DATATYPE_STRUCT_S(	 // MAC-data
 				SPINEL_DATATYPE_UINT8_S	 // Security key index
 				SPINEL_DATATYPE_UINT32_S // Security frame counter
 			),
 			&ackKeyId, &ackFrameCounter);
 
-		if (unpacked < 0) {
-			rc = unpacked;
+		if (rc < 0)
 			goto exit;
-		}
 
-		rc += unpacked;
+		buf += rc;
+		len -= rc;
 	}
 
-	pr_debug("Channel %u", *channel);
-	pr_debug("LQI %u", *lqi);
-	pr_debug("data size %d", size);
-	pr_debug("RSSI %d", rssi);
-	pr_debug("noiseFloor %d", noiseFloor);
-	pr_debug("flags %x", flags);
-	pr_debug("Timestamp %llu", timestamp);
-	pr_debug("AckKeyId %u", ackKeyId);
-	pr_debug("AckFrameCounter %u", ackFrameCounter);
-
 exit:
-	return rc;
+	kfree(work);
+	return (buf-buf_begin);
 }
 
 static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, size_t len)
 {
-	int unpacked;
-	spinel_status_t status;
-	bool framePending = false;
 	bool headerUpdated = false;
-	int8_t lqi;
-	uint8_t channel;
+	bool framePending = false;
+	spinel_status_t status;
 	struct sk_buff *skb;
+	uint8_t channel;
+	int unpacked;
+	int8_t lqi;
 
 	dev_dbg(rcp->parent, "start %s:%d\n", __func__, __LINE__);
 	unpacked = spinel_datatype_unpack(buf, len, SPINEL_DATATYPE_UINT_PACKED_S, &status);
@@ -679,10 +668,10 @@ static int extract_stream_raw_response(struct otrcp *rcp, const uint8_t *buf, si
 
 int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, size_t *data_len)
 {
-	uint8_t hdr;
-	uint32_t cmd;
 	spinel_prop_key_t key;
 	spinel_size_t dlen;
+	uint32_t cmd;
+	uint8_t hdr;
 	int rc;
 
 	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, &dlen)) < 0) {
