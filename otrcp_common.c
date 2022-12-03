@@ -21,9 +21,8 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 		struct sk_buff *skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                \
 		union spinel_cmdarg arg = {.prop = property};                                      \
                                                                                                    \
-		if (!skb) {                                                                        \
+		if (!skb)                                                                          \
 			return -ENOMEM;                                                            \
-		}                                                                                  \
                                                                                                    \
 		return otrcp_spinel_send_receive(rcp, skb, cmd, arg, expected, postproc, ctx, fmt, \
 						 __VA_ARGS__);                                     \
@@ -791,8 +790,8 @@ int otrcp_spinel_receive_type(struct otrcp *rcp, const uint8_t *buf, size_t coun
 
 				if (tid == expected_tid && skb->len == rcp->tx_skb->len &&
 				    memcmp(skb->data, rcp->tx_skb->data, skb->len) == 0) {
-					print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16,
-						       1, skb->data, skb->len, true);
+					//print_hex_dump(KERN_INFO, "comp>>: ", DUMP_PREFIX_NONE, 16,
+					//	       1, skb->data, skb->len, true);
 					otrcp_parse_stream_raw_response(rcp, data, len);
 					pr_debug("xmit_complete %d %p\n", tid, rcp->tx_skb);
 					ieee802154_xmit_complete(rcp->hw, rcp->tx_skb, false);
