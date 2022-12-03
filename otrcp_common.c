@@ -188,21 +188,14 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 	offset = rc;
 
-
 	if (command == SPINEL_CMD_RESET) {
 		tid = 0;
 		rc = spinel_datatype_pack(buffer+offset, length-offset, "C", key.reset);
 	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
-		//rcp->tid = tid;
 		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
 		if (rc < 0) {
 			return rc;
 		}
-
-		//if (!(rc > 0 && rc <= sizeof(buffer))) {
-		//	pr_debug("%s: %d\n", __func__, __LINE__);
-		//	return -ENOBUFS;
-		//}
 
 		offset += rc;
 
@@ -219,7 +212,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 		}
 
 	} else if (command == SPINEL_CMD_PROP_VALUE_GET) {
-		//rcp->tid = tid;
 		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
 	} else {
 		rc = -EINVAL;
@@ -229,11 +221,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 		pr_debug("%s: %d\n", __func__, __LINE__);
 		return rc;
 	}
-
-	//if (!(rc > 0 && rc <= sizeof(buffer))) {
-	//	pr_debug("%s: %d\n", __func__, __LINE__);
-	//	return -ENOBUFS;
-	//}
 
 	offset += rc;
 
