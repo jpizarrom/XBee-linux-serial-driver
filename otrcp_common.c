@@ -296,9 +296,6 @@ static int otrcp_spinel_send_receive(struct otrcp *rcp, struct sk_buff *skb, uin
 
 	va_end(args);
 
-	if (rc < 0)
-		kfree_skb(skb);
-
 	return rc;
 }
 

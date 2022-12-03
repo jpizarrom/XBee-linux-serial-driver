@@ -41,14 +41,9 @@ struct hdlc_frame {
 
 struct ttyrcp {
 	struct otrcp otrcp;
-
 	struct tty_struct *tty;
-
 	struct completion wait_response;
-	struct completion wait_notify;
-
 	struct sk_buff_head response_queue;
-	struct sk_buff_head notify_queue;
 };
 
 static void hdlc_frame_update_fcs(struct hdlc_frame *frame, uint8_t byte)
@@ -329,9 +324,8 @@ end:
 	return rc;
 }
 
-static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *received,
-			      struct completion *completion, struct sk_buff_head *queue,
-			      struct otrcp_received_data_verify *expected)
+static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
+				       struct otrcp_received_data_verify *expected)
 {
 	struct ttyrcp *rcp = ctx;
 	struct sk_buff *skb;
@@ -343,8 +337,8 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 
 	*received = 0;
 
-	reinit_completion(completion);
-	rc = wait_for_completion_interruptible_timeout(completion, msecs_to_jiffies(3000));
+	reinit_completion(&rcp->wait_response);
+	rc = wait_for_completion_interruptible_timeout(&rcp->wait_response, msecs_to_jiffies(3000));
 	if (rc <= 0) {
 		// dev_dbg(rcp->otrcp.parent,
 		//	"%d = %s_%s(buf=%p, len=%lu, expected={cmd=%u, key=%u, tid=%u (%d%d%d)})\n",
@@ -359,7 +353,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		return -ETIMEDOUT;
 	}
 
-	while ((skb = skb_dequeue(queue)) != NULL) {
+	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
 		uint8_t *data;
 		size_t data_len;
 
@@ -373,7 +367,7 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 		kfree_skb(skb);
 	}
 
-	while ((skb = skb_dequeue(queue)) != NULL) {
+	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
 		dev_warn(rcp->otrcp.parent, "unexpected response received\n");
 		print_hex_dump_debug("resp<<: ", DUMP_PREFIX_NONE, 16, 1, skb->data, skb->len,
 				     true);
@@ -381,22 +375,6 @@ static int ttyrcp_spinel_wait(void *ctx, uint8_t *buf, size_t len, size_t *recei
 	}
 
 	return rc;
-}
-
-static int ttyrcp_spinel_wait_response(void *ctx, uint8_t *buf, size_t len, size_t *received,
-				       struct otrcp_received_data_verify *expected)
-{
-	struct ttyrcp *rcp = ctx;
-	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_response,
-				  &rcp->response_queue, expected);
-}
-
-static int ttyrcp_spinel_wait_notify(void *ctx, uint8_t *buf, size_t len, size_t *received,
-				     struct otrcp_received_data_verify *expected)
-{
-	struct ttyrcp *rcp = ctx;
-	return ttyrcp_spinel_wait(ctx, buf, len, received, &rcp->wait_notify, &rcp->notify_queue,
-				  expected);
 }
 
 static int ttyrcp_skb_append(struct sk_buff_head *queue, const uint8_t *buf, size_t len)
@@ -468,15 +446,12 @@ static int ttyrcp_ldisc_open(struct tty_struct *tty)
 	rcp->otrcp.tid = 0xFF;
 	rcp->otrcp.send = ttyrcp_spinel_send;
 	rcp->otrcp.wait_response = ttyrcp_spinel_wait_response;
-	rcp->otrcp.wait_notify = ttyrcp_spinel_wait_notify;
 
 	rcp->tty = tty_kref_get(tty);
 	tty_driver_flush_buffer(tty);
 	skb_queue_head_init(&rcp->otrcp.xmit_queue);
-	skb_queue_head_init(&rcp->notify_queue);
 	skb_queue_head_init(&rcp->response_queue);
 	init_completion(&rcp->wait_response);
-	init_completion(&rcp->wait_notify);
 
 	tty->disc_data = rcp;
 	rc = ieee802154_register_hw(hw);
@@ -513,11 +488,7 @@ static int ttyrcp_ldisc_hangup(struct tty_struct *tty)
 
 	dev_dbg(tty->dev, "%s(%p)\n", __func__, tty);
 
-	complete_all(&rcp->wait_notify);
 	complete_all(&rcp->wait_response);
-	while ((skb = skb_dequeue(&rcp->notify_queue)) != NULL) {
-		kfree_skb(skb);
-	}
 	while ((skb = skb_dequeue(&rcp->response_queue)) != NULL) {
 		kfree_skb(skb);
 	}
