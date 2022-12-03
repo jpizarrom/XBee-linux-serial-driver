@@ -167,47 +167,43 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 			       union spinel_cmdarg key, spinel_tid_t tid, const char *format,
 			       va_list args)
 {
+	uint8_t* buffer_begin = buffer;
 	int rc;
-	size_t offset;
 
-	// pr_debug("start %s:%d\n", __func__, __LINE__);
-	//  Pack the header, command and key
 	rc = spinel_datatype_pack(buffer, length, "Ci",
 				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command);
 
-	if (rc < 0) {
-		pr_debug("%s: %d\n", __func__, __LINE__);
+	if (rc < 0)
 		return rc;
-	}
 
-	offset = rc;
+	buffer += rc;
+	length -= rc;
 
 	if (command == SPINEL_CMD_RESET) {
-		rc = spinel_datatype_pack(buffer + offset, length - offset, "C", key.reset);
+		rc = spinel_datatype_pack(buffer, length, "C", key.reset);
 	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
-		rc = spinel_datatype_pack(buffer + offset, length - offset, "i", key.prop);
-		if (rc < 0) {
+		rc = spinel_datatype_pack(buffer, length, "i", key.prop);
+		if (rc < 0)
 			return rc;
-		}
 
-		offset += rc;
+		buffer += rc;
+		length -= rc;
 
-		rc = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
+		rc = spinel_datatype_vpack(buffer, length, format, args);
 	} else if (command == SPINEL_CMD_PROP_VALUE_GET) {
-		rc = spinel_datatype_pack(buffer + offset, length - offset, "i", key.prop);
+		rc = spinel_datatype_pack(buffer, length, "i", key.prop);
 	} else {
 		rc = -EINVAL;
 	}
 
-	if (rc < 0) {
-		pr_debug("%s: %d\n", __func__, __LINE__);
+	if (rc < 0)
 		return rc;
-	}
 
-	offset += rc;
+	buffer += rc;
+	length -= rc;
 
 	pr_debug("end %s:%d\n", __func__, __LINE__);
-	return offset;
+	return (buffer - buffer_begin);
 }
 
 static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uint8_t *cmdfmt,
@@ -695,7 +691,6 @@ int otrcp_unpack_received_data(const uint8_t *buf, size_t len, uint8_t **data, s
 	uint32_t cmd;
 	spinel_prop_key_t key;
 	spinel_size_t dlen;
-
 	int rc;
 
 	if ((rc = spinel_datatype_unpack(buf, len, "CiiD", &hdr, &cmd, &key, data, &dlen)) < 0) {
@@ -871,21 +866,14 @@ int otrcp_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	int rc;
 	pr_debug("%s %d\n", __func__, channel);
 	rc = otrcp_set_phy_chan(hw->priv, channel);
-	pr_debug("%s %d\n", __func__, rc);
-	rc = otrcp_get_phy_chan(hw->priv, &channel);
-	pr_debug("%s %d\n", __func__, channel);
 	return 0;
 }
 
 int otrcp_set_tx_power(struct ieee802154_hw *hw, s32 power)
 {
 	int rc;
-	char pow;
 	pr_debug("%s %d\n", __func__, power);
 	rc = otrcp_set_phy_tx_power(hw->priv, (s8)(power / 100));
-	pr_debug("%s %d\n", __func__, rc);
-	rc = otrcp_get_phy_tx_power(hw->priv, &pow);
-	pr_debug("%s %d\n", __func__, pow);
 	return 0;
 }
 
@@ -898,12 +886,8 @@ int otrcp_set_cca_mode(struct ieee802154_hw *hw, const struct wpan_phy_cca *cca)
 int otrcp_set_cca_ed_level(struct ieee802154_hw *hw, s32 ed_level)
 {
 	int rc;
-	char lv;
 	pr_debug("%s %d\n", __func__, ed_level);
 	rc = otrcp_set_phy_cca_threshold(hw->priv, (s8)(ed_level / 100));
-	pr_debug("%s %d\n", __func__, rc);
-	rc = otrcp_get_phy_cca_threshold(hw->priv, &lv);
-	pr_debug("%s %d\n", __func__, lv);
 	return 0;
 }
 
