@@ -200,27 +200,6 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	return offset;
 }
 
-static int otrcp_put_expected_info(struct sk_buff *skb, uint32_t cmd, spinel_prop_key_t key,
-				   spinel_tid_t tid, size_t offset, size_t len,
-				   struct otrcp_received_data_verify *pexpected)
-
-{
-	struct otrcp_received_data_verify expected = {0};
-
-	if (pexpected) {
-		pexpected->enabled = true;
-	} else {
-		pexpected = &expected;
-		pexpected->enabled = false;
-	}
-	pexpected->offset = offset;
-
-	memcpy(skb_put(skb, sizeof(struct otrcp_received_data_verify)), pexpected,
-	       sizeof(struct otrcp_received_data_verify));
-
-	return 0;
-}
-
 static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_prop_key_t key,
 				      struct sk_buff *skb, postproc_func postproc, void *ctx,
 				      struct otrcp_received_data_verify *pexpected, const char *fmt,
