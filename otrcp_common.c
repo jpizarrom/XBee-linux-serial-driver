@@ -215,7 +215,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	offset += rc;
 
 	// Pack the data (if any)
-	if (format) {
+	if (command == SPINEL_CMD_PROP_VALUE_SET) {
 		rc = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
 
 		if (rc < 0) {
