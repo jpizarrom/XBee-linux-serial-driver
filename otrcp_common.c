@@ -229,6 +229,21 @@ exit:
 	return tid;
 }
 
+static int otrcp_get_internal_data(struct sk_buff *skb, uint8_t **pptr, size_t *plen)
+{
+	struct otrcp_received_data_verify *info;
+
+	if (skb->len < sizeof(info)) {
+		return -ENOBUFS;
+	}
+
+	info = (struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info));
+
+	*pptr = skb->data + info->offset;
+	*plen = skb->len - (info->offset);
+
+	return *plen;
+}
 static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 				       postproc_func postproc, void *ctx, const char *fmt,
 				       va_list args)
@@ -241,12 +256,14 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 	spinel_tid_t tid;
 	uint8_t header;
 	uint32_t cmd;
+	uint8_t *ptr;
+	size_t len;
 	int rc;
 
 	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
+	rc = otrcp_get_internal_data(skb, &ptr, &len);
 
-	if ((rc = spinel_datatype_unpack(skb->data + info.offset, skb->len - info.offset, SPINEL_DATATYPE_COMMAND_S,
-					 &header, &cmd)) < 0)
+	if ((rc = spinel_datatype_unpack(ptr, len, SPINEL_DATATYPE_COMMAND_S, &header, &cmd)) < 0)
 		return rc;
 
 	tid = SPINEL_HEADER_GET_TID(header);
