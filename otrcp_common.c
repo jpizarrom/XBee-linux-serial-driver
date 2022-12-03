@@ -31,7 +31,6 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 			return -ENOMEM;                                                            \
 		}                                                                                  \
                                                                                                    \
-		skb_reserve(skb, sizeof(struct otrcp_received_data_verify));                       \
 		return otrcp_spinel_command(((struct otrcp *)rcp), skb, cmd, cmdfmt, (arg),        \
 					    expected, postproc, ctx, (fmt), __VA_ARGS__);          \
 	} while (0);
@@ -352,8 +351,6 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 		return -ENOMEM;
 	}
 
-	skb_reserve(skb, sizeof(struct otrcp_received_data_verify));
-
 	memcpy(skb_put(skb, frame_len), frame, frame_len);
 
 	rc = otrcp_spinel_command(rcp, skb, SPINEL_CMD_PROP_VALUE_SET, "i", arg, NULL,
@@ -382,7 +379,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	if (!skb) {
 		return -ENOMEM;
 	}
-	return otrcp_spinel_command(((struct otrcp *)rcp), skb, SPINEL_CMD_RESET, "C", arg,
+	return otrcp_spinel_command(rcp, skb, SPINEL_CMD_RESET, "C", arg,
 				    &expected, postproc_return, NULL, spinel_data_format_str_RESET,
 				    SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				    reset);
