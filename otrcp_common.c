@@ -21,44 +21,48 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 	ieee802154_xmit_error(hw, skb, 0xff);
 }
 
-#define SPINEL_IMPL_V(property, rcp, cmd, cmdfmt, expected, postproc, ctx, fmt, ...)                           \
-	do { \
-	struct sk_buff *skb;                                                                       \
-	union spinel_cmdarg arg = { .prop = property }; \
+#define SPINEL_IMPL_V(property, rcp, cmd, cmdfmt, expected, postproc, ctx, fmt, ...)               \
+	do {                                                                                       \
+		struct sk_buff *skb;                                                               \
+		union spinel_cmdarg arg = {.prop = property};                                      \
                                                                                                    \
-	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                                        \
-	if (!skb) {                                                                                \
-		return -ENOMEM;                                                                    \
-	}                                                                                          \
+		skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);                                \
+		if (!skb) {                                                                        \
+			return -ENOMEM;                                                            \
+		}                                                                                  \
                                                                                                    \
-	skb_reserve(skb, sizeof(struct otrcp_received_data_verify));                               \
-	return otrcp_spinel_command(((struct otrcp *)rcp), skb, cmd, cmdfmt,                          \
-				    (arg), expected, postproc, ctx,      \
-				    (fmt), __VA_ARGS__); \
-	} while(0);
+		skb_reserve(skb, sizeof(struct otrcp_received_data_verify));                       \
+		return otrcp_spinel_command(((struct otrcp *)rcp), skb, cmd, cmdfmt, (arg),        \
+					    expected, postproc, ctx, (fmt), __VA_ARGS__);          \
+	} while (0);
 
 #define SPINEL_PROP_IMPL_V(prop, rcp, cmd, expected, postproc, ctx, ...)                           \
-	do { \
-	SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, "i", expected, postproc, ctx, CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__)\
-	} while(0);
+	do {                                                                                       \
+		SPINEL_IMPL_V(CONCATENATE(SPINEL_PROP_, prop), rcp, cmd, "i", expected, postproc,  \
+			      ctx, CONCATENATE(spinel_data_format_str_, prop), __VA_ARGS__)        \
+	} while (0);
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
-	do { \
-	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true,                                                            \
-	};                                                                                         \
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, postproc_unpack, NULL, \
-			   __VA_ARGS__) \
-	} while(0);
+	do {                                                                                       \
+		struct otrcp_received_data_verify expected = {                                     \
+			true,                                                                      \
+			true,                                                                      \
+			true,                                                                      \
+		};                                                                                 \
+		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,                \
+				   postproc_unpack, NULL, __VA_ARGS__)                             \
+	} while (0);
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
-	do { \
-	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true,                                                            \
-	};                                                                                         \
-	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, postproc_return, NULL, \
-			   __VA_ARGS__) \
-	} while(0);
+	do {                                                                                       \
+		struct otrcp_received_data_verify expected = {                                     \
+			true,                                                                      \
+			true,                                                                      \
+			true,                                                                      \
+		};                                                                                 \
+		SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected,                \
+				   postproc_return, NULL, __VA_ARGS__)                             \
+	} while (0);
 
 #define FORMAT_STRING(prop, format)                                                                \
 	static const char CONCATENATE(*spinel_data_format_str_, prop) = format;
@@ -182,7 +186,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	// pr_debug("start %s:%d\n", __func__, __LINE__);
 	//  Pack the header, command and key
 	rc = spinel_datatype_pack(buffer, length, "Ci",
-				      SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command);
+				  SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0 | tid, command);
 
 	if (rc < 0) {
 		pr_debug("%s: %d\n", __func__, __LINE__);
@@ -192,9 +196,9 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	offset = rc;
 
 	if (command == SPINEL_CMD_RESET) {
-		rc = spinel_datatype_pack(buffer+offset, length-offset, "C", key.reset);
+		rc = spinel_datatype_pack(buffer + offset, length - offset, "C", key.reset);
 	} else if (command == SPINEL_CMD_PROP_VALUE_SET) {
-		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+		rc = spinel_datatype_pack(buffer + offset, length - offset, "i", key.prop);
 		if (rc < 0) {
 			return rc;
 		}
@@ -203,7 +207,7 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 
 		rc = spinel_datatype_vpack(buffer + offset, length - offset, format, args);
 	} else if (command == SPINEL_CMD_PROP_VALUE_GET) {
-		rc = spinel_datatype_pack(buffer+offset, length-offset, "i", key.prop);
+		rc = spinel_datatype_pack(buffer + offset, length - offset, "i", key.prop);
 	} else {
 		rc = -EINVAL;
 	}
@@ -219,8 +223,9 @@ static int spinel_prop_command(uint8_t *buffer, size_t length, uint32_t command,
 	return offset;
 }
 
-static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uint8_t* cmdfmt, union spinel_cmdarg key,
-				      struct sk_buff *skb, postproc_func postproc, void *ctx,
+static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, const uint8_t *cmdfmt,
+				      union spinel_cmdarg key, struct sk_buff *skb,
+				      postproc_func postproc, void *ctx,
 				      struct otrcp_received_data_verify *pexpected, const char *fmt,
 				      va_list args)
 {
@@ -270,10 +275,11 @@ static int otrcp_spinel_send_command_v(struct otrcp *rcp, struct sk_buff *skb,
 	uint32_t cmd;
 	spinel_tid_t tid;
 
-	expected = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(expected)));
+	expected =
+		*((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(expected)));
 
-	if ((rc = spinel_datatype_unpack(skb->data + expected.offset, skb->len - expected.offset, "Ci", &header,
-					 &cmd)) < 0) {
+	if ((rc = spinel_datatype_unpack(skb->data + expected.offset, skb->len - expected.offset,
+					 "Ci", &header, &cmd)) < 0) {
 		return rc;
 	}
 	tid = SPINEL_HEADER_GET_TID(header);
@@ -310,16 +316,18 @@ exit:
 	return rc;
 }
 
-static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t cmd, const uint8_t* cmdfmt,
-				union spinel_cmdarg key, struct otrcp_received_data_verify *expected,
-				postproc_func postproc, void *ctx, const char *fmt, ...)
+static int otrcp_spinel_command(struct otrcp *rcp, struct sk_buff *skb, uint32_t cmd,
+				const uint8_t *cmdfmt, union spinel_cmdarg key,
+				struct otrcp_received_data_verify *expected, postproc_func postproc,
+				void *ctx, const char *fmt, ...)
 {
 	va_list args;
 	int rc;
 
 	va_start(args, fmt);
 
-	rc = otrcp_format_command_skb_v(rcp, cmd, cmdfmt, key, skb, postproc, ctx, expected, fmt, args);
+	rc = otrcp_format_command_skb_v(rcp, cmd, cmdfmt, key, skb, postproc, ctx, expected, fmt,
+					args);
 	if (rc < 0) {
 		goto exit;
 	}
@@ -348,7 +356,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 
 	struct sk_buff *skb;
 
-	union spinel_cmdarg arg = { .prop = SPINEL_PROP_STREAM_RAW };
+	union spinel_cmdarg arg = {.prop = SPINEL_PROP_STREAM_RAW};
 
 	skb = alloc_skb(spinel_max_frame_size, GFP_KERNEL);
 	if (!skb) {
@@ -373,9 +381,11 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
 	struct otrcp_received_data_verify expected = {
-		false, false, true,
+		false,
+		false,
+		true,
 	};
-	union spinel_cmdarg arg = { .reset = reset };
+	union spinel_cmdarg arg = {.reset = reset};
 
 	struct sk_buff *skb;
 
@@ -383,8 +393,8 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 	if (!skb) {
 		return -ENOMEM;
 	}
-	return otrcp_spinel_command(((struct otrcp *)rcp), skb, SPINEL_CMD_RESET, "C", arg, &expected,
-				    postproc_return, NULL, spinel_data_format_str_RESET,
+	return otrcp_spinel_command(((struct otrcp *)rcp), skb, SPINEL_CMD_RESET, "C", arg,
+				    &expected, postproc_return, NULL, spinel_data_format_str_RESET,
 				    SPINEL_HEADER_FLAG | SPINEL_HEADER_IID_0, SPINEL_CMD_RESET,
 				    reset);
 }
@@ -392,7 +402,9 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true,
+		true,
+		true,
+		true,
 	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
 	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
@@ -403,7 +415,9 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 					size_t chan_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true,
+		true,
+		true,
+		true,
 	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
 	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
