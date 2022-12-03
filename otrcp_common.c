@@ -31,14 +31,14 @@ static void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *s
 
 #define SPINEL_GET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true, 0, 0,                                                            \
+		true, true, true,                                                            \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected, postproc_unpack, NULL, \
 			   __VA_ARGS__)
 
 #define SPINEL_SET_PROP_IMPL(prop, rcp, ...)                                                       \
 	struct otrcp_received_data_verify expected = {                                             \
-		true, true, true, 0, 0,                                                            \
+		true, true, true,                                                            \
 	};                                                                                         \
 	SPINEL_PROP_IMPL_V(prop, rcp, SPINEL_CMD_PROP_VALUE_SET, &expected, postproc_return, NULL, \
 			   __VA_ARGS__)
@@ -209,7 +209,6 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	spinel_tid_t tid = SPINEL_GET_NEXT_TID(rcp->tid);
 	size_t send_buflen = spinel_max_frame_size;
 	uint8_t *send_buffer;
-	size_t offset;
 	int rc;
 
 	send_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
@@ -217,7 +216,13 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 		return -ENOMEM;
 	}
 
-	offset = skb->len;
+	if (pexpected) {
+		expected = *pexpected;
+		expected.enabled = true;
+	} else {
+		expected.enabled = false;
+	}
+	expected.offset = skb->len;
 
 	if (cmd == SPINEL_CMD_RESET) {
 		rc = spinel_prop_command(send_buffer, send_buflen, cmd, 0, 0, NULL, 0);
@@ -236,15 +241,6 @@ static int otrcp_format_command_skb_v(struct otrcp *rcp, uint32_t cmd, spinel_pr
 	}
 
 	memcpy(skb_put(skb, rc), send_buffer, rc);
-
-	if (pexpected) {
-		expected = *pexpected;
-		expected.enabled = true;
-	} else {
-		expected.enabled = false;
-	}
-	expected.offset = offset;
-
 	memcpy(skb_put(skb, sizeof(expected)), &expected, sizeof(expected));
 exit:
 	kfree(send_buffer);
@@ -373,7 +369,7 @@ static int otrcp_set_stream_raw(struct otrcp *rcp, spinel_tid_t *ptid, const uin
 static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 {
 	struct otrcp_received_data_verify expected = {
-		false, false, true, 0, 0,
+		false, false, true,
 	};
 	struct sk_buff *skb;
 
@@ -390,7 +386,7 @@ static int otrcp_reset(struct otrcp *rcp, uint32_t reset)
 static int otrcp_get_caps(struct otrcp *rcp, uint32_t *caps, size_t caps_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true, 0, 0,
+		true, true, true,
 	};
 	struct data_len datalen = {caps, sizeof(uint32_t) * caps_len};
 	SPINEL_PROP_IMPL_V(CAPS, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
@@ -401,7 +397,7 @@ static int otrcp_get_phy_chan_supported(struct otrcp *rcp, uint8_t *phy_chan_sup
 					size_t chan_len)
 {
 	struct otrcp_received_data_verify expected = {
-		true, true, true, 0, 0,
+		true, true, true,
 	};
 	struct data_len datalen = {phy_chan_supported, chan_len};
 	SPINEL_PROP_IMPL_V(PHY_CHAN_SUPPORTED, rcp, SPINEL_CMD_PROP_VALUE_GET, &expected,
