@@ -274,8 +274,7 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 	if (!recv_buffer)
 		return -ENOMEM;
 
-	if ((rc = rcp->send(rcp, skb->data + info.offset, skb->len - (sizeof(info) + info.offset),
-			    &sent_bytes)) < 0) {
+	if ((rc = rcp->send(rcp, ptr, len, &sent_bytes)) < 0) {
 		dev_dbg(rcp->parent, "end %s:%d\n", __func__, __LINE__);
 		goto exit;
 	}
