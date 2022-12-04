@@ -229,30 +229,33 @@ exit:
 	return tid;
 }
 
-static int otrcp_get_internal_data(struct sk_buff *skb, uint8_t **pptr, size_t *plen)
+static int otrcp_get_internal_data(const uint8_t *buf, size_t len, uint8_t **pptr, size_t *plen)
 {
 	struct otrcp_received_data_verify info;
 
-	if (skb->len < sizeof(info)) {
+	if (len < sizeof(info)) {
 		return -ENOBUFS;
 	}
 
-	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
+	info = *((struct otrcp_received_data_verify *)(buf + len - sizeof(info)));
 
-	*pptr = (((uint8_t*)skb->data) + info.offset);
-	*plen = skb->len - (info.offset + sizeof(info));
+	*pptr = (uint8_t*)(buf + info.offset);
+	*plen = len - (info.offset + sizeof(info));
 
 	return *plen;
 }
 
-static int otrcp_get_tid_cmd_internal(struct sk_buff *skb, spinel_tid_t *ptid, uint32_t *pcmd)
+static int otrcp_get_tid_cmd_internal(const uint8_t *buf, size_t len, spinel_tid_t *ptid, uint32_t *pcmd)
 {
 	uint8_t header;
 	uint8_t *ptr;
-	size_t len;
+	size_t datalen;
 	int rc;
 
-	rc = otrcp_get_internal_data(skb, &ptr, &len);
+	rc = otrcp_get_internal_data(buf, len, &ptr, &datalen);
+	if (rc < 0)
+		return rc;
+
 	if ((rc = spinel_datatype_unpack(ptr, len, SPINEL_DATATYPE_COMMAND_S, &header, pcmd)) < 0) {
 		return rc;
 	}
@@ -276,9 +279,11 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 	size_t len;
 	int rc;
 
-	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
-	rc = otrcp_get_internal_data(skb, &ptr, &len);
-	rc = otrcp_get_tid_cmd_internal(skb, &tid, &cmd);
+	if ((rc = otrcp_get_internal_data(skb->data, skb->len, &ptr, &len)) < 0)
+		return rc;
+
+	if ((rc = otrcp_get_tid_cmd_internal(skb->data, skb->len, &tid, &cmd)) < 0)
+		return rc;
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer)
@@ -291,6 +296,7 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	skb_queue_tail(&rcp->xmit_queue, skb);
 
+	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 	if (info.enabled)
 		rc = rcp->wait_response(rcp, recv_buffer, recv_buflen, &received_bytes);
 
