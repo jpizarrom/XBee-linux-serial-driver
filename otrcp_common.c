@@ -239,7 +239,7 @@ static int otrcp_get_internal_data(struct sk_buff *skb, uint8_t **pptr, size_t *
 
 	info = (struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info));
 
-	*pptr = skb->data + info->offset;
+	*pptr = (skb->data + info->offset);
 	*plen = skb->len - (info->offset + sizeof(info));
 
 	return *plen;
@@ -262,6 +262,8 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 	rc = otrcp_get_internal_data(skb, &ptr, &len);
+
+	pr_debug("------- info.offset %ld data %p, ptr=%p len=%lu\n", info.offset, skb->data+info.offset, ptr, len);
 
 	if ((rc = spinel_datatype_unpack(ptr, len, SPINEL_DATATYPE_COMMAND_S, &header, &cmd)) < 0)
 		return rc;
