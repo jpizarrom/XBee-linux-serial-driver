@@ -244,6 +244,23 @@ static int otrcp_get_internal_data(struct sk_buff *skb, uint8_t **pptr, size_t *
 
 	return *plen;
 }
+
+static int otrcp_get_tid_cmd_internal(struct sk_buff *skb, spinel_tid_t *ptid, uint32_t *pcmd)
+{
+	uint8_t header;
+	uint8_t *ptr;
+	size_t len;
+	int rc;
+
+	rc = otrcp_get_internal_data(skb, &ptr, &len);
+	if ((rc = spinel_datatype_unpack(ptr, len, SPINEL_DATATYPE_COMMAND_S, &header, pcmd)) < 0) {
+		return rc;
+	}
+	*ptid = SPINEL_HEADER_GET_TID(header);
+
+	return rc;
+}
+
 static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 				       postproc_func postproc, void *ctx, const char *fmt,
 				       va_list args)
@@ -254,7 +271,6 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 	size_t sent_bytes = 0;
 	uint8_t *recv_buffer;
 	spinel_tid_t tid;
-	uint8_t header;
 	uint32_t cmd;
 	uint8_t *ptr;
 	size_t len;
@@ -262,13 +278,7 @@ static int otrcp_spinel_send_receive_v(struct otrcp *rcp, struct sk_buff *skb,
 
 	info = *((struct otrcp_received_data_verify *)(skb->data + skb->len - sizeof(info)));
 	rc = otrcp_get_internal_data(skb, &ptr, &len);
-
-	pr_debug("------- info.offset %ld data %p, ptr=%p len=%lu\n", info.offset, (skb->data+info.offset), ptr, len);
-
-	if ((rc = spinel_datatype_unpack(ptr, len, SPINEL_DATATYPE_COMMAND_S, &header, &cmd)) < 0)
-		return rc;
-
-	tid = SPINEL_HEADER_GET_TID(header);
+	rc = otrcp_get_tid_cmd_internal(skb, &tid, &cmd);
 
 	recv_buffer = kmalloc(spinel_max_frame_size, GFP_KERNEL);
 	if (!recv_buffer)
